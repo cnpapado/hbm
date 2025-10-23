@@ -4,7 +4,11 @@ import random
 import numpy as np
 from .architecture import vertical_neighbors, horizontal_neighbors
 import rustworkx as rx
+import os
 
+#HBM = False
+HBM = os.getenv("HBM", "0") == "1"
+print("HBM enabled", HBM)
 
 def route_gate(
     indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, take_first_ms
@@ -25,6 +29,8 @@ def route_gate(
                 mapping[gate[1]], grid_len, grid_height, omitted_edges=[]
             )
         ]
+    elif len(gate) == 1 and HBM:
+        return ([(id, gate, [])], to_remove)
     else:
         sorted_msf = sorted(
             msf_faces,
@@ -105,7 +111,10 @@ def initialize_to_remove(msf_faces, mapping):
 def shortest_path(gate, mapping, grid_len, grid_height, msf_faces):
     shortest_path_len = 2**31 - 1
     if len(gate) == 1:
-        return shortest_path_len
+        if HBM:
+            return 0
+        else:
+            return shortest_path_len
     if len(gate) == 2:
         pairs = [
             (vn, hn)
@@ -172,12 +181,15 @@ def build_crit_dict_fast(gates: list[int]) -> dict[int, int]:
     last_id_per_qubit: dict[int, int] = {}
     for id in range(len(gates) - 1, -1, -1):
         gate = gates[id]
-        max_crit = 1
-        for qubit in gate:
-            if qubit not in last_id_per_qubit:
-                continue
-            max_crit = max(max_crit, crit_dict[last_id_per_qubit[qubit]] + 1)
-        crit_dict[id] = max_crit
+        if len(gate) == 1 and HBM:
+            crit_dict[id] = 0
+        else:
+            max_crit = 1
+            for qubit in gate:
+                if qubit not in last_id_per_qubit:
+                    continue
+                max_crit = max(max_crit, crit_dict[last_id_per_qubit[qubit]] + 1)
+            crit_dict[id] = max_crit
         for qubit in gate:
             last_id_per_qubit[qubit] = id
     return crit_dict
