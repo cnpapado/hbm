@@ -22,10 +22,10 @@ def insert_column_left(arch):
         # need to count first row
         row = q // arch['width']+1
         new['alg_qubits'].append(q+row)
-    for m in arch['alg_qubits']:
+    for m in arch['magic_states']:
         # need to count first row
         row = m // arch['width']+1
-        new['magic_states'].append(q+row)
+        new['magic_states'].append(m+row)
     return new
 
 def insert_column_right(arch):
@@ -37,10 +37,10 @@ def insert_column_right(arch):
         # now don't coount the one in my row
         row = q // arch['width']
         new['alg_qubits'].append(q+row)
-    for m in arch['alg_qubits']:
+    for m in arch['magic_states']:
         # don't coujnt my row
         row = m // arch['width']
-        new['magic_states'].append(q+row)
+        new['magic_states'].append(m+row)
     return new
 
 def center_column(width, height):
