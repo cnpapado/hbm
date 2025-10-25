@@ -1,0 +1,36 @@
+ === Results Summary ===
+
+bv_n200               magic=None  hbm=None
+alu-v0_26             magic=35  hbm=35
+ising_model_10        magic=34  hbm=38
+cc_n11                magic=None  hbm=None
+cc_n18                magic=None  hbm=None
+cc_n200               magic=None  hbm=None
+ising_model_16        magic=50  hbm=61
+bv_n100               magic=None  hbm=None
+ising_model_n500      magic=None  hbm=None
+binary_welded_tree.n2s1  magic=65  hbm=67
+urf2_277              magic=7  hbm=7
+ising_model_13        magic=67  hbm=40
+bv_n150               magic=None  hbm=None
+qft_n16               magic=164  hbm=157
+bv_n10                magic=None  hbm=None
+qft_n500              magic=7  hbm=7
+qft_n10               magic=71  hbm=71
+squar5_261            magic=789  hbm=744
+sqrt8_260             magic=1166  hbm=1198
+urf5_280              magic=7  hbm=7
+ising_model_n1000     magic=None  hbm=None
+urf1_278              magic=7  hbm=7
+4gt11_82              magic=18  hbm=18
+shors.n3.formal       magic=7  hbm=7
+binary_welded_tree.n1s1  magic=70  hbm=57
+rd32_270              magic=36  hbm=35
+qft_n100              magic=7  hbm=7
+qft_n150              magic=7  hbm=7
+4gt5_75               magic=36  hbm=34
+qft_n200              magic=7  hbm=7
+cc_n100               magic=None  hbm=None
+urf5_158              magic=7  hbm=7
+square_root_7         magic=2774  hbm=2763
+cc_n300               magic=None  hbm=None

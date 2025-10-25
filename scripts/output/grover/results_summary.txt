@@ -1,0 +1,4 @@
+=== Results Summary ===
+
+grover_pigeon3        magic=4222  hbm=3400
+grover_pigeon2        magic=3491  hbm=3594
