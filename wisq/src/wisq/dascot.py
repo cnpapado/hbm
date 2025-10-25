@@ -64,7 +64,7 @@ def labeled_gate_path(id_to_op, id, args, path):
 
 def run_dascot(circ, gates, arch, output_path, timeout):
     sim_anneal_params = [100, 0.1, 0.1]
-    depth = circ.depth(filter_function=lambda x: x[0].name in ["cx", "t", "tdg"])
+    depth = circ.depth(filter_function=lambda x: x[0].name in ["cx", "cz", "t", "tdg"])
     scaled_sim_anneal_params = [
         sim_anneal_params[0],
         sim_anneal_params[1] / depth,

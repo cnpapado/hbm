@@ -1,1 +1,8 @@
-output
+# Ignore all .qasm files in output/ and subdirectories
+output/**/*.out
+
+# Ignore everything in output/
+output/**
+
+# BUT keep results_summary.txt
+!output/**/results_summary.txt
