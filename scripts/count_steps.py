@@ -64,8 +64,13 @@ for bench_path, bench_name in zip(*all_qasm_files_in_dir(benchmarks)):
     magic_cmd = [wisq_path, bench_path, "--mode", "scmr", "-arch", "compact_layout",
                  "-op", magic_out, "-ap", "1e-10", "-ot", "10", "-tmr", "30"] + (["-apt", apt_path] if (apt_path is not None) else [])
     hbm_cmd   = [wisq_path, bench_path, "--mode", "scmr", "-arch", "compact_layout",
+<<<<<<< HEAD
                  "-op", hbm_out, "-ap", "1e-10", "-ot", "10", "-tmr", "30" ] + (["-apt", apt_path] if (apt_path is not None) else [])
     print(hbm_cmd)
+=======
+                 "-op", hbm_out, "-ap", "1e-10", "-ot", "10"] + (["-apt", apt_path] if (apt_path is not None) else [])
+
+>>>>>>> d69e35683a0495a184853d51deb739ab89bd7b88
     # magic
     env["HBM"] = "0"
     run_command(magic_cmd, env=env)
