@@ -45,7 +45,10 @@ def count_steps(filepath):
     try:
         with open(filepath) as f:
             data = json.load(f)
-        return len(data.get("steps", []))
+            steps = data.get("steps", [])
+            if steps == "timeout":
+                return None
+        return len(steps)
     except Exception as e:
         print(f"⚠️ Could not parse {filepath}: {e}")
         return None
