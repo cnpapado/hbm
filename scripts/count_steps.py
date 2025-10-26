@@ -70,11 +70,11 @@ for bench_path, bench_name in zip(*all_qasm_files_in_dir(benchmarks)):
                  "-op", hbm_out, "-ap", "1e-10", "-ot", "10", "-tmr", "30" ] + (["-apt", apt_path] if (apt_path is not None) else [])
     print(hbm_cmd)
     # magic
-    env["HBM"] = "0"
+    env["HBM_ARCH"] = "NO_HBM"
     run_command(magic_cmd, env=env)
 
     # hbm
-    env["HBM"] = "1"
+    env["HBM_ARCH"] = "ARCH_A"
     run_command(hbm_cmd, env=env)
 
     # count steps

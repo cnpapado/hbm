@@ -6,7 +6,7 @@ from .architecture import vertical_neighbors, horizontal_neighbors
 import rustworkx as rx
 import os
 
-HBM_ARCH = "ARCH_C" #os.getenv("HBM_ARCH", "NO_HBM") # ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route below
+HBM_ARCH = os.getenv("HBM_ARCH", "NO_HBM") # ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route below
 if HBM_ARCH not in ["NO_HBM", "ARCH_A", "ARCH_B", "ARCH_C"]:
     raise ValueError("HBM_ARCH can be only ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route below. Thanks.")
 HBM_BENDS = True
@@ -76,7 +76,7 @@ def route_gate(
                     magic_state, grid_len, grid_height, omitted_edges=[]
                 )
             ]
-    if HBM_ARCH == "NO_HBM":
+    if HBM_ARCH == "NO_HBM" or HBM_ARCH == "ARCH_A":
         pairs = filter(
             lambda p: device_graph.has_node(p[0]) and device_graph.has_node(p[1]), pairs # removes the above pairs which contain endpoints occupied by already routed gates
         )
