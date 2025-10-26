@@ -47,9 +47,17 @@ class Guoq_Help_Action(argparse.Action):
         print_help()
         parser.exit()
 
+def extract_map_tuples(filename):
+    """Reads a JSON file and returns the 'map' entries as a list of (int, int) tuples."""
+    with open(filename, 'r') as f:
+        data = json.load(f)
+    
+    map_dict = data.get("map", {})
+    result = [(int(k), v) for k, v in map_dict.items()]
+    return result
 
 def map_and_route(
-    input_path: str, arch_name: str, output_path: str, timeout: int, mode="dascot"
+    input_path: str, arch_name: str, output_path: str, timeout: int, mode="dascot", fixed_mapping = None
 ):
     """
     Apply a surface code mapping and routing pass to the given circuit
@@ -79,7 +87,9 @@ def map_and_route(
         with open(arch_name) as f:
             arch = ast.literal_eval(f.read())
     if mode == "dascot":
-        map, steps = run_dascot(circ, gates, arch, output_path, timeout)
+        if fixed_mapping != None:
+            fixed_mapping = extract_map_tuples(fixed_mapping)
+        map, steps = run_dascot(circ, gates, arch, output_path, timeout, fixed_mapping)
     elif mode == "sat":
         map, steps = run_sat_scmr(circ, gates, arch, output_path, timeout)
     dump(arch, map, steps, id_to_op, output_path, gates)
@@ -132,6 +142,7 @@ def compile_fault_tolerant(
     mr_timeout=1800,
     mr_solver="dascot",
     path_to_synthetiq=None,
+    fixed_mapping=None
 ):
     """
     Compiles a circuit to a fault-tolerant architecture using the Clifford + T gate set.
@@ -179,6 +190,11 @@ def main():
     )
     opt = parser.add_argument_group(title="optimization config")
     scmr = parser.add_argument_group(title="mapping and routing config")
+    parser.add_argument(
+        "--fixed-mapping",
+        type=str,
+        help="Overwrite mapping phase with a fixed mapping. Path to JSON file containing 'map' key with fixed mapping.",
+    )
     parser.add_argument("input_path", help="path to the input circuit")
     parser.add_argument(
         "--output_path",
@@ -298,6 +314,7 @@ def main():
             mr_timeout=args.mr_timeout,
             mr_solver=args.mr_solver,
             path_to_synthetiq=args.abs_path_to_synthetiq,
+            fixed_mapping=args.fixed_mapping
         )
     elif args.mode == SCMR_MODE:
         map_and_route(
@@ -306,6 +323,7 @@ def main():
             arch_name=args.architecture,
             timeout=args.mr_timeout,
             mode=args.mr_solver,
+            fixed_mapping=args.fixed_mapping
         )
 
 
