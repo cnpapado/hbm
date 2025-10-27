@@ -1,4 +1,11 @@
-import os, subprocess, json
+import os, subprocess, json, argparse, statistics
+
+# === Command-line arguments ===
+parser = argparse.ArgumentParser(description="Run WISQ benchmarks for hbm and magic states.")
+parser.add_argument("--tmr", type=str, default="30", help="TMR value to use (default: 30)")
+parser.add_argument("--fixed-mapping", action="store_true", help="For hbm use the same mapping from the magic run")
+parser.add_argument("--runs", type=int, default=1, help="Number of times to run each benchmark before averaging results")
+args = parser.parse_args()
 
 wisq_path = "wisq"
 # use apt_path only in kostas laptop
@@ -59,29 +66,44 @@ results = []
 for bench_path, bench_name in zip(*all_qasm_files_in_dir(benchmarks)):
     #print(bench_path, bench_name)
 
-    # output file paths (inside ./output/)
-    magic_out = os.path.join(bench_output_dir, f"{bench_name}_magic.out")
-    hbm_out   = os.path.join(bench_output_dir, f"{bench_name}_hbm.out")
+    magic_values, hbm_values = [], []
 
+    for run_idx in range(args.runs):
+        print(f"\n=== 🧩 Running benchmark: {bench_name} (Run {run_idx + 1}/{args.runs}) ===\n")
 
-    magic_cmd = [wisq_path, bench_path, "--mode", "scmr", "-arch", "compact_layout",
-                 "-op", magic_out, "-ap", "1e-10", "-ot", "10", "-tmr", "30"] + (["-apt", apt_path] if (apt_path is not None) else [])
-    hbm_cmd   = [wisq_path, bench_path, "--mode", "scmr", "-arch", "compact_layout",
-                 "-op", hbm_out, "-ap", "1e-10", "-ot", "10", "-tmr", "30", "--fixed-mapping", magic_out] + (["-apt", apt_path] if (apt_path is not None) else [])
+        # output file paths (inside ./output/)
+        magic_out = os.path.join(bench_output_dir, f"{bench_name}_magic_run{run_idx+1}.out")
+        hbm_out   = os.path.join(bench_output_dir, f"{bench_name}_hbm_run{run_idx+1}.out")
 
-    # magic
-    env["HBM_ARCH"] = "NO_HBM"
-    run_command(magic_cmd, env=env)
+        magic_cmd = [
+            wisq_path, bench_path, "--mode", "scmr", "-arch", "compact_layout",
+            "-op", magic_out, "-ap", "1e-10", "-ot", "10", "-tmr", args.tmr
+        ] + (["-apt", apt_path] if apt_path else [])
 
-    # hbm
-    env["HBM_ARCH"] = "ARCH_A"
-    run_command(hbm_cmd, env=env)
+        hbm_cmd = [
+            wisq_path, bench_path, "--mode", "scmr", "-arch", "compact_layout",
+            "-op", hbm_out, "-ap", "1e-10", "-ot", "10", "-tmr", args.tmr
+        ] + (["--fixed-mapping", magic_out] if args.fixed_mapping else []) \
+          + (["-apt", apt_path] if apt_path else [])
 
-    # count steps
-    magic_steps = count_steps(magic_out)
-    hbm_steps = count_steps(hbm_out)
+        env["HBM_ARCH"] = "NO_HBM"
+        run_command(magic_cmd, env=env)
 
-    results.append((bench_name, magic_steps, hbm_steps))
+        env["HBM_ARCH"] = "ARCH_A"
+        run_command(hbm_cmd, env=env)
+
+        # count steps
+        magic_steps = count_steps(magic_out)
+        hbm_steps = count_steps(hbm_out)
+        if magic_steps is not None:
+            magic_values.append(magic_steps)
+        if hbm_steps is not None:
+            hbm_values.append(hbm_steps)
+
+    # average results
+    avg_magic = statistics.mean(magic_values) if magic_values else None
+    avg_hbm = statistics.mean(hbm_values) if hbm_values else None
+    results.append((bench_name, avg_magic, avg_hbm))
 
 # === Save results ===
 results_txt = os.path.join(bench_output_dir, "results_summary.txt")
