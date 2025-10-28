@@ -1,163 +1,163 @@
 === Results Summary ===
 
-sf_274                magic=465.46  hbm=466.16
-ex1_226               magic=5  hbm=5
-misex1_241            magic=2637.48  hbm=2642.62
-4gt12-v1_89           magic=140.12  hbm=140.12
-C17_204               magic=262.64  hbm=262.1
-3_17_13               magic=25.14  hbm=25.26
-rd53_138              magic=69.04  hbm=67.98
-ham15_107             magic=4830.26  hbm=4838.66
-4gt5_76               magic=58.86  hbm=58.56
+sf_274                magic=465.46  hbm=466.16  ideal=396   ideal_w_cnot_routing_constraints=449
+ex1_226               magic=5  hbm=5  ideal=5   ideal_w_cnot_routing_constraints=5
+misex1_241            magic=2637.48  hbm=2642.62  ideal=2391   ideal_w_cnot_routing_constraints=2663
+4gt12-v1_89           magic=140.12  hbm=140.12  ideal=116   ideal_w_cnot_routing_constraints=132
+C17_204               magic=262.64  hbm=262.1  ideal=229   ideal_w_cnot_routing_constraints=259
+3_17_13               magic=25.14  hbm=25.26  ideal=21   ideal_w_cnot_routing_constraints=25
+rd53_138              magic=69.04  hbm=67.98  ideal=None  ideal_w_cnot_routing_constraints=None
+ham15_107             magic=4830.26  hbm=4838.66  ideal=4335   ideal_w_cnot_routing_constraints=4906
+4gt5_76               magic=58.86  hbm=58.56  ideal=52   ideal_w_cnot_routing_constraints=56
 sym9_193              magic=None  hbm=None
-cnt3-5_180            magic=219.06  hbm=218.54
-4gt4-v0_73            magic=242.98  hbm=244.46
-decod24-v1_41         magic=51.3  hbm=50.08
-4mod7-v0_94           magic=98.24  hbm=98.14
-rd32-v0_66            magic=30  hbm=30
-alu-v0_26             magic=51.22  hbm=50.92
-sys6-v0_111           magic=98.38  hbm=98.16
-qe_qft_5              magic=29.24  hbm=29.42
-qiskit-alu-v0_26      magic=51.32  hbm=51.2
-ising_model_10        magic=39.74  hbm=39.26
-cm42a_207             magic=961.16  hbm=954.32
-4gt4-v0_80            magic=110.48  hbm=110.56
-alu-v2_31             magic=265.08  hbm=265.98
-4mod5-v0_18           magic=41.88  hbm=42.16
+cnt3-5_180            magic=219.06  hbm=218.54  ideal=194   ideal_w_cnot_routing_constraints=225
+4gt4-v0_73            magic=242.98  hbm=244.46  ideal=208   ideal_w_cnot_routing_constraints=239
+decod24-v1_41         magic=51.3  hbm=50.08  ideal=45   ideal_w_cnot_routing_constraints=47
+4mod7-v0_94           magic=98.24  hbm=98.14  ideal=86   ideal_w_cnot_routing_constraints=93
+rd32-v0_66            magic=30  hbm=30  ideal=None  ideal_w_cnot_routing_constraints=None
+alu-v0_26             magic=51.22  hbm=50.92  ideal=45   ideal_w_cnot_routing_constraints=52
+sys6-v0_111           magic=98.38  hbm=98.16  ideal=None  ideal_w_cnot_routing_constraints=None
+qe_qft_5              magic=29.24  hbm=29.42  ideal=None  ideal_w_cnot_routing_constraints=None
+qiskit-alu-v0_26      magic=51.32  hbm=51.2  ideal=None  ideal_w_cnot_routing_constraints=None
+ising_model_10        magic=39.74  hbm=39.26  ideal=20   ideal_w_cnot_routing_constraints=40
+cm42a_207             magic=961.16  hbm=954.32  ideal=842   ideal_w_cnot_routing_constraints=960
+4gt4-v0_80            magic=110.48  hbm=110.56  ideal=93   ideal_w_cnot_routing_constraints=111
+alu-v2_31             magic=265.08  hbm=265.98  ideal=228   ideal_w_cnot_routing_constraints=261
+4mod5-v0_18           magic=41.88  hbm=42.16  ideal=39   ideal_w_cnot_routing_constraints=40
 urf1_149              magic=None  hbm=None
-radd_250              magic=1784.98  hbm=1780.26
-one-two-three-v3_101  magic=41.48  hbm=41.42
-rd53_251              magic=745.04  hbm=742.9
-mini_alu_305          magic=81.44  hbm=80.9
-one-two-three-v0_98   magic=89.02  hbm=88.94
+radd_250              magic=1784.98  hbm=1780.26  ideal=1604   ideal_w_cnot_routing_constraints=1779
+one-two-three-v3_101  magic=41.48  hbm=41.42  ideal=37   ideal_w_cnot_routing_constraints=41
+rd53_251              magic=745.04  hbm=742.9  ideal=None  ideal_w_cnot_routing_constraints=None
+mini_alu_305          magic=81.44  hbm=80.9  ideal=67   ideal_w_cnot_routing_constraints=77
+one-two-three-v0_98   magic=89.02  hbm=88.94  ideal=77   ideal_w_cnot_routing_constraints=88
 dist_223              magic=None  hbm=None
-ising_model_16        magic=57.02  hbm=63.6
-4_49_16               magic=133.66  hbm=132.74
+ising_model_16        magic=57.02  hbm=63.6  ideal=20   ideal_w_cnot_routing_constraints=60
+4_49_16               magic=133.66  hbm=132.74  ideal=117   ideal_w_cnot_routing_constraints=133
 sym10_262             magic=None  hbm=None
 clip_206              magic=None  hbm=None
-ex2_227               magic=356.06  hbm=355.2
-4gt4-v0_78            magic=146.18  hbm=146.34
+ex2_227               magic=356.06  hbm=355.2  ideal=319   ideal_w_cnot_routing_constraints=351
+4gt4-v0_78            magic=146.18  hbm=146.34  ideal=127   ideal_w_cnot_routing_constraints=145
 sao2_257              magic=None  hbm=None
-urf2_277              magic=12121.5  hbm=12176
-ising_model_13        magic=47.26  hbm=46.78
-alu-bdd_288           magic=49.9  hbm=49.92
-decod24-v0_38         magic=44  hbm=44
-4gt12-v0_86           magic=153.48  hbm=153.06
-sym9_146              magic=150.92  hbm=154.26
-alu-v4_37             magic=23.22  hbm=23.14
+urf2_277              magic=12121.5  hbm=12176  ideal=None  ideal_w_cnot_routing_constraints=None
+ising_model_13        magic=47.26  hbm=46.78  ideal=20   ideal_w_cnot_routing_constraints=39
+alu-bdd_288           magic=49.9  hbm=49.92  ideal=45   ideal_w_cnot_routing_constraints=50
+decod24-v0_38         magic=44  hbm=44  ideal=29   ideal_w_cnot_routing_constraints=44
+4gt12-v0_86           magic=153.48  hbm=153.06  ideal=126   ideal_w_cnot_routing_constraints=157
+sym9_146              magic=150.92  hbm=154.26  ideal=None  ideal_w_cnot_routing_constraints=None
+alu-v4_37             magic=23.22  hbm=23.14  ideal=20   ideal_w_cnot_routing_constraints=23
 9symml_195            magic=None  hbm=None
-one-two-three-v0_97   magic=173.74  hbm=174.06
-mlp4_245              magic=10287.78  hbm=10256.54
-4gt11_84              magic=16  hbm=16
-xor5_254              magic=5  hbm=5
-mod10_176             magic=105.46  hbm=105.26
-f2_232                magic=684.4  hbm=683.32
-one-two-three-v2_100  magic=42.3  hbm=42.18
-decod24-v3_45         magic=87.64  hbm=88.08
-4mod7-v1_96           magic=97.76  hbm=96.56
-4gt5_77               magic=77.56  hbm=76.68
-rd53_131              magic=259.36  hbm=260.6
+one-two-three-v0_97   magic=173.74  hbm=174.06  ideal=152   ideal_w_cnot_routing_constraints=181
+mlp4_245              magic=10287.78  hbm=10256.54  ideal=9224   ideal_w_cnot_routing_constraints=10267
+4gt11_84              magic=16  hbm=16  ideal=10   ideal_w_cnot_routing_constraints=16
+xor5_254              magic=5  hbm=5  ideal=None  ideal_w_cnot_routing_constraints=None
+mod10_176             magic=105.46  hbm=105.26  ideal=92   ideal_w_cnot_routing_constraints=100
+f2_232                magic=684.4  hbm=683.32  ideal=597   ideal_w_cnot_routing_constraints=699
+one-two-three-v2_100  magic=42.3  hbm=42.18  ideal=37   ideal_w_cnot_routing_constraints=42
+decod24-v3_45         magic=87.64  hbm=88.08  ideal=75   ideal_w_cnot_routing_constraints=88
+4mod7-v1_96           magic=97.76  hbm=96.56  ideal=85   ideal_w_cnot_routing_constraints=103
+4gt5_77               magic=77.56  hbm=76.68  ideal=67   ideal_w_cnot_routing_constraints=80
+rd53_131              magic=259.36  hbm=260.6  ideal=None  ideal_w_cnot_routing_constraints=None
 urf4_187              magic=None  hbm=None
-alu-v2_30             magic=309.5  hbm=310.32
-mod5adder_127         magic=328.4  hbm=330.46
-hwb4_49               magic=144.86  hbm=143.9
-mod5mils_65           magic=20.84  hbm=20.9
-4mod5-v1_24           magic=21.54  hbm=21.28
-4gt4-v0_79            magic=142.24  hbm=142.06
-mod5d2_64             magic=33.1  hbm=33.22
-rd53_130              magic=582.68  hbm=581.16
-qe_qft_4              magic=20.44  hbm=20.4
-cm85a_209             magic=6307.98  hbm=6297.26
-rd73_140              magic=111.5  hbm=110.96
+alu-v2_30             magic=309.5  hbm=310.32  ideal=261   ideal_w_cnot_routing_constraints=313
+mod5adder_127         magic=328.4  hbm=330.46  ideal=274   ideal_w_cnot_routing_constraints=328
+hwb4_49               magic=144.86  hbm=143.9  ideal=127   ideal_w_cnot_routing_constraints=152
+mod5mils_65           magic=20.84  hbm=20.9  ideal=20   ideal_w_cnot_routing_constraints=20
+4mod5-v1_24           magic=21.54  hbm=21.28  ideal=19   ideal_w_cnot_routing_constraints=22
+4gt4-v0_79            magic=142.24  hbm=142.06  ideal=122   ideal_w_cnot_routing_constraints=139
+mod5d2_64             magic=33.1  hbm=33.22  ideal=31   ideal_w_cnot_routing_constraints=32
+rd53_130              magic=582.68  hbm=581.16  ideal=None  ideal_w_cnot_routing_constraints=None
+qe_qft_4              magic=20.44  hbm=20.4  ideal=None  ideal_w_cnot_routing_constraints=None
+cm85a_209             magic=6307.98  hbm=6297.26  ideal=5672   ideal_w_cnot_routing_constraints=6218
+rd73_140              magic=111.5  hbm=110.96  ideal=None  ideal_w_cnot_routing_constraints=None
 hwb9_119              magic=None  hbm=None
-alu-v2_33             magic=21.88  hbm=21.9
-4gt10-v1_81           magic=90.2  hbm=89.88
-rd84_142              magic=141.84  hbm=141.16
-squar5_261            magic=1082.18  hbm=1081.56
-sqrt8_260             magic=1671.14  hbm=1672.3
+alu-v2_33             magic=21.88  hbm=21.9  ideal=19   ideal_w_cnot_routing_constraints=22
+4gt10-v1_81           magic=90.2  hbm=89.88  ideal=78   ideal_w_cnot_routing_constraints=92
+rd84_142              magic=141.84  hbm=141.16  ideal=105   ideal_w_cnot_routing_constraints=154
+squar5_261            magic=1082.18  hbm=1081.56  ideal=None  ideal_w_cnot_routing_constraints=None
+sqrt8_260             magic=1671.14  hbm=1672.3  ideal=None  ideal_w_cnot_routing_constraints=None
 urf2_152              magic=None  hbm=None
 urf3_155              magic=None  hbm=None
-4gt13_90              magic=69.64  hbm=69.68
+4gt13_90              magic=69.64  hbm=69.68  ideal=62   ideal_w_cnot_routing_constraints=68
 ground_state_estimation_10  magic=None  hbm=None
 urf5_280              magic=None  hbm=None
 hwb7_59               magic=None  hbm=None
-one-two-three-v1_99   magic=82.12  hbm=82.24
+one-two-three-v1_99   magic=82.12  hbm=82.24  ideal=72   ideal_w_cnot_routing_constraints=82
 plus63mod8192_164     magic=None  hbm=None
-cm152a_212            magic=684.12  hbm=678.04
-root_255              magic=8980.58  hbm=9040.72
-inc_237               magic=5783.9  hbm=5789.14
-decod24-enable_126    magic=204.96  hbm=206.06
-qft_20                magic=257.04  hbm=256.32
-sym6_145              magic=2231.46  hbm=2235.12
+cm152a_212            magic=684.12  hbm=678.04  ideal=613   ideal_w_cnot_routing_constraints=668
+root_255              magic=8980.58  hbm=9040.72  ideal=None  ideal_w_cnot_routing_constraints=None
+inc_237               magic=5783.9  hbm=5789.14  ideal=5230   ideal_w_cnot_routing_constraints=5588
+decod24-enable_126    magic=204.96  hbm=206.06  ideal=176   ideal_w_cnot_routing_constraints=202
+qft_20                magic=257.04  hbm=256.32  ideal=None  ideal_w_cnot_routing_constraints=None
+sym6_145              magic=2231.46  hbm=2235.12  ideal=None  ideal_w_cnot_routing_constraints=None
 urf1_278              magic=None  hbm=None
-4gt12-v0_87           magic=149.18  hbm=148.54
-graycode6_47          magic=5  hbm=5
-4gt4-v1_74            magic=166.96  hbm=166.68
-dc1_220               magic=1053.32  hbm=1042.56
+4gt12-v0_87           magic=149.18  hbm=148.54  ideal=122   ideal_w_cnot_routing_constraints=146
+graycode6_47          magic=5  hbm=5  ideal=5   ideal_w_cnot_routing_constraints=5
+4gt4-v1_74            magic=166.96  hbm=166.68  ideal=142   ideal_w_cnot_routing_constraints=164
+dc1_220               magic=1053.32  hbm=1042.56  ideal=935   ideal_w_cnot_routing_constraints=1091
 sym9_148              magic=None  hbm=11848
-decod24-v2_43         magic=43  hbm=43
-4gt12-v0_88           magic=118.98  hbm=119.76
-4mod5-v1_23           magic=43.76  hbm=43.44
-aj-e11_165            magic=93.08  hbm=93.46
-qft_16                magic=167.1  hbm=167.76
-decod24-bdd_294       magic=44.56  hbm=44.14
-rd32-v1_68            magic=30  hbm=30
+decod24-v2_43         magic=43  hbm=43  ideal=28   ideal_w_cnot_routing_constraints=43
+4gt12-v0_88           magic=118.98  hbm=119.76  ideal=101   ideal_w_cnot_routing_constraints=120
+4mod5-v1_23           magic=43.76  hbm=43.44  ideal=38   ideal_w_cnot_routing_constraints=46
+aj-e11_165            magic=93.08  hbm=93.46  ideal=81   ideal_w_cnot_routing_constraints=92
+qft_16                magic=167.1  hbm=167.76  ideal=58   ideal_w_cnot_routing_constraints=164
+decod24-bdd_294       magic=44.56  hbm=44.14  ideal=39   ideal_w_cnot_routing_constraints=43
+rd32-v1_68            magic=30  hbm=30  ideal=None  ideal_w_cnot_routing_constraints=None
 urf3_279              magic=None  hbm=None
-hwb5_53               magic=820.74  hbm=819.72
-mod8-10_178           magic=206.98  hbm=208.02
-cnt3-5_179            magic=68  hbm=68.68
-ex3_229               magic=245.28  hbm=247.9
-4mod5-v1_22           magic=13.22  hbm=13.04
-rd53_133              magic=333.6  hbm=331.66
-alu-v3_35             magic=23.06  hbm=22.86
-alu-v1_28             magic=23.14  hbm=23.46
-4gt13_91              magic=64.86  hbm=65.34
+hwb5_53               magic=820.74  hbm=819.72  ideal=699   ideal_w_cnot_routing_constraints=819
+mod8-10_178           magic=206.98  hbm=208.02  ideal=177   ideal_w_cnot_routing_constraints=208
+cnt3-5_179            magic=68  hbm=68.68  ideal=55   ideal_w_cnot_routing_constraints=61
+ex3_229               magic=245.28  hbm=247.9  ideal=207   ideal_w_cnot_routing_constraints=255
+4mod5-v1_22           magic=13.22  hbm=13.04  ideal=12   ideal_w_cnot_routing_constraints=12
+rd53_133              magic=333.6  hbm=331.66  ideal=None  ideal_w_cnot_routing_constraints=None
+alu-v3_35             magic=23.06  hbm=22.86  ideal=20   ideal_w_cnot_routing_constraints=25
+alu-v1_28             magic=23.14  hbm=23.46  ideal=20   ideal_w_cnot_routing_constraints=23
+4gt13_91              magic=64.86  hbm=65.34  ideal=58   ideal_w_cnot_routing_constraints=65
 urf6_160              magic=None  hbm=None
-qft_10                magic=67.68  hbm=67.38
-ham3_102              magic=15.16  hbm=15.24
-4mod5-v0_20           magic=12.48  hbm=12.2
-hwb6_56               magic=3842.68  hbm=3842.88
-pm1_249               magic=948.1  hbm=957.94
-4gt13-v1_93           magic=40.3  hbm=40.16
-adr4_197              magic=1865.1  hbm=1863.88
-majority_239          magic=345  hbm=346.86
-alu-v4_36             magic=70.72  hbm=70.46
-cm82a_208             magic=355.48  hbm=351.9
-mod8-10_177           magic=268.12  hbm=269.14
-alu-v2_32             magic=96.54  hbm=97.4
-rd73_252              magic=2965.02  hbm=2953.38
-alu-v3_34             magic=30.06  hbm=30.36
-4mod5-bdd_287         magic=42.2  hbm=41.5
-rd32_270              magic=48.58  hbm=48.92
-con1_216              magic=519.28  hbm=519.28
-cycle10_2_110         magic=3377.54  hbm=3384.52
-4gt13_92              magic=39.64  hbm=40.42
-mod5d1_63             magic=13.62  hbm=13.7
-mini-alu_167          magic=170.58  hbm=169.46
-alu-v1_29             magic=22.12  hbm=22.22
-ex-1_166              magic=13.08  hbm=13.24
-dc2_222               magic=5197.82  hbm=5202.36
-rd53_135              magic=168.54  hbm=168.02
-qiskit-3_17_13        magic=25.28  hbm=25.38
-sym6_316              magic=139.24  hbm=140.42
+qft_10                magic=67.68  hbm=67.38  ideal=None  ideal_w_cnot_routing_constraints=None
+ham3_102              magic=15.16  hbm=15.24  ideal=13   ideal_w_cnot_routing_constraints=16
+4mod5-v0_20           magic=12.48  hbm=12.2  ideal=11   ideal_w_cnot_routing_constraints=11
+hwb6_56               magic=3842.68  hbm=3842.88  ideal=3387   ideal_w_cnot_routing_constraints=3865
+pm1_249               magic=948.1  hbm=957.94  ideal=None  ideal_w_cnot_routing_constraints=None
+4gt13-v1_93           magic=40.3  hbm=40.16  ideal=35   ideal_w_cnot_routing_constraints=41
+adr4_197              magic=1865.1  hbm=1863.88  ideal=1657   ideal_w_cnot_routing_constraints=1806
+majority_239          magic=345  hbm=346.86  ideal=308   ideal_w_cnot_routing_constraints=351
+alu-v4_36             magic=70.72  hbm=70.46  ideal=61   ideal_w_cnot_routing_constraints=69
+cm82a_208             magic=355.48  hbm=351.9  ideal=308   ideal_w_cnot_routing_constraints=356
+mod8-10_177           magic=268.12  hbm=269.14  ideal=232   ideal_w_cnot_routing_constraints=273
+alu-v2_32             magic=96.54  hbm=97.4  ideal=84   ideal_w_cnot_routing_constraints=96
+rd73_252              magic=2965.02  hbm=2953.38  ideal=None  ideal_w_cnot_routing_constraints=None
+alu-v3_34             magic=30.06  hbm=30.36  ideal=29   ideal_w_cnot_routing_constraints=29
+4mod5-bdd_287         magic=42.2  hbm=41.5  ideal=39   ideal_w_cnot_routing_constraints=40
+rd32_270              magic=48.58  hbm=48.92  ideal=None  ideal_w_cnot_routing_constraints=None
+con1_216              magic=519.28  hbm=519.28  ideal=458   ideal_w_cnot_routing_constraints=527
+cycle10_2_110         magic=3377.54  hbm=3384.52  ideal=3028   ideal_w_cnot_routing_constraints=3343
+4gt13_92              magic=39.64  hbm=40.42  ideal=34   ideal_w_cnot_routing_constraints=41
+mod5d1_63             magic=13.62  hbm=13.7  ideal=13   ideal_w_cnot_routing_constraints=13
+mini-alu_167          magic=170.58  hbm=169.46  ideal=147   ideal_w_cnot_routing_constraints=159
+alu-v1_29             magic=22.12  hbm=22.22  ideal=19   ideal_w_cnot_routing_constraints=23
+ex-1_166              magic=13.08  hbm=13.24  ideal=11   ideal_w_cnot_routing_constraints=13
+dc2_222               magic=5197.82  hbm=5202.36  ideal=4682   ideal_w_cnot_routing_constraints=5183
+rd53_135              magic=168.54  hbm=168.02  ideal=None  ideal_w_cnot_routing_constraints=None
+qiskit-3_17_13        magic=25.28  hbm=25.38  ideal=None  ideal_w_cnot_routing_constraints=None
+sym6_316              magic=139.24  hbm=140.42  ideal=None  ideal_w_cnot_routing_constraints=None
 plus63mod4096_163     magic=None  hbm=None
-mod10_171             magic=145.72  hbm=147.96
-4gt4-v0_72            magic=152.36  hbm=151.26
-miller_11             magic=35.64  hbm=35.52
+mod10_171             magic=145.72  hbm=147.96  ideal=127   ideal_w_cnot_routing_constraints=142
+4gt4-v0_72            magic=152.36  hbm=151.26  ideal=125   ideal_w_cnot_routing_constraints=149
+miller_11             magic=35.64  hbm=35.52  ideal=29   ideal_w_cnot_routing_constraints=34
 life_238              magic=None  hbm=None
 hwb8_113              magic=None  hbm=None
-sqn_258               magic=5642.06  hbm=5624.84
+sqn_258               magic=5642.06  hbm=5624.84  ideal=None  ideal_w_cnot_routing_constraints=None
 urf5_158              magic=None  hbm=None
-alu-v0_27             magic=21.88  hbm=22.04
-wim_266               magic=529.52  hbm=533.1
-square_root_7         magic=3791.3  hbm=3783.02
-4gt11_83              magic=16.76  hbm=16.84
-co14_215              magic=9089.82  hbm=9071.52
+alu-v0_27             magic=21.88  hbm=22.04  ideal=19   ideal_w_cnot_routing_constraints=20
+wim_266               magic=529.52  hbm=533.1  ideal=None  ideal_w_cnot_routing_constraints=None
+square_root_7         magic=3791.3  hbm=3783.02  ideal=None  ideal_w_cnot_routing_constraints=None
+4gt11_83              magic=16.76  hbm=16.84  ideal=16   ideal_w_cnot_routing_constraints=16
+co14_215              magic=9089.82  hbm=9071.52  ideal=7663   ideal_w_cnot_routing_constraints=9018
 max46_240             magic=None  hbm=None
-z4_268                magic=1679.72  hbm=1678.46
-ham7_104              magic=188.2  hbm=191.8
-sf_276                magic=468.64  hbm=469.24
-rd84_253              magic=7416.32  hbm=7416.28
-rd53_311              magic=132.64  hbm=132.38
-0410184_169           magic=104.24  hbm=104.7
-4mod5-v0_19           magic=21.94  hbm=21.62
+z4_268                magic=1679.72  hbm=1678.46  ideal=None  ideal_w_cnot_routing_constraints=None
+ham7_104              magic=188.2  hbm=191.8  ideal=172   ideal_w_cnot_routing_constraints=193
+sf_276                magic=468.64  hbm=469.24  ideal=397   ideal_w_cnot_routing_constraints=452
+rd84_253              magic=7416.32  hbm=7416.28  ideal=None  ideal_w_cnot_routing_constraints=None
+rd53_311              magic=132.64  hbm=132.38  ideal=None  ideal_w_cnot_routing_constraints=None
+0410184_169           magic=104.24  hbm=104.7  ideal=92   ideal_w_cnot_routing_constraints=102
+4mod5-v0_19           magic=21.94  hbm=21.62  ideal=20   ideal_w_cnot_routing_constraints=24
