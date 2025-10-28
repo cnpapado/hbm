@@ -1,0 +1,31 @@
+=== QASM Benchmark Gate Composition Statistics (arithmetic) ===
+
+CNOT ratio thresholds (low=22.95%, high=25.81%)
+T (T+Tdg) ratio thresholds (low=0.00%, high=0.00%)
+
+--- Group A: High CNOT/CZ %, Low T % ---
+rc_adder_6.qasm            CNOT/CZ%= 29.69%  T%=  0.00%
+adder_8.qasm               CNOT/CZ%= 27.31%  T%=  0.00%
+csla_mux_3.qasm            CNOT/CZ%= 30.00%  T%=  0.00%
+gf2^8_mult.qasm            CNOT/CZ%= 25.91%  T%=  0.00%
+vbe_adder_3.qasm           CNOT/CZ%= 28.57%  T%=  0.00%
+qcla_adder_10.qasm         CNOT/CZ%= 25.82%  T%=  0.00%
+
+--- Group B: Medium CNOT/T % ---
+gf2^9_mult.qasm            CNOT/CZ%= 23.80%  T%=  0.00%
+gf2^10_mult.qasm           CNOT/CZ%= 23.90%  T%=  0.00%
+gf2^6_mult.qasm            CNOT/CZ%= 23.30%  T%=  0.00%
+mod5_4.qasm                CNOT/CZ%= 25.81%  T%=  0.00%
+gf2^5_mult.qasm            CNOT/CZ%= 23.02%  T%=  0.00%
+gf2^7_mult.qasm            CNOT/CZ%= 23.50%  T%=  0.00%
+
+--- Group C: Low CNOT %, High T % ---
+gf2^4_mult.qasm            CNOT/CZ%= 22.62%  T%=  0.00%
+mod_red_21.qasm            CNOT/CZ%= 15.62%  T%=  0.00%
+mod_mult_55.qasm           CNOT/CZ%= 20.97%  T%=  0.00%
+csum_mux_9.qasm            CNOT/CZ%= 16.67%  T%=  0.00%
+qcla_com_7.qasm            CNOT/CZ%= 21.13%  T%=  0.00%
+qcla_mod_7.qasm            CNOT/CZ%= 22.83%  T%=  0.00%
+
+--- Group Misc: Other / Unclassified ---
+

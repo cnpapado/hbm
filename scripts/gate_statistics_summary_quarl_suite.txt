@@ -1,0 +1,27 @@
+=== QASM Benchmark Gate Composition Statistics (quarl_suite) ===
+
+CNOT ratio thresholds (low=7.80%, high=8.43%)
+T (T+Tdg) ratio thresholds (low=0.00%, high=0.00%)
+
+--- Group A: High CNOT/CZ %, Low T % ---
+ham15-med.qasm             CNOT/CZ%= 21.02%  T%=  0.00%
+hwb6.qasm                  CNOT/CZ%= 21.40%  T%=  0.00%
+portfolioqaoa_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  8.72%  T%=  0.00%
+ham15-low.qasm             CNOT/CZ%= 25.32%  T%=  0.00%
+ham15-high.qasm            CNOT/CZ%= 20.83%  T%=  0.00%
+
+--- Group B: Medium CNOT/T % ---
+qpeexact_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  7.88%  T%=  0.00%
+qftentangled_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  7.89%  T%=  0.00%
+qaoa_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  7.98%  T%=  0.00%
+qft_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  8.03%  T%=  0.00%
+
+--- Group C: Low CNOT %, High T % ---
+portfoliovqe_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  7.53%  T%=  0.00%
+ae_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  7.75%  T%=  0.00%
+vqe_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  4.46%  T%=  0.00%
+qgan_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  6.98%  T%=  0.00%
+qpeinexact_nativegates_ibm_tket_8.qasm  CNOT/CZ%=  7.77%  T%=  0.00%
+
+--- Group Misc: Other / Unclassified ---
+

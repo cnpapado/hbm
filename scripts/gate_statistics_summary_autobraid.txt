@@ -1,0 +1,47 @@
+=== QASM Benchmark Gate Composition Statistics (autobraid) ===
+
+CNOT ratio thresholds (low=33.15%, high=44.53%)
+T (T+Tdg) ratio thresholds (low=0.00%, high=0.00%)
+
+--- Group A: High CNOT/CZ %, Low T % ---
+binary_welded_tree.n2s1.qasm  CNOT/CZ%= 45.11%  T%=  0.00%
+urf2_277.qasm              CNOT/CZ%= 45.07%  T%=  0.00%
+qft_n16.qasm               CNOT/CZ%= 48.39%  T%=  0.00%
+qft_n500.qasm              CNOT/CZ%= 49.95%  T%=  0.00%
+qft_n10.qasm               CNOT/CZ%= 47.37%  T%=  0.00%
+urf5_280.qasm              CNOT/CZ%= 44.63%  T%=  0.00%
+urf1_278.qasm              CNOT/CZ%= 44.83%  T%=  0.00%
+4gt11_82.qasm              CNOT/CZ%= 47.37%  T%=  0.00%
+binary_welded_tree.n1s1.qasm  CNOT/CZ%= 44.92%  T%=  0.00%
+qft_n100.qasm              CNOT/CZ%= 49.75%  T%=  0.00%
+qft_n150.qasm              CNOT/CZ%= 49.83%  T%=  0.00%
+qft_n200.qasm              CNOT/CZ%= 49.87%  T%=  0.00%
+
+--- Group B: Medium CNOT/T % ---
+alu-v0_26.qasm             CNOT/CZ%= 44.19%  T%=  0.00%
+cc_n11.qasm                CNOT/CZ%= 33.33%  T%=  0.00%
+cc_n18.qasm                CNOT/CZ%= 33.33%  T%=  0.00%
+cc_n200.qasm               CNOT/CZ%= 33.17%  T%=  0.00%
+squar5_261.qasm            CNOT/CZ%= 43.76%  T%=  0.00%
+sqrt8_260.qasm             CNOT/CZ%= 43.77%  T%=  0.00%
+rd32_270.qasm              CNOT/CZ%= 43.90%  T%=  0.00%
+4gt5_75.qasm               CNOT/CZ%= 44.19%  T%=  0.00%
+urf5_158.qasm              CNOT/CZ%= 43.75%  T%=  0.00%
+square_root_7.qasm         CNOT/CZ%= 43.12%  T%=  0.00%
+cc_n300.qasm               CNOT/CZ%= 33.22%  T%=  0.00%
+
+--- Group C: Low CNOT %, High T % ---
+bv_n200.qasm               CNOT/CZ%= 24.84%  T%=  0.00%
+ising_model_10.qasm        CNOT/CZ%= 31.03%  T%=  0.00%
+ising_model_16.qasm        CNOT/CZ%= 31.51%  T%=  0.00%
+bv_n100.qasm               CNOT/CZ%= 24.69%  T%=  0.00%
+ising_model_n500.qasm      CNOT/CZ%= 10.52%  T%=  0.00%
+ising_model_13.qasm        CNOT/CZ%= 31.33%  T%=  0.00%
+bv_n150.qasm               CNOT/CZ%= 24.79%  T%=  0.00%
+bv_n10.qasm                CNOT/CZ%= 24.32%  T%=  0.00%
+ising_model_n1000.qasm     CNOT/CZ%= 10.52%  T%=  0.00%
+shors.n3.formal.qasm       CNOT/CZ%= 24.06%  T%=  0.00%
+cc_n100.qasm               CNOT/CZ%= 33.00%  T%=  0.00%
+
+--- Group Misc: Other / Unclassified ---
+

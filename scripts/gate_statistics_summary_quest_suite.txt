@@ -1,0 +1,50 @@
+=== QASM Benchmark Gate Composition Statistics (quest_suite) ===
+
+CNOT ratio thresholds (low=8.33%, high=19.99%)
+T (T+Tdg) ratio thresholds (low=0.00%, high=0.00%)
+
+--- Group A: High CNOT/CZ %, Low T % ---
+adder_9.qasm               CNOT/CZ%= 37.69%  T%=  0.00%
+multiply_10.qasm           CNOT/CZ%= 37.64%  T%=  0.00%
+heisenberg_step_50_8.qasm  CNOT/CZ%= 19.99%  T%=  0.00%
+qft_5.qasm                 CNOT/CZ%= 32.67%  T%=  0.00%
+adder_4.qasm               CNOT/CZ%= 32.00%  T%=  0.00%
+hlf_10.qasm                CNOT/CZ%= 42.11%  T%=  0.00%
+hlf_5.qasm                 CNOT/CZ%= 37.84%  T%=  0.00%
+vqe_4.qasm                 CNOT/CZ%= 31.49%  T%=  0.00%
+qaoa_5.qasm                CNOT/CZ%= 37.84%  T%=  0.00%
+qaoa_10.qasm               CNOT/CZ%= 40.48%  T%=  0.00%
+heisenberg_step_50_4.qasm  CNOT/CZ%= 19.99%  T%=  0.00%
+qft_10.qasm                CNOT/CZ%= 37.44%  T%=  0.00%
+muliply_5.qasm             CNOT/CZ%= 28.99%  T%=  0.00%
+
+--- Group B: Medium CNOT/T % ---
+heisenberg_step_45_4.qasm  CNOT/CZ%= 19.99%  T%=  0.00%
+TFIM_step_100_32.qasm      CNOT/CZ%=  8.33%  T%=  0.00%
+heisenberg_step_15_4.qasm  CNOT/CZ%= 19.97%  T%=  0.00%
+heisenberg_step_30_4.qasm  CNOT/CZ%= 19.99%  T%=  0.00%
+heisenberg_step_10_4.qasm  CNOT/CZ%= 19.96%  T%=  0.00%
+heisenberg_step_5_4.qasm   CNOT/CZ%= 19.91%  T%=  0.00%
+heisenberg_step_25_4.qasm  CNOT/CZ%= 19.98%  T%=  0.00%
+heisenberg_step_40_4.qasm  CNOT/CZ%= 19.99%  T%=  0.00%
+XY_step_100_4.qasm         CNOT/CZ%= 11.76%  T%=  0.00%
+XY_step_100_8.qasm         CNOT/CZ%= 12.33%  T%=  0.00%
+heisenberg_step_20_4.qasm  CNOT/CZ%= 19.98%  T%=  0.00%
+heisenberg_step_35_4.qasm  CNOT/CZ%= 19.99%  T%=  0.00%
+
+--- Group C: Low CNOT %, High T % ---
+TFIM_step_20_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_40_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_50_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_80_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_90_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_100_8.qasm       CNOT/CZ%=  8.25%  T%=  0.00%
+TFIM_step_10_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_30_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_60_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_100_16.qasm      CNOT/CZ%=  8.31%  T%=  0.00%
+TFIM_step_100_4.qasm       CNOT/CZ%=  7.95%  T%=  0.00%
+TFIM_step_70_4.qasm        CNOT/CZ%=  7.95%  T%=  0.00%
+
+--- Group Misc: Other / Unclassified ---
+

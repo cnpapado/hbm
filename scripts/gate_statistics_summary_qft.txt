@@ -1,0 +1,18 @@
+=== QASM Benchmark Gate Composition Statistics (qft) ===
+
+CNOT ratio thresholds (low=0.14%, high=0.19%)
+T (T+Tdg) ratio thresholds (low=53.93%, high=53.98%)
+
+--- Group A: High CNOT/CZ %, Low T % ---
+qft_q050_d87171.qasm       CNOT/CZ%=  0.24%  T%= 53.92%
+
+--- Group B: Medium CNOT/T % ---
+
+--- Group C: Low CNOT %, High T % ---
+qft_q020_d32421.qasm       CNOT/CZ%=  0.13%  T%= 54.01%
+
+--- Group Misc: Other / Unclassified ---
+qft_q040_d68921.qasm       CNOT/CZ%=  0.20%  T%= 53.96%
+qft_q010_d14171.qasm       CNOT/CZ%=  0.13%  T%= 53.92%
+qft_q030_d50671.qasm       CNOT/CZ%=  0.17%  T%= 53.99%
+

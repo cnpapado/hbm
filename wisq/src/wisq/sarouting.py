@@ -289,6 +289,11 @@ def best_realizable_set_found(
     cnot_indices = [
         i for (i, (id, gate)) in enumerate(executable.items()) if len(gate) == 2
     ]
+
+    # Skip T gates entirely from annealing if ARCH_A (they are “free”)
+    if HBM_ARCH == "ARCH_A":
+        t_indices = []
+
     if initial_order == "naive":
         best_order = cnot_indices + t_indices
         best_step = try_order(
@@ -543,4 +548,7 @@ def executable_subset(gates: dict):
 
 
 def depends_on(g1, g2):
+    # For ARCH_A, treat T gates as independent (they execute instantly)
+    if HBM_ARCH == "ARCH_A" and (len(g1[1]) == 1 or len(g2[1]) == 1):
+        return False
     return g1[0] > g2[0] and len(set(g1[1]).intersection(g2[1])) > 0

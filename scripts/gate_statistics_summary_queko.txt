@@ -1,0 +1,25 @@
+=== QASM Benchmark Gate Composition Statistics (queko) ===
+
+CNOT ratio thresholds (low=28.57%, high=28.68%)
+T (T+Tdg) ratio thresholds (low=0.00%, high=0.00%)
+
+--- Group A: High CNOT/CZ %, Low T % ---
+20qbitqueko.qasm           CNOT/CZ%= 50.00%  T%=  0.00%
+queko_tor_5.qasm           CNOT/CZ%= 28.74%  T%=  0.00%
+qiskit-20qbitqueko.qasm    CNOT/CZ%= 50.00%  T%=  0.00%
+qiskit-queko_tor_5.qasm    CNOT/CZ%= 28.74%  T%=  0.00%
+
+--- Group B: Medium CNOT/T % ---
+queko_tor_15.qasm          CNOT/CZ%= 28.65%  T%=  0.00%
+queko_tor_10.qasm          CNOT/CZ%= 28.65%  T%=  0.00%
+queko_mesh_15.qasm         CNOT/CZ%= 28.57%  T%=  0.00%
+queko_linear_5.qasm        CNOT/CZ%= 28.57%  T%=  0.00%
+queko_mesh_10.qasm         CNOT/CZ%= 28.57%  T%=  0.00%
+queko_mesh_5.qasm          CNOT/CZ%= 28.57%  T%=  0.00%
+queko_linear_10.qasm       CNOT/CZ%= 28.57%  T%=  0.00%
+queko_linear_15.qasm       CNOT/CZ%= 28.57%  T%=  0.00%
+
+--- Group C: Low CNOT %, High T % ---
+
+--- Group Misc: Other / Unclassified ---
+
