@@ -8,7 +8,7 @@ import os
 
 HBM_ARCH = os.getenv("HBM_ARCH", "NO_HBM") # ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route below
 if HBM_ARCH not in ["NO_HBM", "ARCH_A", "ARCH_B", "ARCH_C"]:
-    raise ValueError("HBM_ARCH can be only ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route below. Thanks.")
+    raise ValueError("HBM_ARCH can be only ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route on top. Thanks.")
 HBM_BENDS = True
 print("HBM mode:", HBM_ARCH)
 
@@ -291,8 +291,8 @@ def best_realizable_set_found(
     ]
 
     # Skip T gates entirely from annealing if ARCH_A (they are “free”)
-    if HBM_ARCH == "ARCH_A":
-        t_indices = []
+    # if HBM_ARCH == "ARCH_A":
+        # t_indices = []
 
     if initial_order == "naive":
         best_order = cnot_indices + t_indices
