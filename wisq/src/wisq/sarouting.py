@@ -9,8 +9,8 @@ import os
 HBM_ARCH = os.getenv("HBM_ARCH", "NO_HBM") # ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route below
 if HBM_ARCH not in ["NO_HBM", "ARCH_A", "ARCH_B", "ARCH_C"]:
     raise ValueError("HBM_ARCH can be only ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route on top. Thanks.")
-HBM_BENDS = True
-print("HBM mode:", HBM_ARCH)
+HBM_BENDS = os.getenv("BENDS", "False") == "True"
+print("HBM mode:", HBM_ARCH, "bends:", HBM_BENDS)
 
 def route_gate(
     indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms
