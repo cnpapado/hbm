@@ -1,5 +1,44 @@
 import math
 
+def hbm_shared_2_positions(arch):
+    """Magic states between data-qubits in x dimension (same row)."""
+    width = arch["width"]
+    ms = set()
+    for q in arch["alg_qubits"]:
+        row = q // width
+        col = q % width
+        right = col + 1
+        if right < width:
+            between = row * width + right
+            ms.add(between)
+    return sorted(ms)
+
+def hbm_shared_4_positions(arch):
+    """
+    Magic states between data-qubit columns AND in the row below.
+    Between columns: (x+1)
+    Below row: row+1 (if exists)
+    """
+    width = arch["width"]
+    height = arch["height"]
+    ms = set()
+    for q in arch["alg_qubits"]:
+        row = q // width
+        col = q % width
+
+        # horizontal in-between
+        right = col + 1
+        if right < width:
+            between = row * width + right
+            ms.add(between)
+
+        # vertical in-between (one row below)
+        if row + 1 < height:
+            below = (row + 1) * width + col
+            ms.add(below)
+
+    return sorted(ms)
+
 
 def insert_row_above(arch):
     new = arch.copy()
@@ -76,8 +115,14 @@ def square_sparse_layout(alg_qubit_count, magic_states):
         arch['magic_states'] = msf_faces
     elif magic_states == "center_column":
         msf_faces = center_column(grid_len, grid_height)
+        arch['magic_states'] = msf_faces
     elif magic_states == 'right_column':
         msf_faces = right_column(grid_len, grid_height)
+        arch['magic_states'] = msf_faces
+    elif magic_states == "shared_2":
+        arch['magic_states'] = hbm_shared_2_positions(arch)
+    elif magic_states == "shared_4":
+        arch['magic_states'] = hbm_shared_4_positions(arch)
     else: msf_faces = magic_states
     return arch
 
@@ -93,6 +138,10 @@ def compact_layout(alg_qubit_count, magic_states):
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = all_sides(arch['width'], arch['height'])
         arch['magic_states'] = msf_faces
+    elif magic_states == "shared_2":
+        arch['magic_states'] = hbm_shared_2_positions(arch)
+    elif magic_states == "shared_4":
+        arch['magic_states'] = hbm_shared_4_positions(arch)
     return arch
 
 def vertical_neighbors(n, grid_len, grid_height, omitted_edges):

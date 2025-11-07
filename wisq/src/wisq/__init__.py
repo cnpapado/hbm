@@ -57,7 +57,8 @@ def extract_map_tuples(filename):
     return result
 
 def map_and_route(
-    input_path: str, arch_name: str, output_path: str, timeout: int, mode="dascot", fixed_mapping = None
+    input_path: str, arch_name: str, output_path: str, timeout: int,
+    mode="dascot", fixed_mapping=None, magic_state_sharing=None
 ):
     """
     Apply a surface code mapping and routing pass to the given circuit
@@ -79,13 +80,17 @@ def map_and_route(
     id_to_op = {i: ops[i] for i in range(len(ops))}
     total_qubits = len(extract_qubits_from_gates(gates))
     circ = QuantumCircuit.from_qasm_file(input_path)
+
+    magic_mode = magic_state_sharing if magic_state_sharing else "all_sides"
+
     if arch_name == "square_sparse_layout":
-        arch = square_sparse_layout(total_qubits, magic_states="all_sides")
+        arch = square_sparse_layout(total_qubits, magic_states=magic_mode)
     elif arch_name == "compact_layout":
-        arch = compact_layout(total_qubits, magic_states="all_sides")
+        arch = compact_layout(total_qubits, magic_states=magic_mode)
     else:
         with open(arch_name) as f:
             arch = ast.literal_eval(f.read())
+    print(arch)
     if mode == "dascot":
         if fixed_mapping != None:
             fixed_mapping = extract_map_tuples(fixed_mapping)
@@ -177,6 +182,8 @@ def compile_fault_tolerant(
             output_path,
             mr_timeout,
             mode=mr_solver,
+            fixed_mapping=fixed_mapping,
+            magic_state_sharing=args.magic_state_sharing,
         )
     finally:
         if os.path.exists(scratch_dir_path):
@@ -263,6 +270,13 @@ def main():
         help="solver to use for mapping and routing (default: 'dascot')",
         default="dascot",
     )
+    scmr.add_argument(
+        "--magic-state-sharing",
+        "-mss",
+        help="Magic-state sharing mode: {'shared_2', 'shared_4', 'all_sides', 'right_column', 'center_column'}",
+        choices=["shared_2", "shared_4", "all_sides", "right_column", "center_column"],
+        default=None,
+    )
     parser.add_argument(
         "--guoq_help", "-gh", help="print GUOQ options", action=Guoq_Help_Action
     )
@@ -323,7 +337,8 @@ def main():
             arch_name=args.architecture,
             timeout=args.mr_timeout,
             mode=args.mr_solver,
-            fixed_mapping=args.fixed_mapping
+            fixed_mapping=args.fixed_mapping,
+            magic_state_sharing=args.magic_state_sharing,
         )
 
 
