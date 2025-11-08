@@ -84,8 +84,10 @@ def run_wisq_case(bench_path, out_path, env_overrides, extra_args):
 HBM_CASES = [
     ("magic", {"HBM_ARCH": "NO_HBM", "BENDS": "True"}, {}),
     ("hbmA",  {"HBM_ARCH": "ARCH_A", "BENDS": "True"}, {}),
-    ("hbmB",  {"HBM_ARCH": "ARCH_B", "BENDS": "False"}, {"magic-sharing": "shared_2"}),
-    ("hbmC",  {"HBM_ARCH": "ARCH_C", "BENDS": "False"}, {"magic-sharing": "shared_2"}),
+    ("hbmB_shared2",  {"HBM_ARCH": "ARCH_B", "BENDS": "False"}, {"magic-sharing": "shared_2"}),
+    ("hbmC_shared2",  {"HBM_ARCH": "ARCH_C", "BENDS": "False"}, {"magic-sharing": "shared_2"}),
+    ("hbmB_shared4",  {"HBM_ARCH": "ARCH_B", "BENDS": "False"}, {"magic-sharing": "shared_4"}),
+    ("hbmC_shared4",  {"HBM_ARCH": "ARCH_C", "BENDS": "False"}, {"magic-sharing": "shared_4"}),
 ]
 
 
@@ -132,8 +134,10 @@ with open(summary_path, "w") as summary:
             f"{bench_name:20s} | "
             f"magic={averages['magic']}  "
             f"hbmA={averages['hbmA']}  "
-            f"hbmB={averages['hbmB']}  "
-            f"hbmC={averages['hbmC']}\n"
+            f"hbmB_shared2={averages['hbmB_shared2']}  "
+            f"hbmC_shared2={averages['hbmC_shared2']}  "
+            f"hbmB_shared4={averages['hbmB_shared4']}  "
+            f"hbmC_shared4={averages['hbmC_shared4']}\n"
         )
 
         print(line)
