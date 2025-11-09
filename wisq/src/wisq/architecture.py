@@ -112,18 +112,17 @@ def square_sparse_layout(alg_qubit_count, magic_states):
     if magic_states == 'all_sides':
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = all_sides(arch['width'], arch['height'])
-        arch['magic_states'] = msf_faces
     elif magic_states == "center_column":
         msf_faces = center_column(grid_len, grid_height)
-        arch['magic_states'] = msf_faces
     elif magic_states == 'right_column':
-        msf_faces = right_column(grid_len, grid_height)
-        arch['magic_states'] = msf_faces
+        arch = insert_column_right(arch)
+        msf_faces = right_column(arch['width'], arch['height'])
     elif magic_states == "shared_2":
-        arch['magic_states'] = hbm_shared_2_positions(arch)
+        msf_faces = hbm_shared_2_positions(arch)
     elif magic_states == "shared_4":
-        arch['magic_states'] = hbm_shared_4_positions(arch)
+        msf_faces = hbm_shared_4_positions(arch)
     else: msf_faces = magic_states
+    arch['magic_states'] = msf_faces
     return arch
 
 def compact_layout(alg_qubit_count, magic_states):
@@ -137,11 +136,17 @@ def compact_layout(alg_qubit_count, magic_states):
     if magic_states == 'all_sides':
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = all_sides(arch['width'], arch['height'])
-        arch['magic_states'] = msf_faces
+    elif magic_states == "center_column":
+        msf_faces = center_column(grid_len, grid_height)
+    elif magic_states == 'right_column':
+        arch = insert_column_right(arch)
+        msf_faces = right_column(arch['width'], arch['height'])
     elif magic_states == "shared_2":
-        arch['magic_states'] = hbm_shared_2_positions(arch)
+        msf_faces = hbm_shared_2_positions(arch)
     elif magic_states == "shared_4":
-        arch['magic_states'] = hbm_shared_4_positions(arch)
+        msf_faces = hbm_shared_4_positions(arch)
+    else: msf_faces = magic_states
+    arch['magic_states'] = msf_faces
     return arch
 
 def vertical_neighbors(n, grid_len, grid_height, omitted_edges):
