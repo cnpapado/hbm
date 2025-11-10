@@ -23,7 +23,7 @@ def route_gate(
     shortest_pair = None
 
     id, gate = indexed_gate
-    # print(f"    trying gate {id}")
+    print(f"    trying gate {id}({gate})")
     if len(gate) == 2:
         pairs = [
             (vn, hn)
@@ -34,6 +34,7 @@ def route_gate(
                 mapping[gate[1]], grid_len, grid_height, omitted_edges=[]
             )
         ]
+        print(f"    cnot pairs {pairs}")
     elif len(gate) == 1 and HBM_ARCH == "ARCH_A":
         # don't even route T gates
         return ([(id, gate, [])], to_remove, to_remove_hbm)
@@ -58,7 +59,7 @@ def route_gate(
         
             pairs = []
             data_node = mapping[gate[0]]
-            # print(f"data qubit {data_node}, magic states: {sorted_msf}")
+            print(f"data qubit {data_node}, magic states: {sorted_msf}")
             data_neighbors = vertical_neighbors(data_node, grid_len, grid_height, omitted_edges=[]) + \
                             horizontal_neighbors(data_node, grid_len, grid_height, omitted_edges=[])
 
@@ -67,10 +68,10 @@ def route_gate(
                                 horizontal_neighbors(magic_state, grid_len, grid_height, omitted_edges=[])
                 for dn in data_neighbors:
                     for mn in magic_neighbors:
-                        # print(f"data neighbor {dn}, magic neighbor {mn}")
+                        print(f"data neighbor {dn}, magic neighbor {mn}")
                         pairs.append((dn, mn))
 
-            # print(f"all pairs:{pairs}")
+            print(f"all pairs:{pairs}")
 
         else: # route to the horizontal neighbors of the anchila below the magic qubit in ARCH_B/the anchila above the data qubit in ARCH_C
             pairs = [
@@ -96,18 +97,28 @@ def route_gate(
     elif HBM_ARCH == "ARCH_C":
         if gate in msf_faces:
             return ([(id, gate, [])], to_remove, to_remove_hbm)
-        pairs = filter(
-            lambda p: hbm_graph.has_node(p[0]) and hbm_graph.has_node(p[1]), pairs 
-        )
-    # if (len(gate) == 1):
-        # print(f"filtered pairs:{list(pairs)}")
-        # a=1/0
+        if (len(gate)==1): # t gate
+            pairs = filter(
+                lambda p: hbm_graph.has_node(p[0]) and hbm_graph.has_node(p[1]), pairs 
+            )
+        else:
+            pairs = filter(
+                lambda p: device_graph.has_node(p[0]) and device_graph.has_node(p[1]), pairs 
+            )
+    # 
+    pairs=list(pairs)
+    print(f"filtered pairs:{pairs}")
+    # if (len(gate) == 1): 
+    #     a=1/0
+    #     print(f"filtered pairs:{list(pairs)}")
+    
     shortest_pair = None
     shortest_path_len = 2**31 - 1
 
-    graph_to_use = hbm_graph if HBM_ARCH == "ARCH_C" else device_graph
+    graph_to_use = hbm_graph if (HBM_ARCH == "ARCH_C" and len(gate)==1) else device_graph
 
     for s, t in pairs:
+        print(s,t)
         const_1 = lambda _: 1
         dist_dict = rx.dijkstra_shortest_path_lengths(graph_to_use, node=s, edge_cost_fn=const_1)
         if t not in dist_dict:
@@ -115,6 +126,7 @@ def route_gate(
             continue
 
         dist = dist_dict[t]
+        print(dist)
         if dist < shortest_path_len:
             shortest_path_len = dist
             shortest_pair = s, t
@@ -141,14 +153,16 @@ def route_gate(
             else:
                 to_remove.add(v)
     else:
+        print("else")
         route = []
+    print(route)
     return route, to_remove, to_remove_hbm
 
 
 def try_order(
     order, executable, grid_len, grid_height, msf_faces, mapping, take_first_ms
 ):
-    # print(f"trying order {order}")
+    print(f"trying order {order}")
     step = []
     to_remove, to_remove_hbm = initialize_to_remove(msf_faces, mapping)
     for i in range(len(executable)):
@@ -177,14 +191,12 @@ def initialize_to_remove(msf_faces, mapping):
         for q in mapping.keys():
             to_remove.add(mapping[q])
 
-        for f in msf_faces:
-            to_remove_hbm.add(f)
-            
-            # remove magic-state positions from the device layer to prevent routing paths
-            # from occupying these nodes. This ensures that data qubits can always be connected
-            # to the anchilla below a magic state qubit and are not blocked by other routed T gate path.
-            to_remove.add(f) 
-    
+        # for f in msf_faces:
+        #     # remove magic-state positions from the device layer to prevent routing paths
+        #     # from occupying these nodes. This ensures that data qubits can always be connected
+        #     # to the anchilla below a magic state qubit and are not blocked by other routed T gate path.
+        #     to_remove.add(f) 
+
     elif HBM_ARCH == "ARCH_C":
         for q in mapping.keys():
             to_remove.add(mapping[q])
@@ -193,7 +205,7 @@ def initialize_to_remove(msf_faces, mapping):
             # from occupying the nodes directly above them. This ensures that each
             # data qubit can always connect to the HBM layer above without being blocked
             # by some other routed T gate path.
-            to_remove_hbm.add(mapping[q])
+            # to_remove_hbm.add(mapping[q])
 
         for f in msf_faces:
             to_remove_hbm.add(f)

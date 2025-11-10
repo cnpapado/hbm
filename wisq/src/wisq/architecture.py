@@ -15,30 +15,35 @@ def hbm_shared_2_positions(arch):
 
 def hbm_shared_4_positions(arch):
     """
-    Magic states between data-qubit columns AND in the row below.
-    Between columns: (x+1)
-    Below row: row+1 (if exists)
+    Magic states that are the center of a 2x2 "square" formed by four data qubits
+    located at the four diagonal neighbors of the center:
+        up-left, up-right, down-left, down-right.
+
+    For each cell p in the grid, if all four diagonal neighbors exist and are
+    algorithm qubits, p is included as a magic-state candidate.
     """
     width = arch["width"]
     height = arch["height"]
+    alg = set(arch["alg_qubits"])
     ms = set()
-    for q in arch["alg_qubits"]:
-        row = q // width
-        col = q % width
 
-        # horizontal in-between
-        right = col + 1
-        if right < width:
-            between = row * width + right
-            ms.add(between)
+    for p in range(width * height):
+        row = p // width
+        col = p % width
 
-        # vertical in-between (one row below)
-        if row + 1 < height:
-            below = (row + 1) * width + col
-            ms.add(below)
+        # need at least one row above and one row below and one column left and one column right
+        if row == 0 or row == height - 1 or col == 0 or col == width - 1:
+            continue
+
+        ul = (row - 1) * width + (col - 1)  # up-left
+        ur = (row - 1) * width + (col + 1)  # up-right
+        dl = (row + 1) * width + (col - 1)  # down-left
+        dr = (row + 1) * width + (col + 1)  # down-right
+
+        if ul in alg and ur in alg and dl in alg and dr in alg:
+            ms.add(p)
 
     return sorted(ms)
-
 
 def insert_row_above(arch):
     new = arch.copy()
