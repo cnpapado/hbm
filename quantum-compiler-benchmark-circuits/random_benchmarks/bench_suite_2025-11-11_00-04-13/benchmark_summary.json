@@ -1,0 +1,731 @@
+[
+  {
+    "file": "randT_n25_L20_T0.1_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L20_T0.1_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L20_T0.1_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L20_T0.3_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L20_T0.3_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L20_T0.3_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L20_T0.6_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L20_T0.6_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L20_T0.6_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.1_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.1_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.1_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.3_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.3_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.3_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.6_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.6_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L40_T0.6_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.1_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.1_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.1_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.3_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.3_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.3_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.6_dep0.0.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.6_dep0.5.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n25_L80_T0.6_dep0.9.qasm",
+    "n_qubits": 25,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.1_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.1_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.1_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.3_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.3_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.3_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.6_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.6_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L20_T0.6_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.1_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.1_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.1_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.3_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.3_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.3_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.6_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.6_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L40_T0.6_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.1_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.1_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.1_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.3_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.3_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.3_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.6_dep0.0.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.6_dep0.5.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n75_L80_T0.6_dep0.9.qasm",
+    "n_qubits": 75,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.1_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.1_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.1_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.3_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.3_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.3_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.6_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.6_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L20_T0.6_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 20,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.1_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.1_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.1_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.3_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.3_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.3_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.6_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.6_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L40_T0.6_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 40,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.1_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.1_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.1_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.1,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.3_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.3_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.3_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.3,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.6_dep0.0.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.0,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.6_dep0.5.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.5,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  },
+  {
+    "file": "randT_n150_L80_T0.6_dep0.9.qasm",
+    "n_qubits": 150,
+    "n_layers": 80,
+    "t_density": 0.6,
+    "t_dependency": 0.9,
+    "cnot_density": 0.5,
+    "clifford_mix": 0.3
+  }
+]
