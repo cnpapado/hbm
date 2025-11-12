@@ -2,7 +2,7 @@ import itertools
 import math
 import random
 import numpy as np
-from .architecture import vertical_neighbors, horizontal_neighbors
+from .architecture import vertical_neighbors, horizontal_neighbors, are_adjacent
 import rustworkx as rx
 import os
 
@@ -23,7 +23,7 @@ def route_gate(
     shortest_pair = None
 
     id, gate = indexed_gate
-    print(f"    trying gate {id}({gate})")
+    # print(f"    trying gate {id}({mapping[gate[0]], mapping[gate[1]]})")
     if len(gate) == 2:
         pairs = [
             (vn, hn)
@@ -35,6 +35,9 @@ def route_gate(
             )
         ]
         print(f"    cnot pairs {pairs}")
+        print(msf_faces)
+        print(list(mapping[q] for q in mapping.keys()))
+        print(grid_len, grid_height)
     elif len(gate) == 1 and HBM_ARCH == "ARCH_A":
         # don't even route T gates
         return ([(id, gate, [])], to_remove, to_remove_hbm)
@@ -119,6 +122,12 @@ def route_gate(
 
     for s, t in pairs:
         print(s,t)
+        if not HBM_BENDS \
+        and ((HBM_ARCH == "ARCH_B" or HBM_ARCH == "ARCH_C") and len(gate)==1) \
+        and are_adjacent(s, t, grid_len):
+            return [(id, gate, [s,t])], to_remove, to_remove_hbm
+
+
         const_1 = lambda _: 1
         dist_dict = rx.dijkstra_shortest_path_lengths(graph_to_use, node=s, edge_cost_fn=const_1)
         if t not in dist_dict:
@@ -162,7 +171,7 @@ def route_gate(
 def try_order(
     order, executable, grid_len, grid_height, msf_faces, mapping, take_first_ms
 ):
-    print(f"trying order {order}")
+    # print(f"trying order {order}")
     step = []
     to_remove, to_remove_hbm = initialize_to_remove(msf_faces, mapping)
     for i in range(len(executable)):
@@ -175,6 +184,10 @@ def try_order(
 
 
 def initialize_to_remove(msf_faces, mapping):
+    # print()
+    # print(mapping)
+    # print(msf_faces)
+    # a=1/0
     to_remove = set()
     to_remove_hbm = set()
     if HBM_ARCH == "NO_HBM": # remove both magic and qubits from lower, do not care about higher
@@ -201,10 +214,10 @@ def initialize_to_remove(msf_faces, mapping):
         for q in mapping.keys():
             to_remove.add(mapping[q])
 
-            # remove data qubit positions from the HBM graph to prevent routing paths
-            # from occupying the nodes directly above them. This ensures that each
-            # data qubit can always connect to the HBM layer above without being blocked
-            # by some other routed T gate path.
+            # # remove data qubit positions from the HBM graph to prevent routing paths
+            # # from occupying the nodes directly above them. This ensures that each
+            # # data qubit can always connect to the HBM layer above without being blocked
+            # # by some other routed T gate path.
             # to_remove_hbm.add(mapping[q])
 
         for f in msf_faces:

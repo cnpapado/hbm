@@ -173,3 +173,18 @@ def horizontal_neighbors(n, grid_len, grid_height, omitted_edges):
     if n % grid_len != grid_len-1 and (n,right) not in omitted_edges and (right,n) not in omitted_edges:
         neighbors.append(right)
     return neighbors
+
+def are_adjacent(a, b, width):
+    """
+    Return True if positions a and b are horizontally or vertically adjacent
+    on a grid with the given width.
+    """
+    # horizontal neighbors
+    if a // width == b // width and abs(a - b) == 1:
+        return True
+
+    # vertical neighbors
+    if a % width == b % width and abs(a - b) == width:
+        return True
+
+    return False
