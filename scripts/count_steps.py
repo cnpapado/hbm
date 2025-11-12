@@ -27,7 +27,7 @@ os.makedirs(bench_output_dir, exist_ok=True)
 # === HBM configurations ===
 HBM_CASES = [
     ("magic", {"HBM_ARCH": "NO_HBM", "BENDS": "True"}, {}),
-    ("hbmA",  {"HBM_ARCH": "ARCH_A", "BENDS": "True"}, {}),
+    ("hbmA",  {"HBM_ARCH": "ARCH_A", "BENDS": "True"}, {"magic-sharing": "shared_2"}),
     ("hbmB_shared2",  {"HBM_ARCH": "ARCH_B", "BENDS": "False"}, {"magic-sharing": "shared_2"}),
     ("hbmC_shared2",  {"HBM_ARCH": "ARCH_C", "BENDS": "False"}, {"magic-sharing": "shared_2"}),
     ("hbmB_shared4",  {"HBM_ARCH": "ARCH_B", "BENDS": "False"}, {"magic-sharing": "shared_4"}),
