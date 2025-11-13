@@ -9,6 +9,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 parser = argparse.ArgumentParser(description="Run WISQ benchmarks in parallel")
 parser.add_argument("--runs", type=int, default=1)
 parser.add_argument("--parallel", type=int, default=8, help="Number of parallel processes")
+parser.add_argument("--tmr", type=str, default="180", help="TMR value to use (default: 180)")
 args = parser.parse_args()
 
 wisq_path = "wisq"
@@ -23,24 +24,24 @@ os.makedirs(bench_output_dir, exist_ok=True)
 # === HBM configurations ===
 HBM_CASES = [
     # name                          config                                extra args
-    ("NO_HBM",                      "NO_HBM",                             ["-arch", "compact_layout"]         ),
-    ("ARCH_A",                      "ARCH_A",                             ["-arch", "compact_layout"]         ),
-    ("ARCH_B shared2",              "ARCH_B_shared2",                     ["-arch", "compact_layout"]         ),
-    ("ARCH_B shared4",              "ARCH_B_shared4",                     ["-arch", "compact_layout"]         ),
-    ("ARCH_C shared2",              "ARCH_C_shared2",                     ["-arch", "compact_layout"]         ),
-    ("ARCH_C shared4",              "ARCH_C_shared4",                     ["-arch", "compact_layout"]         ),
-    ("NO_HBM single_magic_state",   "NO_HBM_single_magic_state_layout",   ["-arch", "compact_layout"]         ),
-    ("ARCH_B single_magic_state",   "ARCH_B_single_magic_state_layout",   ["-arch", "compact_layout"]         ),
-    ("ARCH_C single_magic_state",   "ARCH_C_single_magic_state_layout",   ["-arch", "compact_layout"]         ),
-    ("NO_HBM",                      "NO_HBM",                             ["-arch", "square_sparse_layout"]   ),
-    ("ARCH_A",                      "ARCH_A",                             ["-arch", "square_sparse_layout"]   ),
-    ("ARCH_B shared2",              "ARCH_B_shared2",                     ["-arch", "square_sparse_layout"]   ),
-    ("ARCH_B shared4",              "ARCH_B_shared4",                     ["-arch", "square_sparse_layout"]   ),
-    ("ARCH_C shared2",              "ARCH_C_shared2",                     ["-arch", "square_sparse_layout"]   ),
-    ("ARCH_C shared4",              "ARCH_C_shared4",                     ["-arch", "square_sparse_layout"]   ),
-    ("NO_HBM single_magic_state",   "NO_HBM_single_magic_state_layout",   ["-arch", "square_sparse_layout"]   ),
-    ("ARCH_B single_magic_state",   "ARCH_B_single_magic_state_layout",   ["-arch", "square_sparse_layout"]   ),
-    ("ARCH_C single_magic_state",   "ARCH_C_single_magic_state_layout",   ["-arch", "square_sparse_layout"]   ),
+    ("NO_HBM",                      "NO_HBM",                             ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("ARCH_A",                      "ARCH_A",                             ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("ARCH_B shared2",              "ARCH_B_shared2",                     ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("ARCH_B shared4",              "ARCH_B_shared4",                     ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("ARCH_C shared2",              "ARCH_C_shared2",                     ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("ARCH_C shared4",              "ARCH_C_shared4",                     ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("NO_HBM single_magic_state",   "NO_HBM_single_magic_state_layout",   ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("ARCH_B single_magic_state",   "ARCH_B_single_magic_state_layout",   ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("ARCH_C single_magic_state",   "ARCH_C_single_magic_state_layout",   ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]         ),
+    ("NO_HBM",                      "NO_HBM",                             ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
+    ("ARCH_A",                      "ARCH_A",                             ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
+    ("ARCH_B shared2",              "ARCH_B_shared2",                     ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
+    ("ARCH_B shared4",              "ARCH_B_shared4",                     ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
+    ("ARCH_C shared2",              "ARCH_C_shared2",                     ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
+    ("ARCH_C shared4",              "ARCH_C_shared4",                     ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
+    ("NO_HBM single_magic_state",   "NO_HBM_single_magic_state_layout",   ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
+    ("ARCH_B single_magic_state",   "ARCH_B_single_magic_state_layout",   ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
+    ("ARCH_C single_magic_state",   "ARCH_C_single_magic_state_layout",   ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]   ),
 ]
 
 # === Helper functions ===
