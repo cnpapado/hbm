@@ -14,6 +14,8 @@ from .utils import create_scratch_dir
 import os
 import shutil
 import json
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 
 OPT_MODE = "opt"
@@ -56,9 +58,51 @@ def extract_map_tuples(filename):
     result = [(int(k), v) for k, v in map_dict.items()]
     return result
 
+
+def visualize_architecture(arch):
+    """Simple static visualization of architecture layout before compilation."""
+    H = arch["height"]
+    W = arch["width"]
+    alg = set(arch["alg_qubits"])
+    magic = set(arch["magic_states"])
+
+    fig, ax = plt.subplots(figsize=(W, H))
+
+    qubit_id = 0
+    for row in range(H):
+        for col in range(W):
+            if qubit_id in magic:
+                color = "orange"
+            elif qubit_id in alg:
+                color = "cornflowerblue"
+            else:
+                color = "lightgray"
+
+            y = H - 1 - row
+            rect = patches.Rectangle(
+                (col, y), 1, 1,
+                linewidth=1,
+                edgecolor="black",
+                facecolor=color
+            )
+            ax.add_patch(rect)
+            ax.text(
+                col + 0.5, y + 0.5, str(qubit_id),
+                ha="center", va="center", fontsize=9
+            )
+            qubit_id += 1
+
+    ax.set_xlim(0, W)
+    ax.set_ylim(0, H)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.set_title("Architecture Visualization — close to continue")
+    plt.show()
+
+
 def map_and_route(
     input_path: str, arch_name: str, output_path: str, timeout: int,
-    mode="dascot", fixed_mapping=None, magic_state_sharing=None
+    mode="dascot", fixed_mapping=None, magic_state_sharing=None, visualize=False
 ):
     """
     Apply a surface code mapping and routing pass to the given circuit
@@ -91,6 +135,10 @@ def map_and_route(
         with open(arch_name) as f:
             arch = ast.literal_eval(f.read())
     print(arch)
+    # visualize architecture before compilation if requested
+    if visualize:
+        visualize_architecture(arch)
+    
     if mode == "dascot":
         if fixed_mapping != None:
             fixed_mapping = extract_map_tuples(fixed_mapping)
@@ -184,6 +232,7 @@ def compile_fault_tolerant(
             mode=mr_solver,
             fixed_mapping=fixed_mapping,
             magic_state_sharing=args.magic_state_sharing,
+            visualize=visualize,
         )
     finally:
         if os.path.exists(scratch_dir_path):
@@ -220,10 +269,15 @@ def main():
         """,
         choices=[OPT_MODE, FULL_FT_MODE, SCMR_MODE],
     )
+    parser.add_argument(
+        "--visualize-arch",
+        "-va",
+        help="visualize the architecture before compilation (closes to continue)",
+        action="store_true",
+    )
     opt.add_argument(
         "--target_gateset",
         "-tg",
-        help="target gateset for circuit optimization (default: Clifford + T)",
         default=CLIFFORDT,
         choices=guoq.GATE_SETS.keys(),
     )
@@ -327,8 +381,8 @@ def main():
             verbose=args.verbose,
             mr_timeout=args.mr_timeout,
             mr_solver=args.mr_solver,
-            path_to_synthetiq=args.abs_path_to_synthetiq,
-            fixed_mapping=args.fixed_mapping
+            fixed_mapping=args.fixed_mapping,
+            visualize=args.visualize_arch,
         )
     elif args.mode == SCMR_MODE:
         map_and_route(
@@ -339,6 +393,7 @@ def main():
             mode=args.mr_solver,
             fixed_mapping=args.fixed_mapping,
             magic_state_sharing=args.magic_state_sharing,
+            visualize=args.visualize_arch,
         )
 
 
