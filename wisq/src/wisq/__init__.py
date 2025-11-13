@@ -75,6 +75,9 @@ def map_and_route(
     circ = QuantumCircuit.from_qasm_file(input_path)
     if HBM_ARCH=="ARCH_A":
         arch = square_sparse_layout(total_qubits, magic_states="shared_2")
+    elif HBM_ARCH=="ARCH_B":
+        print("for now ARCH_B is hardcoded to share_2")
+        arch = square_sparse_layout(total_qubits, magic_states="shared_2")
     elif arch_name == "square_sparse_layout":
         arch = square_sparse_layout(total_qubits, magic_states="all_sides")
     elif arch_name == "compact_layout":

@@ -107,6 +107,10 @@ def initialize_to_remove(msf_faces, mapping):
         for q in mapping.keys():
             to_remove.add(mapping[q])
         # do not remove magic states
+    elif HBM_ARCH=="ARCH_B":
+        for q in mapping.keys():
+            to_remove.add(mapping[q])
+        # do not remove magic states
     else:
         for q in mapping.keys():
             to_remove.add(mapping[q])
