@@ -77,14 +77,14 @@ def load_steps(path):
 
 def run_wisq_case(bench_path, bench_name, case_name, hbm_config, extra_wisq_args, run_idx):
     """Single benchmark/architecture run."""
-    out_path = os.path.join(bench_output_dir, f"{bench_name}_{case_name}_run{run_idx}.out")
-    log_path = os.path.join(bench_output_dir, f"{bench_name}_{case_name}_run{run_idx}.log")
+    out_path = os.path.join(bench_output_dir, f"{bench_name}_{case_name.replace(" ", "_")}_run{run_idx}.out")
+    log_path = os.path.join(bench_output_dir, f"{bench_name}_{case_name.replace(" ", "_")}_run{run_idx}.log")
 
     env = os.environ.copy()
     env["HBM_CONFIG"] = hbm_config
 
     cmd = [wisq_path, bench_path, "-op", out_path, "--mode", "scmr"] + extra_wisq_args
-
+    print(cmd)
     ok = run_and_stream(cmd, env, log_path)
     steps = load_steps(out_path) if ok else None
 
