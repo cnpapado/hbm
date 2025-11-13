@@ -54,15 +54,15 @@ HORIZONTAL_DOTS_AT_ENDPOINTS_ONLY = True  # if True, dots are only at the first 
 
 # # HBM_C
 # GRID_SIZE = 7
-#
+
 # BOTTOM_MAGIC = []
 # BOTTOM_DATA  = [8,10,12,22,24,26,36,38,40]
-#
+
 # TOP_MAGIC = [9,11,23,25,37,39]
 # BOTTOM_ROUTE = [37,30,31,32,25,18,11]
 # TOP_DATA  = []
 # TOP_ROUTE = []
-#
+
 # CONNECTOR_CELLS = [11]
 #
 # LAST_BOTTOM_TILE = None   # index of tile to connect (with horizontal lines) the last BOTTOM_ROUTE tile to (if any)
@@ -229,13 +229,11 @@ class HorizontalPlanes3D(ThreeDScene):
                     dot_top = Dot(rects_top[idx].get_center(), radius=0.08, color=LINES)
                     vertical_dots.add(dot_bottom, dot_top)
 
-
-
         # --- Horizontal connectors for BOTTOM_ROUTE ---
         bottom_horiz_lines = VGroup()
         if len(BOTTOM_ROUTE) > 1:
             for i in range(len(BOTTOM_ROUTE) - 1):
-                idx1, idx2 = BOTTOM_ROUTE[i], BOTTOM_ROUTE[i+1]
+                idx1, idx2 = BOTTOM_ROUTE[i], BOTTOM_ROUTE[i + 1]
                 line = Line(
                     rects_bottom[idx1].get_center(),
                     rects_bottom[idx2].get_center(),
@@ -243,12 +241,13 @@ class HorizontalPlanes3D(ThreeDScene):
                     stroke_width=2
                 )
                 bottom_horiz_lines.add(line)
-        # Connect last tile to specified tile if set
-        if LAST_BOTTOM_TILE is not None and len(BOTTOM_ROUTE) > 0:
-            last_idx = BOTTOM_ROUTE[-1]
+
+        # Connect first tile to specified tile if set
+        if FIRST_BOTTOM_TILE is not None and len(BOTTOM_ROUTE) > 0:
+            first_idx = BOTTOM_ROUTE[0]
             line = Line(
-                rects_bottom[last_idx].get_center(),
-                rects_bottom[LAST_BOTTOM_TILE].get_center(),
+                rects_bottom[first_idx].get_center(),
+                rects_bottom[FIRST_BOTTOM_TILE].get_center(),
                 color=ROUTE_LINE_COLOR,
                 stroke_width=2
             )
@@ -258,7 +257,7 @@ class HorizontalPlanes3D(ThreeDScene):
         top_horiz_lines = VGroup()
         if len(TOP_ROUTE) > 1:
             for i in range(len(TOP_ROUTE) - 1):
-                idx1, idx2 = TOP_ROUTE[i], TOP_ROUTE[i+1]
+                idx1, idx2 = TOP_ROUTE[i], TOP_ROUTE[i + 1]
                 line = Line(
                     rects_top[idx1].get_center(),
                     rects_top[idx2].get_center(),
@@ -266,58 +265,48 @@ class HorizontalPlanes3D(ThreeDScene):
                     stroke_width=2
                 )
                 top_horiz_lines.add(line)
-        # Connect last tile to specified tile if set
-        if LAST_TOP_TILE is not None and len(TOP_ROUTE) > 0:
-            last_idx = TOP_ROUTE[-1]
-            line = Line(
-                rects_top[last_idx].get_center(),
-                rects_top[LAST_TOP_TILE].get_center(),
-                color=ROUTE_LINE_COLOR,
-                stroke_width=2
-            )
-            top_horiz_lines.add(line)
 
-            # --- Dots at center of route tiles ---
-            route_dots = VGroup()
+                # --- Dots at center of route tiles ---
+        route_dots = VGroup()
 
-            def add_endpoint_dot(rects, route, last_tile):
-                if len(route) == 0:
-                    return
-                # first tile
+        def add_endpoint_dot(rects, route, endpoint_tile, draw_first=True):
+            """Add dot at either the route start, end, or specific endpoint tile."""
+            if len(route) == 0:
+                return
+            if draw_first and endpoint_tile is None:
+                # Only add the route’s first tile if there’s no custom endpoint
                 dot = Dot(rects[route[0]].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
                 route_dots.add(dot)
-                # last tile
-                end_idx = last_tile if last_tile is not None else route[-1]
-                dot = Dot(rects[end_idx].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
+            if endpoint_tile is not None:
+                # Add only the endpoint tile (skip route[0])
+                dot = Dot(rects[endpoint_tile].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
                 route_dots.add(dot)
 
-            if HORIZONTAL_DOTS_AT_ENDPOINTS_ONLY:
-                add_endpoint_dot(rects_bottom, BOTTOM_ROUTE, LAST_BOTTOM_TILE)
-                add_endpoint_dot(rects_top, TOP_ROUTE, LAST_TOP_TILE)
-            else:
-                # previous behavior: add dot at all route tiles
-                for idx in BOTTOM_ROUTE:
-                    dot = Dot(rects_bottom[idx].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
-                    route_dots.add(dot)
-                if LAST_BOTTOM_TILE is not None:
-                    dot = Dot(rects_bottom[LAST_BOTTOM_TILE].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
-                    route_dots.add(dot)
+        if HORIZONTAL_DOTS_AT_ENDPOINTS_ONLY:
+            # For bottom: only FIRST_BOTTOM_TILE should get a dot
+            add_endpoint_dot(rects_bottom, BOTTOM_ROUTE, FIRST_BOTTOM_TILE, draw_first=False)
+            # For top: only LAST_TOP_TILE should get a dot
+            add_endpoint_dot(rects_top, TOP_ROUTE, LAST_TOP_TILE, draw_first=False)
+        else:
+            # If showing all dots
+            for idx in BOTTOM_ROUTE:
+                dot = Dot(rects_bottom[idx].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
+                route_dots.add(dot)
+            if FIRST_BOTTOM_TILE is not None:
+                dot = Dot(rects_bottom[FIRST_BOTTOM_TILE].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
+                route_dots.add(dot)
 
-                for idx in TOP_ROUTE:
-                    dot = Dot(rects_top[idx].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
-                    route_dots.add(dot)
-                if LAST_TOP_TILE is not None:
-                    dot = Dot(rects_top[LAST_TOP_TILE].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
-                    route_dots.add(dot)
-
+            for idx in TOP_ROUTE:
+                dot = Dot(rects_top[idx].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
+                route_dots.add(dot)
+            if LAST_TOP_TILE is not None:
+                dot = Dot(rects_top[LAST_TOP_TILE].get_center(), radius=0.08, color=ROUTE_LINE_COLOR)
+                route_dots.add(dot)
 
 
         # --- Add to scene ---
         self.add(plane_bottom, plane_top, grid_bottom, grid_top, connectors)
         self.add(bottom_horiz_lines, top_horiz_lines, route_dots, vertical_dots)
-
-
-
 
         # Optional camera motion
         self.wait(1.5)

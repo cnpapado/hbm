@@ -1,1 +1,1 @@
-manim -pql -s -r 1920,1080 -o planes.png planes.py HorizontalPlanes3D
+manim -pql -s -r 1920,1080 -o planes.png 3d-planes.py HorizontalPlanes3D
