@@ -22,9 +22,25 @@ os.makedirs(bench_output_dir, exist_ok=True)
 
 # === HBM configurations ===
 HBM_CASES = [
-    ("NO_HBM", "nohbm"),
-    ("ARCH_A", "hbmA"),
-    ("ARCH_B", "hbmB"),
+    # name                          config                                extra args
+    ("NO_HBM",                      "NO_HBM",                             ["-arch", "compact_layout"]         ),
+    ("ARCH_A",                      "ARCH_A",                             ["-arch", "compact_layout"]         ),
+    ("ARCH_B shared2",              "ARCH_B_shared2",                     ["-arch", "compact_layout"]         ),
+    ("ARCH_B shared4",              "ARCH_B_shared4",                     ["-arch", "compact_layout"]         ),
+    ("ARCH_C shared2",              "ARCH_C_shared2",                     ["-arch", "compact_layout"]         ),
+    ("ARCH_C shared4",              "ARCH_C_shared4",                     ["-arch", "compact_layout"]         ),
+    ("NO_HBM single_magic_state",   "NO_HBM_single_magic_state_layout",   ["-arch", "compact_layout"]         ),
+    ("ARCH_B single_magic_state",   "ARCH_B_single_magic_state_layout",   ["-arch", "compact_layout"]         ),
+    ("ARCH_C single_magic_state",   "ARCH_C_single_magic_state_layout",   ["-arch", "compact_layout"]         ),
+    ("NO_HBM",                      "NO_HBM",                             ["-arch", "square_sparse_layout"]   ),
+    ("ARCH_A",                      "ARCH_A",                             ["-arch", "square_sparse_layout"]   ),
+    ("ARCH_B shared2",              "ARCH_B_shared2",                     ["-arch", "square_sparse_layout"]   ),
+    ("ARCH_B shared4",              "ARCH_B_shared4",                     ["-arch", "square_sparse_layout"]   ),
+    ("ARCH_C shared2",              "ARCH_C_shared2",                     ["-arch", "square_sparse_layout"]   ),
+    ("ARCH_C shared4",              "ARCH_C_shared4",                     ["-arch", "square_sparse_layout"]   ),
+    ("NO_HBM single_magic_state",   "NO_HBM_single_magic_state_layout",   ["-arch", "square_sparse_layout"]   ),
+    ("ARCH_B single_magic_state",   "ARCH_B_single_magic_state_layout",   ["-arch", "square_sparse_layout"]   ),
+    ("ARCH_C single_magic_state",   "ARCH_C_single_magic_state_layout",   ["-arch", "square_sparse_layout"]   ),
 ]
 
 # === Helper functions ===
@@ -58,15 +74,15 @@ def load_steps(path):
     except:
         return None
 
-def run_wisq_case(bench_path, bench_name, case_name, hbm_arch, run_idx):
+def run_wisq_case(bench_path, bench_name, case_name, hbm_config, extra_wisq_args, run_idx):
     """Single benchmark/architecture run."""
     out_path = os.path.join(bench_output_dir, f"{bench_name}_{case_name}_run{run_idx}.out")
     log_path = os.path.join(bench_output_dir, f"{bench_name}_{case_name}_run{run_idx}.log")
 
     env = os.environ.copy()
-    env["HBM_ARCH"] = hbm_arch
+    env["HBM_CONFIG"] = hbm_config
 
-    cmd = [wisq_path, bench_path, "-op", out_path, "--mode", "scmr"]
+    cmd = [wisq_path, bench_path, "-op", out_path, "--mode", "scmr"] + extra_wisq_args
 
     ok = run_and_stream(cmd, env, log_path)
     steps = load_steps(out_path) if ok else None
@@ -82,8 +98,8 @@ def main():
 
     for bench_path, bench_name in zip(qasm_paths, qasm_names):
         for run_idx in range(1, args.runs + 1):
-            for hbm_arch, case_name in HBM_CASES:
-                all_jobs.append((bench_path, bench_name, case_name, hbm_arch, run_idx))
+            for case_name, hbm_config, extra_wisq_args in HBM_CASES:
+                all_jobs.append((bench_path, bench_name, case_name, hbm_config, extra_wisq_args, run_idx))
 
     print(f"🚀 Launching {len(all_jobs)} total runs with {args.parallel} parallel workers")
 
@@ -109,7 +125,7 @@ def main():
 
         for bench, cases in sorted(bench_modes.items()):
             line = f"{bench:<20} | "
-            for _, name in HBM_CASES:
+            for name, _, _ in HBM_CASES:
                 vals = [v for v in cases.get(name, []) if v is not None]
                 avg = round(statistics.mean(vals), 1) if vals else "—"
                 line += f"{str(avg):<8}  "

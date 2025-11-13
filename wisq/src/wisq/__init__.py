@@ -16,7 +16,7 @@ import shutil
 import json
 import os
 
-HBM_ARCH = os.getenv("HBM_ARCH", "NO_HBM") # ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route on top
+HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 
 OPT_MODE = "opt"
 FULL_FT_MODE = "full_ft"
@@ -73,15 +73,28 @@ def map_and_route(
     id_to_op = {i: ops[i] for i in range(len(ops))}
     total_qubits = len(extract_qubits_from_gates(gates))
     circ = QuantumCircuit.from_qasm_file(input_path)
-    if HBM_ARCH=="ARCH_A":
-        arch = square_sparse_layout(total_qubits, magic_states="shared_2")
-    elif HBM_ARCH=="ARCH_B":
-        print("for now ARCH_B is hardcoded to share_2")
-        arch = square_sparse_layout(total_qubits, magic_states="shared_2")
-    elif arch_name == "square_sparse_layout":
-        arch = square_sparse_layout(total_qubits, magic_states="all_sides")
+    if arch_name == "square_sparse_layout":
+        if HBM_CONFIG=="ARCH_A":
+            arch = square_sparse_layout(total_qubits, magic_states="shared_2")
+        elif HBM_CONFIG=="ARCH_B_shared2" or HBM_CONFIG=="ARCH_C_shared2":
+            arch = square_sparse_layout(total_qubits, magic_states="shared_2")
+        elif HBM_CONFIG=="ARCH_B_shared4" or HBM_CONFIG=="ARCH_C_shared4":
+            arch = square_sparse_layout(total_qubits, magic_states="shared_4")
+        elif HBM_CONFIG=="ARCH_B_single_magic_state_layout" or HBM_CONFIG=="ARCH_C_single_magic_state_layout" or HBM_CONFIG=="NO_HBM_single_magic_state_layout":
+            arch = square_sparse_layout(total_qubits, magic_states="single_magic_state")
+        else:
+            arch = square_sparse_layout(total_qubits, magic_states="all_sides")
     elif arch_name == "compact_layout":
-        arch = compact_layout(total_qubits, magic_states="all_sides")
+        if HBM_CONFIG=="ARCH_A":
+            arch = compact_layout(total_qubits, magic_states="shared_2")
+        elif HBM_CONFIG=="ARCH_B_shared2" or HBM_CONFIG=="ARCH_C_shared2":
+            arch = compact_layout(total_qubits, magic_states="shared_2")
+        elif HBM_CONFIG=="ARCH_B_shared4" or HBM_CONFIG=="ARCH_C_shared4":
+            arch = compact_layout(total_qubits, magic_states="shared_4")
+        elif HBM_CONFIG=="ARCH_B_single_magic_state_layout" or HBM_CONFIG=="ARCH_C_single_magic_state_layout" or HBM_CONFIG=="NO_HBM_single_magic_state_layout":
+            arch = compact_layout(total_qubits, magic_states="single_magic_state")
+        else:
+            arch = compact_layout(total_qubits, magic_states="all_sides")
     else:
         with open(arch_name) as f:
             arch = ast.literal_eval(f.read())

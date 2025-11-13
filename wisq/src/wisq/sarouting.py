@@ -6,15 +6,27 @@ from .architecture import vertical_neighbors, horizontal_neighbors
 import rustworkx as rx
 import os
 
-HBM_ARCH = os.getenv("HBM_ARCH", "NO_HBM") # ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route on top
-if HBM_ARCH not in ["NO_HBM", "ARCH_A", "ARCH_B", "ARCH_C"]:
-    raise ValueError("HBM_ARCH can be only ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route on top. Thanks.")
+HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
+
+if HBM_CONFIG=="ARCH_A":
+    HBM_ARCH = "ARCH_A" # ARCH_A: 1-1 connectivity
+elif HBM_CONFIG=="ARCH_B_shared2" or HBM_CONFIG=="ARCH_B_shared4" or HBM_CONFIG=="ARCH_B_single_magic_state_layout":
+    HBM_ARCH = "ARCH_B" # ARCH_B: route below then connect to top
+elif HBM_CONFIG=="ARCH_C_shared2" or HBM_CONFIG=="ARCH_C_shared4" or HBM_CONFIG=="ARCH_C_single_magic_state_layout":
+    HBM_ARCH = "ARCH_C" # ARCH_C: connect to top then route on top
+elif HBM_CONFIG=="NO_HBM_single_magic_state_layout" or HBM_CONFIG=="NO_CONFIG" or HBM_CONFIG=="NO_HBM":
+    HBM_ARCH = "NO_HBM"
+else:
+    raise ValueError("invalid HBM_CONFIG option")
+         
 
 def route_gate(
-    indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, take_first_ms
+    indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms
 ):
     device_graph = rx.generators.grid_graph(rows=grid_height, cols=grid_len)
     device_graph.remove_nodes_from(list(to_remove))
+    hbm_graph = rx.generators.grid_graph(rows=grid_height, cols=grid_len)
+    hbm_graph.remove_nodes_from(list(to_remove_hbm))
     shortest_path_len = 2**31 - 1
     shortest_pair = None
 
@@ -32,7 +44,7 @@ def route_gate(
     else:
         if HBM_ARCH == "ARCH_A":
             # don't even route T gates
-            return ([(id, gate, [])], to_remove)
+            return ([(id, gate, [])], to_remove, to_remove_hbm)
         else:
             sorted_msf = sorted(
                 msf_faces,
@@ -55,13 +67,19 @@ def route_gate(
                     magic_state, grid_len, grid_height, omitted_edges=[]
                 )
             ]
-    pairs = filter(
-        lambda p: device_graph.has_node(p[0]) and device_graph.has_node(p[1]), pairs
-    )
+    if HBM_ARCH == "ARCH_C" and len(gate) == 1: # for T gates in ARCH_C:
+        pairs = filter(
+            lambda p: device_graph.has_node(p[0]) and hbm_graph.has_node(p[1]), pairs
+        )
+    else:
+        pairs = filter(
+            lambda p: device_graph.has_node(p[0]) and device_graph.has_node(p[1]), pairs
+        )
+    graph_to_use = hbm_graph if (HBM_ARCH == "ARCH_C" and len(gate) == 1) else device_graph
     for s, t in pairs:
         const_1 = lambda _: 1
         dist_dict = rx.dijkstra_shortest_path_lengths(
-            device_graph, edge_cost_fn=const_1, node=s, goal=t
+            graph_to_use, edge_cost_fn=const_1, node=s, goal=t
         )
         if t in dist_dict.keys():
             dist = dist_dict[t]
@@ -74,7 +92,7 @@ def route_gate(
                 break
     if shortest_pair != None:
         s, t = shortest_pair
-        path = list(rx.dijkstra_shortest_paths(device_graph, source=s, target=t)[t])
+        path = list(rx.dijkstra_shortest_paths(graph_to_use, source=s, target=t)[t])
         if s not in path:
             path = [s] + path
         if t not in path:
@@ -84,18 +102,18 @@ def route_gate(
             to_remove.add(v)
     else:
         route = []
-    return route, to_remove
+    return route, to_remove, to_remove_hbm
 
 
 def try_order(
     order, executable, grid_len, grid_height, msf_faces, mapping, take_first_ms
 ):
     step = []
-    to_remove = initialize_to_remove(msf_faces, mapping)
+    to_remove, to_remove_hbm = initialize_to_remove(msf_faces, mapping)
     for i in range(len(executable)):
         gate = list(executable.items())[order[i]]
-        route, to_remove = route_gate(
-            gate, grid_len, grid_height, msf_faces, mapping, to_remove, take_first_ms
+        route, to_remove, to_remove_hbm = route_gate(
+            gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms
         )
         step.extend(route)
     return step
@@ -103,6 +121,8 @@ def try_order(
 
 def initialize_to_remove(msf_faces, mapping):
     to_remove = set()
+    to_remove_hbm = set()
+
     if HBM_ARCH=="ARCH_A":
         for q in mapping.keys():
             to_remove.add(mapping[q])
@@ -111,12 +131,19 @@ def initialize_to_remove(msf_faces, mapping):
         for q in mapping.keys():
             to_remove.add(mapping[q])
         # do not remove magic states
+    elif HBM_ARCH=="ARCH_C":
+        # remove magic states from upper plane
+        for f in msf_faces:
+            to_remove_hbm.add(f)
+        # remove data from lower plane
+        for q in mapping.keys():
+            to_remove.add(mapping[q])
     else:
         for q in mapping.keys():
             to_remove.add(mapping[q])
         for f in msf_faces:
             to_remove.add(f)
-    return to_remove
+    return to_remove,to_remove_hbm
 
 
 def shortest_path(gate, mapping, grid_len, grid_height, msf_faces):

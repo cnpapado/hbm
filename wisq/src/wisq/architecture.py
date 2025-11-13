@@ -13,6 +13,46 @@ def hbm_shared_2_positions(arch):
             ms.add(between)
     return sorted(ms)
 
+def hbm_shared_4_positions(arch):
+    """Magic states that are the center of a 2x2 "square" formed by four data qubits"""
+    width = arch["width"]
+    height = arch["height"]
+    alg = set(arch["alg_qubits"])
+    ms = set()
+
+    for p in range(width * height):
+        row = p // width
+        col = p % width
+
+        # need at least one row above and one row below and one column left and one column right
+        if row == 0 or row == height - 1 or col == 0 or col == width - 1:
+            continue
+
+        ul = (row - 1) * width + (col - 1)  # up-left
+        ur = (row - 1) * width + (col + 1)  # up-right
+        dl = (row + 1) * width + (col - 1)  # down-left
+        dr = (row + 1) * width + (col + 1)  # down-right
+
+        if ul in alg and ur in alg and dl in alg and dr in alg:
+            ms.add(p)
+
+    return sorted(ms)
+
+def single_magic_state(arch):
+    """A single magic state between data-qubits in x dimension (same row)."""
+    width = arch["width"]
+    ms = set()
+    q = arch["alg_qubits"][0]
+    row = q // width
+    col = q % width
+    right = col + 1
+    if right < width:
+        between = row * width + right
+        ms.add(between)
+    print(ms)
+    return sorted(ms)
+
+
 def insert_row_above(arch):
     new = arch.copy()
     new['height'] = arch['height']+1
@@ -92,6 +132,10 @@ def square_sparse_layout(alg_qubit_count, magic_states):
         msf_faces = right_column(grid_len, grid_height)
     elif magic_states == "shared_2":
         msf_faces = hbm_shared_2_positions(arch)
+    elif magic_states == "shared_4":
+        msf_faces = hbm_shared_4_positions(arch)
+    elif magic_states == "single_magic_state":
+        msf_faces = single_magic_state(arch)
     else: msf_faces = magic_states
     arch["magic_states"] = msf_faces
     return arch
@@ -110,6 +154,10 @@ def compact_layout(alg_qubit_count, magic_states):
         arch['magic_states'] = msf_faces
     elif magic_states == "shared_2":
         msf_faces = hbm_shared_2_positions(arch)
+    elif magic_states == "shared_4":
+        msf_faces = hbm_shared_4_positions(arch)
+    elif magic_states == "single_magic_state":
+        msf_faces = single_magic_state(arch)
     arch["magic_states"] = msf_faces
     return arch
 
