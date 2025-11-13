@@ -13,38 +13,6 @@ def hbm_shared_2_positions(arch):
             ms.add(between)
     return sorted(ms)
 
-def hbm_shared_4_positions(arch):
-    """
-    Magic states that are the center of a 2x2 "square" formed by four data qubits
-    located at the four diagonal neighbors of the center:
-        up-left, up-right, down-left, down-right.
-
-    For each cell p in the grid, if all four diagonal neighbors exist and are
-    algorithm qubits, p is included as a magic-state candidate.
-    """
-    width = arch["width"]
-    height = arch["height"]
-    alg = set(arch["alg_qubits"])
-    ms = set()
-
-    for p in range(width * height):
-        row = p // width
-        col = p % width
-
-        # need at least one row above and one row below and one column left and one column right
-        if row == 0 or row == height - 1 or col == 0 or col == width - 1:
-            continue
-
-        ul = (row - 1) * width + (col - 1)  # up-left
-        ur = (row - 1) * width + (col + 1)  # up-right
-        dl = (row + 1) * width + (col - 1)  # down-left
-        dr = (row + 1) * width + (col + 1)  # down-right
-
-        if ul in alg and ur in alg and dl in alg and dr in alg:
-            ms.add(p)
-
-    return sorted(ms)
-
 def insert_row_above(arch):
     new = arch.copy()
     new['height'] = arch['height']+1
@@ -66,10 +34,10 @@ def insert_column_left(arch):
         # need to count first row
         row = q // arch['width']+1
         new['alg_qubits'].append(q+row)
-    for m in arch['magic_states']:
+    for m in arch['alg_qubits']:
         # need to count first row
         row = m // arch['width']+1
-        new['magic_states'].append(m+row)
+        new['magic_states'].append(q+row)
     return new
 
 def insert_column_right(arch):
@@ -81,10 +49,10 @@ def insert_column_right(arch):
         # now don't coount the one in my row
         row = q // arch['width']
         new['alg_qubits'].append(q+row)
-    for m in arch['magic_states']:
+    for m in arch['alg_qubits']:
         # don't coujnt my row
         row = m // arch['width']
-        new['magic_states'].append(m+row)
+        new['magic_states'].append(q+row)
     return new
 
 def center_column(width, height):
@@ -117,17 +85,15 @@ def square_sparse_layout(alg_qubit_count, magic_states):
     if magic_states == 'all_sides':
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = all_sides(arch['width'], arch['height'])
+        arch['magic_states'] = msf_faces
     elif magic_states == "center_column":
         msf_faces = center_column(grid_len, grid_height)
     elif magic_states == 'right_column':
-        arch = insert_column_right(arch)
-        msf_faces = right_column(arch['width'], arch['height'])
+        msf_faces = right_column(grid_len, grid_height)
     elif magic_states == "shared_2":
         msf_faces = hbm_shared_2_positions(arch)
-    elif magic_states == "shared_4":
-        msf_faces = hbm_shared_4_positions(arch)
     else: msf_faces = magic_states
-    arch['magic_states'] = msf_faces
+    arch["magic_states"] = msf_faces
     return arch
 
 def compact_layout(alg_qubit_count, magic_states):
@@ -141,17 +107,10 @@ def compact_layout(alg_qubit_count, magic_states):
     if magic_states == 'all_sides':
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = all_sides(arch['width'], arch['height'])
-    elif magic_states == "center_column":
-        msf_faces = center_column(grid_len, grid_height)
-    elif magic_states == 'right_column':
-        arch = insert_column_right(arch)
-        msf_faces = right_column(arch['width'], arch['height'])
+        arch['magic_states'] = msf_faces
     elif magic_states == "shared_2":
         msf_faces = hbm_shared_2_positions(arch)
-    elif magic_states == "shared_4":
-        msf_faces = hbm_shared_4_positions(arch)
-    else: msf_faces = magic_states
-    arch['magic_states'] = msf_faces
+    arch["magic_states"] = msf_faces
     return arch
 
 def vertical_neighbors(n, grid_len, grid_height, omitted_edges):
@@ -173,18 +132,3 @@ def horizontal_neighbors(n, grid_len, grid_height, omitted_edges):
     if n % grid_len != grid_len-1 and (n,right) not in omitted_edges and (right,n) not in omitted_edges:
         neighbors.append(right)
     return neighbors
-
-def are_adjacent(a, b, width):
-    """
-    Return True if positions a and b are horizontally or vertically adjacent
-    on a grid with the given width.
-    """
-    # horizontal neighbors
-    if a // width == b // width and abs(a - b) == 1:
-        return True
-
-    # vertical neighbors
-    if a % width == b % width and abs(a - b) == width:
-        return True
-
-    return False

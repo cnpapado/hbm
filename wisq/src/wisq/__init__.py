@@ -14,9 +14,9 @@ from .utils import create_scratch_dir
 import os
 import shutil
 import json
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import os
 
+HBM_ARCH = os.getenv("HBM_ARCH", "NO_HBM") # ARCH_A: 1-1 connectivity, ARCH_B: route below then connect to top, ARCH_C: connect to top then route on top
 
 OPT_MODE = "opt"
 FULL_FT_MODE = "full_ft"
@@ -49,60 +49,9 @@ class Guoq_Help_Action(argparse.Action):
         print_help()
         parser.exit()
 
-def extract_map_tuples(filename):
-    """Reads a JSON file and returns the 'map' entries as a list of (int, int) tuples."""
-    with open(filename, 'r') as f:
-        data = json.load(f)
-    
-    map_dict = data.get("map", {})
-    result = [(int(k), v) for k, v in map_dict.items()]
-    return result
-
-
-def visualize_architecture(arch):
-    """Simple static visualization of architecture layout before compilation."""
-    H = arch["height"]
-    W = arch["width"]
-    alg = set(arch["alg_qubits"])
-    magic = set(arch["magic_states"])
-
-    fig, ax = plt.subplots(figsize=(W, H))
-
-    qubit_id = 0
-    for row in range(H):
-        for col in range(W):
-            if qubit_id in magic:
-                color = "orange"
-            elif qubit_id in alg:
-                color = "cornflowerblue"
-            else:
-                color = "lightgray"
-
-            y = H - 1 - row
-            rect = patches.Rectangle(
-                (col, y), 1, 1,
-                linewidth=1,
-                edgecolor="black",
-                facecolor=color
-            )
-            ax.add_patch(rect)
-            ax.text(
-                col + 0.5, y + 0.5, str(qubit_id),
-                ha="center", va="center", fontsize=9
-            )
-            qubit_id += 1
-
-    ax.set_xlim(0, W)
-    ax.set_ylim(0, H)
-    ax.set_aspect("equal")
-    ax.axis("off")
-    ax.set_title("Architecture Visualization — close to continue")
-    plt.show()
-
 
 def map_and_route(
-    input_path: str, arch_name: str, output_path: str, timeout: int,
-    mode="dascot", fixed_mapping=None, magic_state_sharing=None, visualize=False
+    input_path: str, arch_name: str, output_path: str, timeout: int, mode="dascot"
 ):
     """
     Apply a surface code mapping and routing pass to the given circuit
@@ -124,25 +73,17 @@ def map_and_route(
     id_to_op = {i: ops[i] for i in range(len(ops))}
     total_qubits = len(extract_qubits_from_gates(gates))
     circ = QuantumCircuit.from_qasm_file(input_path)
-
-    magic_mode = magic_state_sharing if magic_state_sharing else "all_sides"
-
-    if arch_name == "square_sparse_layout":
-        arch = square_sparse_layout(total_qubits, magic_states=magic_mode)
+    if HBM_ARCH=="ARCH_A":
+        arch = square_sparse_layout(total_qubits, magic_states="shared_2")
+    elif arch_name == "square_sparse_layout":
+        arch = square_sparse_layout(total_qubits, magic_states="all_sides")
     elif arch_name == "compact_layout":
-        arch = compact_layout(total_qubits, magic_states=magic_mode)
+        arch = compact_layout(total_qubits, magic_states="all_sides")
     else:
         with open(arch_name) as f:
             arch = ast.literal_eval(f.read())
-    print(arch)
-    # visualize architecture before compilation if requested
-    if visualize:
-        visualize_architecture(arch)
-    
     if mode == "dascot":
-        if fixed_mapping != None:
-            fixed_mapping = extract_map_tuples(fixed_mapping)
-        map, steps = run_dascot(circ, gates, arch, output_path, timeout, fixed_mapping)
+        map, steps = run_dascot(circ, gates, arch, output_path, timeout)
     elif mode == "sat":
         map, steps = run_sat_scmr(circ, gates, arch, output_path, timeout)
     dump(arch, map, steps, id_to_op, output_path, gates)
@@ -195,7 +136,6 @@ def compile_fault_tolerant(
     mr_timeout=1800,
     mr_solver="dascot",
     path_to_synthetiq=None,
-    fixed_mapping=None
 ):
     """
     Compiles a circuit to a fault-tolerant architecture using the Clifford + T gate set.
@@ -230,9 +170,6 @@ def compile_fault_tolerant(
             output_path,
             mr_timeout,
             mode=mr_solver,
-            fixed_mapping=fixed_mapping,
-            magic_state_sharing=args.magic_state_sharing,
-            visualize=visualize,
         )
     finally:
         if os.path.exists(scratch_dir_path):
@@ -246,11 +183,6 @@ def main():
     )
     opt = parser.add_argument_group(title="optimization config")
     scmr = parser.add_argument_group(title="mapping and routing config")
-    parser.add_argument(
-        "--fixed-mapping",
-        type=str,
-        help="Overwrite mapping phase with a fixed mapping. Path to JSON file containing 'map' key with fixed mapping.",
-    )
     parser.add_argument("input_path", help="path to the input circuit")
     parser.add_argument(
         "--output_path",
@@ -269,15 +201,10 @@ def main():
         """,
         choices=[OPT_MODE, FULL_FT_MODE, SCMR_MODE],
     )
-    parser.add_argument(
-        "--visualize-arch",
-        "-va",
-        help="visualize the architecture before compilation (closes to continue)",
-        action="store_true",
-    )
     opt.add_argument(
         "--target_gateset",
         "-tg",
+        help="target gateset for circuit optimization (default: Clifford + T)",
         default=CLIFFORDT,
         choices=guoq.GATE_SETS.keys(),
     )
@@ -323,13 +250,6 @@ def main():
         "-smr",
         help="solver to use for mapping and routing (default: 'dascot')",
         default="dascot",
-    )
-    scmr.add_argument(
-        "--magic-state-sharing",
-        "-mss",
-        help="Magic-state sharing mode: {'shared_2', 'shared_4', 'all_sides', 'right_column', 'center_column'}",
-        choices=["shared_2", "shared_4", "all_sides", "right_column", "center_column"],
-        default=None,
     )
     parser.add_argument(
         "--guoq_help", "-gh", help="print GUOQ options", action=Guoq_Help_Action
@@ -381,8 +301,7 @@ def main():
             verbose=args.verbose,
             mr_timeout=args.mr_timeout,
             mr_solver=args.mr_solver,
-            fixed_mapping=args.fixed_mapping,
-            visualize=args.visualize_arch,
+            path_to_synthetiq=args.abs_path_to_synthetiq,
         )
     elif args.mode == SCMR_MODE:
         map_and_route(
@@ -391,9 +310,6 @@ def main():
             arch_name=args.architecture,
             timeout=args.mr_timeout,
             mode=args.mr_solver,
-            fixed_mapping=args.fixed_mapping,
-            magic_state_sharing=args.magic_state_sharing,
-            visualize=args.visualize_arch,
         )
 
 
