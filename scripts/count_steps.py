@@ -7,31 +7,24 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # === CLI ===
 parser = argparse.ArgumentParser(description="Run WISQ benchmarks in parallel")
-parser.add_argument("--tmr", type=str, default="3597")
-parser.add_argument("--fixed-mapping", action="store_true")
 parser.add_argument("--runs", type=int, default=1)
 parser.add_argument("--parallel", type=int, default=8, help="Number of parallel processes")
 args = parser.parse_args()
 
 wisq_path = "wisq"
-apt_path = "/home/c/synthetiq/bin/main" if os.path.expanduser("~").split("/")[-1] == "c" else None
-# benchmarks_dir = "../quantum-compiler-benchmark-circuits/random_benchmarks/bench_suite_2025-11-11_00-04-13"
 benchmarks_dir = "../quantum-compiler-benchmark-circuits/jku_suite"
 
 # === Setup output ===
-output_root = os.path.join(os.getcwd(), "output_parallel_3597")
+output_root = os.path.join(os.getcwd(), "output_parallel")
 bench_folder_name = os.path.basename(os.path.normpath(benchmarks_dir))
 bench_output_dir = os.path.join(output_root, bench_folder_name)
 os.makedirs(bench_output_dir, exist_ok=True)
 
 # === HBM configurations ===
 HBM_CASES = [
-    ("magic", {"HBM_ARCH": "NO_HBM", "BENDS": "True"}, {}),
-    ("hbmA",  {"HBM_ARCH": "ARCH_A", "BENDS": "True"}, {"magic-sharing": "shared_2"}),
-    ("hbmB_shared2",  {"HBM_ARCH": "ARCH_B", "BENDS": "False"}, {"magic-sharing": "shared_2"}),
-    ("hbmC_shared2",  {"HBM_ARCH": "ARCH_C", "BENDS": "False"}, {"magic-sharing": "shared_2"}),
-    ("hbmB_shared4",  {"HBM_ARCH": "ARCH_B", "BENDS": "False"}, {"magic-sharing": "shared_4"}),
-    ("hbmC_shared4",  {"HBM_ARCH": "ARCH_C", "BENDS": "False"}, {"magic-sharing": "shared_4"}),
+    ("NO_HBM", "nohbm"),
+    ("ARCH_A", "hbmA"),
+    ("ARCH_B", "hbmB"),
 ]
 
 # === Helper functions ===
@@ -44,7 +37,6 @@ def get_qasm_files(directory):
                 names.append(os.path.splitext(f)[0])
     return qasms, names
 
-
 def run_and_stream(cmd, env, log_path):
     """Run subprocess and stream output to log file."""
     with open(log_path, "w") as log:
@@ -52,8 +44,8 @@ def run_and_stream(cmd, env, log_path):
         p.wait()
     return p.returncode == 0
 
-
 def load_steps(path):
+    """Load number of steps from JSON output (if exists)."""
     if not os.path.exists(path):
         return None
     try:
@@ -66,32 +58,20 @@ def load_steps(path):
     except:
         return None
 
-
-def run_wisq_case(bench_path, bench_name, case_name, env_vars, extras, run_idx, tmr):
+def run_wisq_case(bench_path, bench_name, case_name, hbm_arch, run_idx):
     """Single benchmark/architecture run."""
     out_path = os.path.join(bench_output_dir, f"{bench_name}_{case_name}_run{run_idx}.out")
     log_path = os.path.join(bench_output_dir, f"{bench_name}_{case_name}_run{run_idx}.log")
 
     env = os.environ.copy()
-    env.update(env_vars)
+    env["HBM_ARCH"] = hbm_arch
 
-    cmd = [
-        wisq_path, bench_path, "--mode", "scmr",
-        "-arch", "compact_layout",
-        "-op", out_path, "-tmr", str(tmr)
-    ]
-
-    if "magic-sharing" in extras:
-        cmd += ["--magic-state-sharing", extras["magic-sharing"]]
-
-    if apt_path:
-        cmd += ["-apt", apt_path]
+    cmd = [wisq_path, bench_path, "-op", out_path, "--mode", "scmr"]
 
     ok = run_and_stream(cmd, env, log_path)
     steps = load_steps(out_path) if ok else None
 
     return bench_name, case_name, run_idx, steps
-
 
 # === MAIN ===
 def main():
@@ -102,20 +82,18 @@ def main():
 
     for bench_path, bench_name in zip(qasm_paths, qasm_names):
         for run_idx in range(1, args.runs + 1):
-            for case_name, env_vars, extras in HBM_CASES:
-                all_jobs.append((bench_path, bench_name, case_name, env_vars, extras, run_idx, args.tmr))
+            for hbm_arch, case_name in HBM_CASES:
+                all_jobs.append((bench_path, bench_name, case_name, hbm_arch, run_idx))
 
     print(f"🚀 Launching {len(all_jobs)} total runs with {args.parallel} parallel workers")
 
     results = []
     with ProcessPoolExecutor(max_workers=args.parallel) as executor:
-        future_to_job = {
-            executor.submit(run_wisq_case, *job): job for job in all_jobs
-        }
+        future_to_job = {executor.submit(run_wisq_case, *job): job for job in all_jobs}
 
         for i, future in enumerate(as_completed(future_to_job), start=1):
             bench_name, case_name, run_idx, steps = future.result()
-            print(f"[{i}/{len(all_jobs)}] ✅ {bench_name} | {case_name:<12} | run {run_idx} → {steps if steps is not None else 'timeout/error'} steps")
+            print(f"[{i}/{len(all_jobs)}] ✅ {bench_name} | {case_name:<8} | run {run_idx} → {steps if steps is not None else 'timeout/error'} steps")
             results.append((bench_name, case_name, run_idx, steps))
 
     # === Summarize results ===
@@ -123,27 +101,22 @@ def main():
     bench_modes = {}
 
     for bench, case, _, steps in results:
-        if bench not in bench_modes:
-            bench_modes[bench] = {}
-        if case not in bench_modes[bench]:
-            bench_modes[bench][case] = []
-        bench_modes[bench][case].append(steps)
+        bench_modes.setdefault(bench, {}).setdefault(case, []).append(steps)
 
     with open(summary_path, "w") as f:
-        header = f"{'Benchmark':<20} | " + "  ".join([f"{name:<15}" for name, _, _ in HBM_CASES])
+        header = f"{'Benchmark':<20} | " + "  ".join([f"{name:<8}" for _, name in HBM_CASES])
         f.write(header + "\n" + "-" * len(header) + "\n")
 
         for bench, cases in sorted(bench_modes.items()):
             line = f"{bench:<20} | "
-            for name, _, _ in HBM_CASES:
+            for _, name in HBM_CASES:
                 vals = [v for v in cases.get(name, []) if v is not None]
                 avg = round(statistics.mean(vals), 1) if vals else "—"
-                line += f"{str(avg):<15}  "
+                line += f"{str(avg):<8}  "
             f.write(line + "\n")
             print(line)
 
     print(f"\n✅ Summary saved at: {summary_path}")
-
 
 if __name__ == "__main__":
     main()
