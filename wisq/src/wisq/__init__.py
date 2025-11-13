@@ -14,7 +14,6 @@ from .utils import create_scratch_dir
 import os
 import shutil
 import json
-import os
 
 HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 
@@ -73,31 +72,28 @@ def map_and_route(
     id_to_op = {i: ops[i] for i in range(len(ops))}
     total_qubits = len(extract_qubits_from_gates(gates))
     circ = QuantumCircuit.from_qasm_file(input_path)
+
     if arch_name == "square_sparse_layout":
-        if HBM_CONFIG=="ARCH_A":
-            arch = square_sparse_layout(total_qubits, magic_states="shared_2")
-        elif HBM_CONFIG=="ARCH_B_shared2" or HBM_CONFIG=="ARCH_C_shared2":
-            arch = square_sparse_layout(total_qubits, magic_states="shared_2")
-        elif HBM_CONFIG=="ARCH_B_shared4" or HBM_CONFIG=="ARCH_C_shared4":
-            arch = square_sparse_layout(total_qubits, magic_states="shared_4")
-        elif HBM_CONFIG=="ARCH_B_single_magic_state_layout" or HBM_CONFIG=="ARCH_C_single_magic_state_layout" or HBM_CONFIG=="NO_HBM_single_magic_state_layout":
-            arch = square_sparse_layout(total_qubits, magic_states="single_magic_state")
-        else:
-            arch = square_sparse_layout(total_qubits, magic_states="all_sides")
+        layout_fn = square_sparse_layout
     elif arch_name == "compact_layout":
-        if HBM_CONFIG=="ARCH_A":
-            arch = compact_layout(total_qubits, magic_states="shared_2")
-        elif HBM_CONFIG=="ARCH_B_shared2" or HBM_CONFIG=="ARCH_C_shared2":
-            arch = compact_layout(total_qubits, magic_states="shared_2")
-        elif HBM_CONFIG=="ARCH_B_shared4" or HBM_CONFIG=="ARCH_C_shared4":
-            arch = compact_layout(total_qubits, magic_states="shared_4")
-        elif HBM_CONFIG=="ARCH_B_single_magic_state_layout" or HBM_CONFIG=="ARCH_C_single_magic_state_layout" or HBM_CONFIG=="NO_HBM_single_magic_state_layout":
-            arch = compact_layout(total_qubits, magic_states="single_magic_state")
-        else:
-            arch = compact_layout(total_qubits, magic_states="all_sides")
+        layout_fn = compact_layout
     else:
-        with open(arch_name) as f:
-            arch = ast.literal_eval(f.read())
+        raise ValueError(f"Unsupported arch_name: {arch_name}")
+
+    if "shared_2" in HBM_CONFIG:
+        arch = layout_fn(total_qubits, magic_states="shared_2")
+    elif "shared_4" in HBM_CONFIG:
+        arch = layout_fn(total_qubits, magic_states="shared_4")
+    elif "shared_none" in HBM_CONFIG: 
+        arch = layout_fn(total_qubits, magic_states="shared_2") # shared_2 hack for ARCH_A 
+    elif "single_magic_state" in HBM_CONFIG:
+        arch = layout_fn(total_qubits, magic_states="single_magic_state")
+    else:
+        arch = layout_fn(total_qubits, magic_states="all_sides")
+    
+    # else:
+    #     with open(arch_name) as f:
+    #         arch = ast.literal_eval(f.read())
     if mode == "dascot":
         map, steps = run_dascot(circ, gates, arch, output_path, timeout)
     elif mode == "sat":

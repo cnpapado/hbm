@@ -8,17 +8,29 @@ import os
 
 HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 
-if HBM_CONFIG=="ARCH_A":
+
+# shared_2-route_bottom
+# shared_2-route_upper
+# shared_4-route_bottom
+# shared_4-route_upper
+# shared_none-anchilla_perimeter
+# shared_2-route_bottom-anchilla_perimeter
+# shared_2-route_upper-anchilla_perimeter
+# shared_4-route_bottom-anchilla_perimeter
+# shared_4-route_upper-anchilla_perimeter
+
+print(HBM_CONFIG)
+if "shared_none" in HBM_CONFIG:
     HBM_ARCH = "ARCH_A" # ARCH_A: 1-1 connectivity
-elif HBM_CONFIG=="ARCH_B_shared2" or HBM_CONFIG=="ARCH_B_shared4" or HBM_CONFIG=="ARCH_B_single_magic_state_layout":
+elif "route_bottom" in HBM_CONFIG:
     HBM_ARCH = "ARCH_B" # ARCH_B: route below then connect to top
-elif HBM_CONFIG=="ARCH_C_shared2" or HBM_CONFIG=="ARCH_C_shared4" or HBM_CONFIG=="ARCH_C_single_magic_state_layout":
+elif "route_upper" in HBM_CONFIG:
     HBM_ARCH = "ARCH_C" # ARCH_C: connect to top then route on top
-elif HBM_CONFIG=="NO_HBM_single_magic_state_layout" or HBM_CONFIG=="NO_CONFIG" or HBM_CONFIG=="NO_HBM":
+elif HBM_CONFIG == "NO_CONFIG":
     HBM_ARCH = "NO_HBM"
 else:
-    raise ValueError("invalid HBM_CONFIG option")
-         
+    raise ValueError("invalid HBM_CONFIG option")    
+print(HBM_ARCH)   
 
 def route_gate(
     indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms

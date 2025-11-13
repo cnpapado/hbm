@@ -1,4 +1,7 @@
 import math
+import os
+
+HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 
 def hbm_shared_2_positions(arch):
     """Magic states between data-qubits in x dimension (same row)."""
@@ -102,7 +105,6 @@ def right_column(width, height):
     return [(width*i)+(width-1) for i in range(height)]
 
 def all_sides(width, height):
-
     left_column = [(width*i) for i in range(height)]
     right_column =  [(width*i)+(width-1) for i in range(height)]
     top_row = [i for i in range(width)]
@@ -122,6 +124,19 @@ def square_sparse_layout(alg_qubit_count, magic_states):
        if x % 2 == y % 2 == 1:
             for_circ.append(i)
     arch = {"height" : grid_height, "width" : grid_len, "alg_qubits" : for_circ, "magic_states" : [] }
+    
+    # shared_none
+    # shared_2-route_bottom
+    # shared_2-route_upper
+    # shared_4-route_bottom
+    # shared_4-route_upper
+    # shared_none-anchilla_perimeter
+    # shared_2-route_bottom-anchilla_perimeter
+    # shared_2-route_upper-anchilla_perimeter
+    # shared_4-route_bottom-anchilla_perimeter
+    # shared_4-route_upper-anchilla_perimeter
+
+    
     if magic_states == 'all_sides':
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = all_sides(arch['width'], arch['height'])
@@ -131,10 +146,16 @@ def square_sparse_layout(alg_qubit_count, magic_states):
     elif magic_states == 'right_column':
         msf_faces = right_column(grid_len, grid_height)
     elif magic_states == "shared_2":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = hbm_shared_2_positions(arch)
     elif magic_states == "shared_4":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = hbm_shared_4_positions(arch)
     elif magic_states == "single_magic_state":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = single_magic_state(arch)
     else: msf_faces = magic_states
     arch["magic_states"] = msf_faces
@@ -153,10 +174,16 @@ def compact_layout(alg_qubit_count, magic_states):
         msf_faces = all_sides(arch['width'], arch['height'])
         arch['magic_states'] = msf_faces
     elif magic_states == "shared_2":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = hbm_shared_2_positions(arch)
     elif magic_states == "shared_4":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = hbm_shared_4_positions(arch)
     elif magic_states == "single_magic_state":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = single_magic_state(arch)
     arch["magic_states"] = msf_faces
     return arch
