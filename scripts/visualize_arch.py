@@ -8,31 +8,41 @@ import matplotlib.lines as mlines
 # Use an interactive backend
 matplotlib.use("Qt5Agg")
 
-def draw_arch(ax, arch, highlight_paths=None):
+def draw_arch(ax, arch, used_qubits=None, highlight_paths=None):
     """Draw the architecture grid and optional highlighted paths."""
     H = arch["height"]
     W = arch["width"]
-    alg = set(arch["alg_qubits"])
-    magic = set(arch["magic_states"])
+    alg = set(arch["alg_qubits"])      # data qubits
+    magic = set(arch["magic_states"])  # magic states
+
+    if used_qubits is None:
+        used_qubits = set()
 
     ax.clear()
 
     qubit_id = 0
     for row in range(H):
         for col in range(W):
+            y = H - 1 - row
+
+            # Default: ancilla (gray)
+            color = "lightgray"
+            hatch = ""
+
             if qubit_id in magic:
                 color = "orange"
             elif qubit_id in alg:
                 color = "cornflowerblue"
-            else:
-                color = "lightgray"
+                # striped if data but unused
+                if qubit_id not in used_qubits:
+                    hatch = "//"
 
-            y = H - 1 - row
             rect = patches.Rectangle(
                 (col, y), 1, 1,
                 linewidth=1,
                 edgecolor="black",
-                facecolor=color
+                facecolor=color,
+                hatch=hatch
             )
             ax.add_patch(rect)
 
@@ -45,9 +55,7 @@ def draw_arch(ax, arch, highlight_paths=None):
 
     # draw highlighted paths if provided
     if highlight_paths:
-        for path_info in highlight_paths:
-            full_path, color = path_info
-
+        for full_path, color in highlight_paths:
             for i in range(len(full_path) - 1):
                 x1, y1 = full_path[i] % W, H - 1 - (full_path[i] // W)
                 x2, y2 = full_path[i + 1] % W, H - 1 - (full_path[i + 1] // W)
@@ -59,10 +67,20 @@ def draw_arch(ax, arch, highlight_paths=None):
                     alpha=0.8
                 ))
 
+    # set layout
     ax.set_xlim(0, W)
     ax.set_ylim(0, H)
     ax.set_aspect("equal")
     ax.axis("off")
+
+    # legend
+    legend_elements = [
+        patches.Patch(facecolor='cornflowerblue', edgecolor='black', label='Data'),
+        patches.Patch(facecolor='orange', edgecolor='black', label='Magic'),
+        patches.Patch(facecolor='lightgray', edgecolor='black', label='Ancilla'),
+        patches.Patch(facecolor='cornflowerblue', edgecolor='black', hatch='//', label='Unused Data')
+    ]
+    ax.legend(handles=legend_elements, loc='upper right', fontsize=8, frameon=True)
 
 
 def visualize_steps(data):
@@ -71,17 +89,15 @@ def visualize_steps(data):
     steps = data["steps"]
     mapping = {int(k): v for k, v in data["map"].items()}  # logical → physical
 
+    used_qubits = set(mapping.values())
+
     fig, ax = plt.subplots(figsize=(arch["width"], arch["height"]))
     current_step = [0]
 
     def draw_step(step_idx):
         step_data = steps[step_idx]
         highlight_paths = []
-        color_map = {
-            "cx": "red",
-            "t": "green",
-            "tdg": "green"
-        }
+        color_map = {"cx": "red", "t": "green", "tdg": "green"}
 
         title_parts = []
         for gate in step_data:
@@ -90,23 +106,18 @@ def visualize_steps(data):
             qubits = [mapping[q] for q in gate["qubits"]]  # physical locations
             path = gate["path"]
 
-            # Build a full physical path: start -> route -> end
+            # full path: start → route → end
             full_path = [qubits[0]] + path
             if len(qubits) > 1:
                 full_path.append(qubits[1])
-
             highlight_paths.append((full_path, color))
 
-            # Format title as cx(map[q0], map[q1])
+            # title formatting
             qubit_str = ", ".join(str(mapping[q]) for q in gate["qubits"])
             title_parts.append(f"{op}({qubit_str})")
 
-        draw_arch(ax, arch, highlight_paths)
-        ax.set_title(
-            f"Step {step_idx + 1}/{len(steps)} — " +
-            ", ".join(title_parts),
-            fontsize=10
-        )
+        draw_arch(ax, arch, used_qubits=used_qubits, highlight_paths=highlight_paths)
+        ax.set_title(f"Step {step_idx + 1}/{len(steps)} — " + ", ".join(title_parts), fontsize=10)
         plt.draw()
 
     def on_key(event):
