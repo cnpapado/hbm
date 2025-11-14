@@ -14,6 +14,8 @@ from .utils import create_scratch_dir
 import os
 import shutil
 import json
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 
@@ -48,9 +50,55 @@ class Guoq_Help_Action(argparse.Action):
         print_help()
         parser.exit()
 
+def visualize_architecture(arch, filename):
+    """Simple static visualization of architecture layout before compilation."""
+    H = arch["height"]
+    W = arch["width"]
+    alg = set(arch["alg_qubits"])
+    magic = set(arch["magic_states"])
+
+    is_hbm_arch_A = ("shared_none" in HBM_CONFIG)
+    show_magic = not is_hbm_arch_A
+
+    fig, ax = plt.subplots(figsize=(W, H))
+
+    qubit_id = 0
+    for row in range(H):
+        for col in range(W):
+            if qubit_id in magic:
+                color = "orange" if show_magic else "lightgray"
+            elif qubit_id in alg:
+                color = "cornflowerblue"
+            else:
+                color = "lightgray"
+
+            y = H - 1 - row
+            rect = patches.Rectangle(
+                (col, y), 1, 1,
+                linewidth=1,
+                edgecolor="black",
+                facecolor=color
+            )
+            ax.add_patch(rect)
+            ax.text(
+                col + 0.5, y + 0.5, str(qubit_id),
+                ha="center", va="center", fontsize=9
+            )
+            qubit_id += 1
+
+    ax.set_xlim(0, W)
+    ax.set_ylim(0, H)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    ax.set_title(f"Architecture Visualization {len(alg)}")
+    # plt.show()
+    plt.savefig(filename)
+
+    # a=1/0 # uncomment this line to test different architectures exiting after drawing them (with scripts/test_archs.txt)
+
 
 def map_and_route(
-    input_path: str, arch_name: str, output_path: str, timeout: int, mode="dascot"
+    input_path: str, arch_name: str, output_path: str, timeout: int, mode="dascot", visualize=None
 ):
     """
     Apply a surface code mapping and routing pass to the given circuit
@@ -94,6 +142,9 @@ def map_and_route(
     # else:
     #     with open(arch_name) as f:
     #         arch = ast.literal_eval(f.read())
+    if visualize is not None:
+        print(f"saving visualization of arch at {visualize}")
+        visualize_architecture(arch, visualize)
     if mode == "dascot":
         map, steps = run_dascot(circ, gates, arch, output_path, timeout)
     elif mode == "sat":
@@ -182,6 +233,7 @@ def compile_fault_tolerant(
             output_path,
             mr_timeout,
             mode=mr_solver,
+            visualize=visualize,
         )
     finally:
         if os.path.exists(scratch_dir_path):
@@ -212,6 +264,12 @@ def main():
         full_ft (default): circuit optimization, then surface code mapping and routing
         """,
         choices=[OPT_MODE, FULL_FT_MODE, SCMR_MODE],
+    )
+    parser.add_argument(
+        "--visualize-architecture",
+        "-va",
+        help="Visualize the architecture before compilation and save to <FILENAME>",
+        type=str,  # expects a filename argument
     )
     opt.add_argument(
         "--target_gateset",
@@ -314,6 +372,7 @@ def main():
             mr_timeout=args.mr_timeout,
             mr_solver=args.mr_solver,
             path_to_synthetiq=args.abs_path_to_synthetiq,
+            visualize=args.visualize_architecture,
         )
     elif args.mode == SCMR_MODE:
         map_and_route(
@@ -322,6 +381,7 @@ def main():
             arch_name=args.architecture,
             timeout=args.mr_timeout,
             mode=args.mr_solver,
+            visualize=args.visualize_architecture,
         )
 
 

@@ -4,42 +4,77 @@ import os
 HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 
 def hbm_shared_2_positions(arch):
-    """Magic states between data-qubits in x dimension (same row)."""
+    """Magic states between data-qubits in x dimension (same row), half as many as data qubits and evenly distributed.
+    If exact half can't be placed, place extra below the last qubit of the row, unless it's the last row containing data qubits."""
     width = arch["width"]
-    ms = set()
-    for q in arch["alg_qubits"]:
+    height = arch["height"]
+    alg = sorted(arch["alg_qubits"])
+    row_dict = {}
+    for q in alg:
         row = q // width
-        col = q % width
-        right = col + 1
-        if right < width:
-            between = row * width + right
-            ms.add(between)
+        row_dict.setdefault(row, []).append(q % width)
+
+    ms = set()
+    max_data_row = max(row_dict.keys())  # last row that has data qubits
+
+    for row, cols in row_dict.items():
+        cols = sorted(cols)
+        n_qubits = len(cols)
+        n_ms = n_qubits // 2  # half as many magic states
+        remainder = n_qubits % 2  # 1 if odd, 0 if even
+
+        if n_ms == 0 and remainder == 0:
+            continue
+
+        # Place magic states evenly between consecutive qubits
+        step = n_qubits / n_ms if n_ms > 0 else 0
+        for i in range(n_ms):
+            idx = int(i * step)
+            if idx < len(cols) - 1:
+                between_col = (cols[idx] + cols[idx + 1]) // 2
+                ms.add(row * width + between_col)
+
+        # If odd and not the last row of data qubits, place extra below last qubit
+        if remainder == 1 and row < max_data_row:
+            ms.add((row + 1) * width + cols[-1])
+
     return sorted(ms)
 
+
 def hbm_shared_4_positions(arch):
-    """Magic states that are the center of a 2x2 "square" formed by four data qubits"""
+    """Magic states placed for every 2 data qubits (positions x and x+2) with a magic state
+    in between and in the row below, without overlapping pairs."""
     width = arch["width"]
     height = arch["height"]
     alg = set(arch["alg_qubits"])
     ms = set()
 
-    for p in range(width * height):
-        row = p // width
-        col = p % width
+    # Group data qubits by row
+    row_dict = {}
+    for q in alg:
+        row = q // width
+        col = q % width
+        row_dict.setdefault(row, []).append(col)
 
-        # need at least one row above and one row below and one column left and one column right
-        if row == 0 or row == height - 1 or col == 0 or col == width - 1:
+    for row in range(height - 1):  # cannot place below last row
+        if row not in row_dict:
             continue
-
-        ul = (row - 1) * width + (col - 1)  # up-left
-        ur = (row - 1) * width + (col + 1)  # up-right
-        dl = (row + 1) * width + (col - 1)  # down-left
-        dr = (row + 1) * width + (col + 1)  # down-right
-
-        if ul in alg and ur in alg and dl in alg and dr in alg:
-            ms.add(p)
+        cols = sorted(row_dict[row])
+        i = 0
+        while i + 1 < len(cols):
+            c1, c2 = cols[i], cols[i + 1]
+            # Ensure a spacing of 2 for "x and x+2" pairs
+            if c2 - c1 >= 2:
+                mid_col = (c1 + c2) // 2
+                below_row = row + 1
+                ms.add(below_row * width + mid_col)
+                i += 2  # skip next qubit to avoid overlap
+            else:
+                i += 1
 
     return sorted(ms)
+
+
 
 def single_magic_state(arch):
     """A single magic state between data-qubits in x dimension (same row)."""
@@ -124,19 +159,7 @@ def square_sparse_layout(alg_qubit_count, magic_states):
        if x % 2 == y % 2 == 1:
             for_circ.append(i)
     arch = {"height" : grid_height, "width" : grid_len, "alg_qubits" : for_circ, "magic_states" : [] }
-    
-    # shared_none
-    # shared_2-route_bottom
-    # shared_2-route_upper
-    # shared_4-route_bottom
-    # shared_4-route_upper
-    # shared_none-anchilla_perimeter
-    # shared_2-route_bottom-anchilla_perimeter
-    # shared_2-route_upper-anchilla_perimeter
-    # shared_4-route_bottom-anchilla_perimeter
-    # shared_4-route_upper-anchilla_perimeter
-
-    
+       
     if magic_states == 'all_sides':
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = all_sides(arch['width'], arch['height'])
