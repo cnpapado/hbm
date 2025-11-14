@@ -3,16 +3,17 @@
 
 HBM_CONFIGS=(
     "no_hbm"
+    # "no_hbm_single_magic_state"
     "shared_none"
     "shared_none-anchilla_perimeter"
     "shared_2-route_bottom"
     "shared_2-route_bottom-anchilla_perimeter"
-    "shared_2-route_upper"
-    "shared_2-route_upper-anchilla_perimeter"
-    "shared_4-route_bottom"
-    "shared_4-route_bottom-anchilla_perimeter"
-    "shared_4-route_upper" 
-    "shared_4-route_upper-anchilla_perimeter"
+    # "shared_2-route_upper"
+    # "shared_2-route_upper-anchilla_perimeter"
+    # "shared_4-route_bottom"
+    # "shared_4-route_bottom-anchilla_perimeter"
+    # "shared_4-route_upper" 
+    # "shared_4-route_upper-anchilla_perimeter"
 )
 
 ARCHS=(
@@ -20,7 +21,7 @@ ARCHS=(
     "compact_layout"
 )
 
-QUBITS_LIST=(2 4 9 16 25 36 49 64 81 100 121 144 169)
+QUBITS_LIST=(4 9) # (2 4 9 16 25 36 49 64 81 100 121 144 169)
 
 for arch in "${ARCHS[@]}"; do
     
