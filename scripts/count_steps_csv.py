@@ -14,7 +14,7 @@ parser.add_argument("--tmr", type=str, default="3604", help="TMR value to use (d
 args = parser.parse_args()
 
 wisq_path = "wisq"
-benchmarks_dir = "../quantum-compiler-benchmark-circuits/random_benchmarks/bench_suite_2025-11-11_00-04-13"
+benchmarks_dir = "../quantum-compiler-benchmark-circuits/synthetic_2"
 
 # === Setup output ===
 output_root = os.path.join(os.getcwd(), "output_parallel_3604")
