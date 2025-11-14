@@ -26,7 +26,7 @@ elif "route_bottom" in HBM_CONFIG:
     HBM_ARCH = "ARCH_B" # ARCH_B: route below then connect to top
 elif "route_upper" in HBM_CONFIG:
     HBM_ARCH = "ARCH_C" # ARCH_C: connect to top then route on top
-elif HBM_CONFIG == "NO_CONFIG":
+elif "no_hbm" in HBM_CONFIG or HBM_CONFIG == "NO_CONFIG":
     HBM_ARCH = "NO_HBM"
 else:
     raise ValueError("invalid HBM_CONFIG option")    
