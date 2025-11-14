@@ -159,6 +159,7 @@ def square_sparse_layout(alg_qubit_count, magic_states):
         msf_faces = single_magic_state(arch)
     else: msf_faces = magic_states
     arch["magic_states"] = msf_faces
+    # print(arch)
     return arch
 
 def compact_layout(alg_qubit_count, magic_states):
@@ -186,6 +187,7 @@ def compact_layout(alg_qubit_count, magic_states):
             arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = single_magic_state(arch)
     arch["magic_states"] = msf_faces
+    # print(arch)
     return arch
 
 def vertical_neighbors(n, grid_len, grid_height, omitted_edges):

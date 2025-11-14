@@ -36,9 +36,23 @@ def route_gate(
     indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms
 ):
     device_graph = rx.generators.grid_graph(rows=grid_height, cols=grid_len)
-    device_graph.remove_nodes_from(list(to_remove))
+    for idx in device_graph.node_indices():
+        device_graph[idx] = idx  # payload = original index
+    # print("init nodes:",device_graph.node_indices())
+
+    # remove nodes by converting payload -> internal index
+    device_graph.remove_nodes_from([
+        device_graph.find_node_by_weight(v) for v in to_remove if device_graph.find_node_by_weight(v) is not None
+    ])
+    # print("first to remove:", to_remove)
+    # print("nodes after 1st removal:",device_graph.node_indices())
     hbm_graph = rx.generators.grid_graph(rows=grid_height, cols=grid_len)
-    hbm_graph.remove_nodes_from(list(to_remove_hbm))
+    for idx in hbm_graph.node_indices():
+        hbm_graph[idx] = idx
+    hbm_graph.remove_nodes_from([
+        hbm_graph.find_node_by_weight(v) for v in to_remove_hbm if hbm_graph.find_node_by_weight(v) is not None
+    ])
+
     shortest_path_len = 2**31 - 1
     shortest_pair = None
 
@@ -79,36 +93,59 @@ def route_gate(
                     magic_state, grid_len, grid_height, omitted_edges=[]
                 )
             ]
+
+    # filter pairs by checking payload existence
     if HBM_ARCH == "ARCH_C" and len(gate) == 1: # for T gates in ARCH_C:
-        pairs = filter(
-            lambda p: device_graph.has_node(p[0]) and hbm_graph.has_node(p[1]), pairs
-        )
+        pairs = [
+            (s, t) for s, t in pairs
+            if device_graph.find_node_by_weight(s) is not None
+            and hbm_graph.find_node_by_weight(t) is not None
+        ]
     else:
-        pairs = filter(
-            lambda p: device_graph.has_node(p[0]) and device_graph.has_node(p[1]), pairs
-        )
+        pairs = [
+            (s, t) for s, t in pairs
+            if device_graph.find_node_by_weight(s) is not None
+            and device_graph.find_node_by_weight(t) is not None
+        ]
+
+    # print("Filtered:", pairs)
+
     graph_to_use = hbm_graph if (HBM_ARCH == "ARCH_C" and len(gate) == 1) else device_graph
-    for s, t in pairs:
+    for s_payload, t_payload in pairs:
+        # convert payload -> internal index
+        s = graph_to_use.find_node_by_weight(s_payload)
+        t = graph_to_use.find_node_by_weight(t_payload)
+        if s is None or t is None:
+            continue
+
         const_1 = lambda _: 1
         dist_dict = rx.dijkstra_shortest_path_lengths(
             graph_to_use, edge_cost_fn=const_1, node=s, goal=t
         )
-        if t in dist_dict.keys():
-            dist = dist_dict[t]
-        else:
-            dist = math.inf
+        dist = dist_dict[t] if t in dist_dict else math.inf
+
         if dist < shortest_path_len:
             shortest_path_len = dist
             shortest_pair = s, t
             if take_first_ms and len(gate) == 1:
                 break
-    if shortest_pair != None:
+
+    if shortest_pair is not None:
         s, t = shortest_pair
-        path = list(rx.dijkstra_shortest_paths(graph_to_use, source=s, target=t)[t])
+        # print(s,t)
+        # print(graph_to_use.nodes())
+        # print(graph_to_use.node_indices())
+        
+        # convert internal indices -> payloads
+        if s==t:
+            path = []
+        else:
+            path_internal = list(rx.dijkstra_shortest_paths(graph_to_use, source=s, target=t)[t])
+            path = [graph_to_use.get_node_data(i) for i in path_internal]
         if s not in path:
-            path = [s] + path
+            path = [graph_to_use.get_node_data(s)] + path
         if t not in path:
-            path.append(t)
+            path.append(graph_to_use.get_node_data(t))
         route = [(id, gate, path)]
         for v in path:
             to_remove.add(v)
@@ -155,6 +192,7 @@ def initialize_to_remove(msf_faces, mapping):
             to_remove.add(mapping[q])
         for f in msf_faces:
             to_remove.add(f)
+    # print("to remove:", to_remove)
     return to_remove,to_remove_hbm
 
 
