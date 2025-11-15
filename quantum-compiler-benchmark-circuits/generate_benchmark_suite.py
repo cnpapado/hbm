@@ -5,19 +5,20 @@ from datetime import datetime
 from randomized_benchs import RandomCliffordTBenchmark
 
 # === CONFIGURATION ===
-OUTPUT_ROOT = "random_benchmarks"
+OUTPUT_ROOT = "random_benchmarks_smaller_v3"
 os.makedirs(OUTPUT_ROOT, exist_ok=True)
 
 # Fixed values
-N_QUBITS = 150
-TOTAL_GATES = 2000
+TOTAL_GATES = 250
 CNOT_DENSITY = 0.6
 CLIFFORD_MIX = 0.4
 
 # Parameter sweeps
-N_LAYERS = [10, 30, 50]
-T_DENSITY = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
-T_DEPENDENCY = [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3]
+N_QUBITS = [10, 25, 50]  # example
+N_LAYERS = [5, 10, 20]
+T_DENSITY = [0.05, 0.1, 0.15, 0.2]
+T_DEPENDENCY = [0.0, 0.05, 0.1, 0.15, 0.2]
+
 
 summary = []
 timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -28,12 +29,12 @@ print(f"📦 Generating benchmark suite in {run_dir}\n")
 
 # Main generation loop
 seed_counter = 1
-for (nl, td, td_dep) in itertools.product(N_LAYERS, T_DENSITY, T_DEPENDENCY):
-    name = f"randT_fixed{TOTAL_GATES}_n{N_QUBITS}_L{nl}_T{td}_dep{td_dep}.qasm"
+for (nq, nl, td, td_dep) in itertools.product(N_QUBITS, N_LAYERS, T_DENSITY, T_DEPENDENCY):
+    name = f"randT_fixed{TOTAL_GATES}_n{nq}_L{nl}_T{td}_dep{td_dep}.qasm"
     path = os.path.join(run_dir, name)
 
     gen = RandomCliffordTBenchmark(
-        n_qubits=N_QUBITS,
+        n_qubits=nq,
         n_layers=nl,
         t_density=td,
         cnot_density=CNOT_DENSITY,
@@ -45,12 +46,13 @@ for (nl, td, td_dep) in itertools.product(N_LAYERS, T_DENSITY, T_DEPENDENCY):
     gen.save_qasm(path)
     summary.append({
         "file": name,
-        "n_qubits": N_QUBITS,
+        "n_qubits": nq,
         "n_layers": nl,
         "t_density": td,
         "t_dependency": td_dep,
     })
     seed_counter += 1
+
 
 # Save summary
 summary_txt = os.path.join(run_dir, "benchmark_summary.txt")
