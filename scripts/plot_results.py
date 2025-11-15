@@ -2,17 +2,25 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import argparse
 import re
+import json
+import os
 
 # ================== ARGUMENT PARSER ==================
-parser = argparse.ArgumentParser(description="Generate speedup plots with optional qubit normalization")
+parser = argparse.ArgumentParser(description="Generate speedup plots with optional qubit or magic state normalization")
 parser.add_argument(
     "--normalize_qubits",
     action="store_true",
     help="Normalize average T parallelism by number of qubits"
 )
+parser.add_argument(
+    "--normalize_magic_states",
+    action="store_true",
+    help="Normalize average T parallelism by number of magic states"
+)
 args = parser.parse_args()
 
-normalize = args.normalize_qubits
+normalize_qubits = args.normalize_qubits
+normalize_magic_states = args.normalize_magic_states
 
 # ================== HPCA/ISCA PUBLICATION STYLE ==================
 plt.rcParams.update({
@@ -60,15 +68,15 @@ def extract_qubits(name):
 
 merged["num_qubits"] = merged["bench_name"].apply(extract_qubits)
 
-# Normalize if requested
-if normalize:
-    merged["y_value"] = merged["avg_t_parallelism"] / merged["num_qubits"]
-    ylabel = "Avg. T-parallelism / qubits"
-    suffix = "_normalized"
-else:
-    merged["y_value"] = merged["avg_t_parallelism"]
-    ylabel = "Average T parallelism"
-    suffix = ""
+# ======================= EXTRACT NUMBER OF MAGIC STATES ==================
+def extract_magic_states(bench_name, layout):
+    # Build path dynamically using bench name and layout
+    json_path = f"/home/c/hbm/scripts/output_parallel_3600/output_parallel_3600/bench_suite_2025-11-15_05-34-13/{bench_name}{layout}_run1.out"
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"Cannot find magic state file: {json_path}")
+    with open(json_path, "r") as f:
+        data = json.load(f)
+    return len(data["arch"]["magic_states"])
 
 # ======================= LAYOUTS TO COMPARE ==========================
 layout_pairs = [
@@ -102,6 +110,20 @@ for layout, title, basefilename in layout_pairs:
 
     # Compute speedup
     sp = merged['no_hbm-compact_layout'] / merged[layout]
+
+    # Compute y_value depending on normalization
+    if normalize_qubits:
+        merged["y_value"] = merged["avg_t_parallelism"] / merged["num_qubits"]
+        ylabel = "Avg. T-parallelism / qubits"
+        suffix = "_normalized_qubits"
+    elif normalize_magic_states:
+        merged["y_value"] = merged.apply(lambda row: row["avg_t_parallelism"] / extract_magic_states(row["bench_name"], layout), axis=1)
+        ylabel = "Avg. T-parallelism / magic states"
+        suffix = "_normalized_magic_states"
+    else:
+        merged["y_value"] = merged["avg_t_parallelism"]
+        ylabel = "Average T parallelism"
+        suffix = ""
 
     plt.figure()
     sc = plt.scatter(
