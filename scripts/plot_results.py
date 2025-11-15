@@ -6,7 +6,7 @@ import json
 import os
 
 # ================== ARGUMENT PARSER ==================
-parser = argparse.ArgumentParser(description="Generate speedup plots with optional qubit or magic state normalization")
+parser = argparse.ArgumentParser(description="Generate speedup plots or improvement of time-delay product")
 parser.add_argument(
     "--normalize_qubits",
     action="store_true",
@@ -17,10 +17,16 @@ parser.add_argument(
     action="store_true",
     help="Normalize average T parallelism by number of magic states"
 )
+parser.add_argument(
+    "--time_delay_product",
+    action="store_true",
+    help="Plot improvement of time-delay product instead of speedup of timesteps"
+)
 args = parser.parse_args()
 
 normalize_qubits = args.normalize_qubits
 normalize_magic_states = args.normalize_magic_states
+time_delay_product = args.time_delay_product
 
 # ================== HPCA/ISCA PUBLICATION STYLE ==================
 plt.rcParams.update({
@@ -53,10 +59,14 @@ plt.rcParams.update({
 
 # ======================= LOAD DATA ==========================
 t = pd.read_csv('t_gate_analysis_summary_smaller_v3.csv')
-s = pd.read_csv('num_steps.csv')
+num_steps = pd.read_csv('num_steps.csv')
+routing = pd.read_csv('routing_footprint.csv')
+
+# Ensure bench_name is the index for easy lookup
+num_steps.set_index('bench_name', inplace=True)
+routing.set_index('bench_name', inplace=True)
 
 t['bench_name'] = t['file'].str.replace('.qasm','', regex=False)
-merged = pd.merge(t, s, on='bench_name')
 
 # ======================= EXTRACT NUMBER OF QUBITS ==========================
 def extract_qubits(name):
@@ -66,11 +76,10 @@ def extract_qubits(name):
     else:
         raise ValueError(f"Cannot extract qubit count from: {name}")
 
-merged["num_qubits"] = merged["bench_name"].apply(extract_qubits)
+t["num_qubits"] = t["bench_name"].apply(extract_qubits)
 
 # ======================= EXTRACT NUMBER OF MAGIC STATES ==================
 def extract_magic_states(bench_name, layout):
-    # Build path dynamically using bench name and layout
     json_path = f"/home/c/hbm/scripts/output_parallel_3600/output_parallel_3600/bench_suite_2025-11-15_05-34-13/{bench_name}{layout}_run1.out"
     if not os.path.exists(json_path):
         raise FileNotFoundError(f"Cannot find magic state file: {json_path}")
@@ -104,31 +113,39 @@ layout_pairs = [
 # ======================= GENERATE PLOTS ==========================
 for layout, title, basefilename in layout_pairs:
 
-    if layout not in merged.columns:
+    if layout not in num_steps.columns:
         print(f"Skipping missing column: {layout}")
         continue
 
-    # Compute speedup
-    sp = merged['no_hbm-compact_layout'] / merged[layout]
+    # Compute "speedup" or "time-delay product improvement"
+    if time_delay_product:
+        sp = (num_steps['no_hbm-compact_layout'] * routing['no_hbm-compact_layout']) / (
+             num_steps[layout] * routing[layout])
+        ylabel_extra = " (time-delay product improvement)"
+        filename_suffix = "_tdp"
+    else:
+        sp = num_steps['no_hbm-compact_layout'] / num_steps[layout]
+        ylabel_extra = ""
+        filename_suffix = ""
 
     # Compute y_value depending on normalization
     if normalize_qubits:
-        merged["y_value"] = merged["avg_t_parallelism"] / merged["num_qubits"]
-        ylabel = "Avg. T-parallelism / qubits"
-        suffix = "_normalized_qubits"
+        t["y_value"] = t["avg_t_parallelism"] / t["num_qubits"]
+        ylabel = "Avg. T-parallelism / qubits" + ylabel_extra
+        suffix = "_normalized_qubits" + filename_suffix
     elif normalize_magic_states:
-        merged["y_value"] = merged.apply(lambda row: row["avg_t_parallelism"] / extract_magic_states(row["bench_name"], layout), axis=1)
-        ylabel = "Avg. T-parallelism / magic states"
-        suffix = "_normalized_magic_states"
+        t["y_value"] = t.apply(lambda row: row["avg_t_parallelism"] / extract_magic_states(row["bench_name"], layout), axis=1)
+        ylabel = "Avg. T-parallelism / magic states" + ylabel_extra
+        suffix = "_normalized_magic_states" + filename_suffix
     else:
-        merged["y_value"] = merged["avg_t_parallelism"]
-        ylabel = "Average T parallelism"
-        suffix = ""
+        t["y_value"] = t["avg_t_parallelism"]
+        ylabel = "Average T parallelism" + ylabel_extra
+        suffix = filename_suffix
 
     plt.figure()
     sc = plt.scatter(
-        merged['t_density'],
-        merged['y_value'],
+        t['t_density'],
+        t['y_value'],
         c=sp,
         cmap='viridis',
         marker='o',
@@ -143,7 +160,7 @@ for layout, title, basefilename in layout_pairs:
 
     # Colorbar
     cbar = plt.colorbar(sc)
-    cbar.set_label("speedup")
+    cbar.set_label("tdp improvement" if time_delay_product else "speedup")
 
     plt.tight_layout()
 
