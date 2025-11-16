@@ -5,8 +5,24 @@ import re
 import json
 import os
 
+# architecture = "compact_layout"
+# wisq_outputs_dir = "results/output_parallel_3600_compact/output_parallel_3600/bench_suite_2025-11-15_05-34-13"
+# num_steps = pd.read_csv('results/num_steps.csv')
+# routing = pd.read_csv('results/routing_footprint.csv')
+
+architecture = "compact_layout"
+wisq_outputs_dir = "results/output_parallel_3600_square_sparse/output_parallel_3600_square_sparse/bench_suite_2025-11-15_05-34-13"
+num_steps = pd.read_csv('results/num_steps_square_sparse.csv')
+routing = pd.read_csv('results/routing_footprint_square_sparse.csv')
+
 # ================== ARGUMENT PARSER ==================
-parser = argparse.ArgumentParser(description="Generate speedup plots or improvement of time-delay product")
+parser = argparse.ArgumentParser(description="Generate speedup plots or improvement metrics")
+parser.add_argument(
+    "--metric",
+    choices=["speedup", "footprint", "tdp"],
+    required=True,
+    help="Metric to plot: speedup, footprint, or tdp"
+)
 parser.add_argument(
     "--normalize_qubits",
     action="store_true",
@@ -17,16 +33,11 @@ parser.add_argument(
     action="store_true",
     help="Normalize average T parallelism by number of magic states"
 )
-parser.add_argument(
-    "--time_delay_product",
-    action="store_true",
-    help="Plot improvement of time-delay product instead of speedup of timesteps"
-)
 args = parser.parse_args()
 
 normalize_qubits = args.normalize_qubits
 normalize_magic_states = args.normalize_magic_states
-time_delay_product = args.time_delay_product
+metric = args.metric
 
 # ================== HPCA/ISCA PUBLICATION STYLE ==================
 plt.rcParams.update({
@@ -48,7 +59,7 @@ plt.rcParams.update({
     "ytick.major.width": 1.6,
 
     # Figure
-    "figure.figsize": (7, 5),
+    "figure.figsize": (8, 5),
     "savefig.dpi": 300,
     "pdf.fonttype": 42,
     "ps.fonttype": 42,
@@ -56,11 +67,10 @@ plt.rcParams.update({
     # Colormap
     "image.cmap": "viridis"
 })
+plt.rcParams["text.usetex"] = False
 
 # ======================= LOAD DATA ==========================
 t = pd.read_csv('t_gate_analysis_summary_smaller_v3.csv')
-num_steps = pd.read_csv('num_steps.csv')
-routing = pd.read_csv('routing_footprint.csv')
 
 # Ensure bench_name is the index for easy lookup
 num_steps.set_index('bench_name', inplace=True)
@@ -80,7 +90,7 @@ t["num_qubits"] = t["bench_name"].apply(extract_qubits)
 
 # ======================= EXTRACT NUMBER OF MAGIC STATES ==================
 def extract_magic_states(bench_name, layout):
-    json_path = f"/home/c/hbm/scripts/output_parallel_3600/output_parallel_3600/bench_suite_2025-11-15_05-34-13/{bench_name}{layout}_run1.out"
+    json_path = f"{wisq_outputs_dir}/{bench_name}{layout}_run1.out"
     if not os.path.exists(json_path):
         raise FileNotFoundError(f"Cannot find magic state file: {json_path}")
     with open(json_path, "r") as f:
@@ -89,25 +99,25 @@ def extract_magic_states(bench_name, layout):
 
 # ======================= LAYOUTS TO COMPARE ==========================
 layout_pairs = [
-    ("shared_none-compact_layout",
-     "shared_none",
-     "speedup_shared_none"),
+    ("shared_none-"+architecture,
+     "Shared-0 HBM organization",
+     "shared_none"),
 
-    ("shared_2-route_bottom-anchilla_perimeter-compact_layout",
-     "shared_2-route_bottom_anchilla_perimeter",
-     "speedup_bottom_anchilla_perimeter"),
+    ("shared_2-route_bottom-anchilla_perimeter-"+architecture,
+     "Shared-2 HBM organization with Lower-First Routing",
+     "bottom_anchilla_perimeter"),
 
-    ("shared_2-route_bottom-compact_layout",
-     "shared_2-route_bottom",
-     "speedup_bottom"),
+    ("shared_2-route_bottom-"+architecture,
+     "Shared-2 HBM organization with Lower-First Routing",
+     "bottom"),
 
-    ("shared_2-route_upper-anchilla_perimeter-compact_layout",
-     "shared_2-route_upper_anchilla_perimeter",
-     "speedup_upper_anchilla_perimeter"),
+    ("shared_2-route_upper-anchilla_perimeter-"+architecture,
+     "Shared-2 HBM organization with Upper-First Routing",
+     "upper_anchilla_perimeter"),
 
-    ("shared_none-anchilla_perimeter-compact_layout",
-     "shared_none_anchilla_perimeter",
-     "speedup_none_anchilla_perimeter")
+    ("shared_none-anchilla_perimeter-"+architecture,
+     "Shared-0 HBM organization",
+     "shared_none_anchilla_perimeter")
 ]
 
 # ======================= GENERATE PLOTS ==========================
@@ -117,32 +127,31 @@ for layout, title, basefilename in layout_pairs:
         print(f"Skipping missing column: {layout}")
         continue
 
-    # Compute "speedup" or "time-delay product improvement"
-    if time_delay_product:
-        sp = (num_steps['no_hbm-compact_layout'] * routing['no_hbm-compact_layout']) / (
+    if metric == "speedup":
+        sp = num_steps['no_hbm-'+architecture] / num_steps[layout]
+
+    elif metric == "tdp":
+        sp = (num_steps['no_hbm-'+architecture] * routing['no_hbm-'+architecture]) / (
              num_steps[layout] * routing[layout])
-        ylabel_extra = " (time-delay product improvement)"
-        filename_suffix = "_tdp"
-    else:
-        sp = num_steps['no_hbm-compact_layout'] / num_steps[layout]
-        ylabel_extra = ""
-        filename_suffix = ""
+
+    elif metric == "footprint":
+        sp = routing['no_hbm-'+architecture] / routing[layout]
 
     # Compute y_value depending on normalization
     if normalize_qubits:
         t["y_value"] = t["avg_t_parallelism"] / t["num_qubits"]
-        ylabel = "Avg. T-parallelism / qubits" + ylabel_extra
-        suffix = "_normalized_qubits" + filename_suffix
+        ylabel = "Avg. T-parallelism normalized to num of qubits"
+        normalization_mode = "normalized_qubits"
     elif normalize_magic_states:
         t["y_value"] = t.apply(lambda row: row["avg_t_parallelism"] / extract_magic_states(row["bench_name"], layout), axis=1)
-        ylabel = "Avg. T-parallelism / magic states" + ylabel_extra
-        suffix = "_normalized_magic_states" + filename_suffix
+        ylabel = "Avg. T-parallelism normalized to num of magic states"
+        normalization_mode = "normalized_magic_states"
     else:
         t["y_value"] = t["avg_t_parallelism"]
-        ylabel = "Average T parallelism" + ylabel_extra
-        suffix = filename_suffix
+        ylabel = "Average T parallelism"
+        normalization_mode = "not_normalized"
 
-    plt.figure()
+    plt.figure(constrained_layout=True)
     sc = plt.scatter(
         t['t_density'],
         t['y_value'],
@@ -155,17 +164,25 @@ for layout, title, basefilename in layout_pairs:
 
     # Labels & title
     plt.xlabel("T density")
-    plt.ylabel(ylabel)
-    plt.title(title)
+    plt.ylabel(ylabel, wrap=True)
+    plt.title(title, wrap=True)
 
     # Colorbar
     cbar = plt.colorbar(sc)
-    cbar.set_label("tdp improvement" if time_delay_product else "speedup")
+    colorbar_label = {
+        "speedup": "Speedup over planar architecture",
+        "footprint": "Routing footprint improvement over planar architecture",
+        "tdp": "Time-area product improvement over planar architecture"
+    }
+    cbar.set_label(colorbar_label[metric], wrap=True)
 
-    plt.tight_layout()
+    # plt.subplots_adjust(left=0.20)
+    # plt.tight_layout()
 
     # Save as PDF — add suffix for normalized case
-    filename = f"{basefilename}{suffix}.pdf"
+    outdir = f"plots/square_sparse/{metric}/{normalization_mode}"
+    os.makedirs(outdir, exist_ok=True)
+    filename = f"{outdir}/{basefilename}.pdf"
     plt.savefig(filename, format="pdf", bbox_inches="tight")
     plt.close()
 
