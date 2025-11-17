@@ -52,23 +52,27 @@ def factories_required(n_magic, output_per_block):
     return math.ceil(n_magic / output_per_block)
 
 
-def spacetime_product(num_total_patches, num_factories, timesteps):
-    return (num_total_patches + num_factories) * timesteps
+def spacetime_product(area, timesteps):
+    return area * timesteps
 
 
 # ---------------------------------------------------------
 # User parameters
 # ---------------------------------------------------------
+
+# # COMPACT
+# architecture = "compact_layout"
+# layout = "shared_2-route_bottom-anchilla_perimeter"
+# wisq_outputs_dir = "results/output_parallel_3600_compact/output_parallel_3600/bench_suite_2025-11-15_05-34-13"
+# input_file = "results/num_steps.csv"
+# output_file = "results/distillation_factories_compact.csv"
+
+# SQUARE SPARSE
 architecture = "compact_layout"
 layout = "shared_2-route_bottom-anchilla_perimeter"
-wisq_outputs_dir = (
-    "results/output_parallel_3600_compact/output_parallel_3600/"
-    "bench_suite_2025-11-15_05-34-13"
-)
-
-input_file = "results/num_steps.csv"
-output_file = "results/distillation_factories.csv"
-
+wisq_outputs_dir = "results/output_parallel_3600_square_sparse/output_parallel_3600_square_sparse/bench_suite_2025-11-15_05-34-13"
+input_file = "results/num_steps_square_sparse.csv"
+output_file = "results/distillation_factories_square_sparse.csv"
 
 # ---------------------------------------------------------
 # Main CSV generation
@@ -94,15 +98,15 @@ with open(input_file, "r", newline="") as f_in, open(output_file, "w", newline="
             bench_name, layout, wisq_outputs_dir
         )
 
-        # ---- Factories ----
+        # ---- Number of factories ----
         f15 = factories_required(num_magic_states, 1)      # 15→1
         f20 = factories_required(num_magic_states, 4)      # 20→4
         f116 = factories_required(num_magic_states, 12)    # 116→12
 
         # ---- Spacetime Products ----
-        st15 = spacetime_product(num_total_patches, f15, num_timesteps)
-        st20 = spacetime_product(num_total_patches, f20, num_timesteps)
-        st116 = spacetime_product(num_total_patches, f116, num_timesteps)
+        st15 = spacetime_product(num_total_patches+15*f15, num_timesteps)
+        st20 = spacetime_product(num_total_patches+20*f20, num_timesteps)
+        st116 = spacetime_product(num_total_patches+116*f116, num_timesteps)
 
         writer.writerow([
             bench_name, logical_qubits, num_total_patches, num_magic_states, num_timesteps,
