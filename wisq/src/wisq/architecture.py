@@ -139,15 +139,19 @@ def center_column(width, height):
 def right_column(width, height):
     return [(width*i)+(width-1) for i in range(height)]
 
-def all_sides(width, height):
+def all_sides(width, height, N=None):
     left_column = [(width*i) for i in range(height)]
     right_column =  [(width*i)+(width-1) for i in range(height)]
     top_row = [i for i in range(width)]
     bottom_row = [(width)*(height-1) + i for i in range(width)]
     all_slots =  list(dict.fromkeys(top_row + right_column + list(reversed(bottom_row))+left_column))
-    msf = []
-    for i in range(1,len(all_slots),2):
-        msf.append(all_slots[i])
+    if N is None:
+        msf = []
+        for i in range(1,len(all_slots),2):
+            msf.append(all_slots[i])
+    else:
+        step = len(all_slots) / N
+        msf = [all_slots[int(i * step)] for i in range(N)]
     return msf
 
 def square_sparse_layout(alg_qubit_count, magic_states):
@@ -162,7 +166,7 @@ def square_sparse_layout(alg_qubit_count, magic_states):
        
     if magic_states == 'all_sides':
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
-        msf_faces = all_sides(arch['width'], arch['height'])
+        msf_faces = all_sides(arch['width'], arch['height'], len(arch['alg_qubits']))
         arch['magic_states'] = msf_faces
     elif magic_states == "center_column":
         msf_faces = center_column(grid_len, grid_height)
@@ -195,7 +199,7 @@ def compact_layout(alg_qubit_count, magic_states):
     arch = {"height" : grid_height, "width" : grid_len, "alg_qubits" : for_circ, "magic_states" : [] }
     if magic_states == 'all_sides':
         arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
-        msf_faces = all_sides(arch['width'], arch['height'])
+        msf_faces = all_sides(arch['width'], arch['height'], len(arch['alg_qubits']))
         arch['magic_states'] = msf_faces
     elif magic_states == "shared_2":
         if "anchilla_perimeter" in HBM_CONFIG:
