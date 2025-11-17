@@ -1,12 +1,13 @@
-'''
-Fill Theodoro's spreadsheet
-'''
+"""
+Generate multiple configurations and save them as sheets in one Excel file.
+"""
 
 import csv
 import re
 import json
 import os
 import math
+from openpyxl import Workbook
 
 
 # ---------------------------------------------------------
@@ -23,10 +24,11 @@ def extract_num_logical_qubits(name):
 # ---------------------------------------------------------
 # Extract data from JSON
 # ---------------------------------------------------------
-def extract_json_data(bench_name, layout, wisq_outputs_dir):
+def extract_json_data(bench_name, layout, architecture, wisq_outputs_dir):
     json_path = f"{wisq_outputs_dir}/{bench_name}{layout}-{architecture}_run1.out"
     if not os.path.exists(json_path):
-        raise FileNotFoundError(f"Cannot find magic state file: {json_path}")
+        raise FileNotFoundError(f"Cannot find file: {json_path}")
+
     with open(json_path, "r") as f:
         data = json.load(f)
 
@@ -57,62 +59,146 @@ def spacetime_product(area, timesteps):
 
 
 # ---------------------------------------------------------
-# User parameters
+# Configuration groups (YOUR LIST)
 # ---------------------------------------------------------
+CONFIGS = [
+    (
+        "S0 no_perimeter, compact",
+        "shared_none",
+        "compact_layout",
+        "results/output_parallel_3600_compact/output_parallel_3600/bench_suite_2025-11-15_05-34-13",
+        "results/num_steps.csv",
+    ),
+    (
+        "S0 no_perimeter, square_sparse",
+        "shared_none",
+        "compact_layout",
+        "results/output_parallel_3600_square_sparse/output_parallel_3600_square_sparse/bench_suite_2025-11-15_05-34-13",
+        "results/num_steps_square_sparse.csv",
+    ),
+    (
+        "S2 LFR no_perimeter, compact",
+        "shared_2-route_bottom",
+        "compact_layout",
+        "results/output_parallel_3600_compact/output_parallel_3600/bench_suite_2025-11-15_05-34-13",
+        "results/num_steps.csv",
+    ),
+    (
+        "S2 LFR no_perimeter, square_sparse",
+        "shared_2-route_bottom",
+        "compact_layout",
+        "results/output_parallel_3600_square_sparse/output_parallel_3600_square_sparse/bench_suite_2025-11-15_05-34-13",
+        "results/num_steps_square_sparse.csv",
+    ),
+    (
+        "S2 LFR perimeter, compact",
+        "shared_2-route_bottom-anchilla_perimeter",
+        "compact_layout",
+        "results/output_parallel_3600_compact/output_parallel_3600/bench_suite_2025-11-15_05-34-13",
+        "results/num_steps.csv",
+    ),
+    (
+        "S2 LFR perimeter, square_sparse",
+        "shared_2-route_bottom-anchilla_perimeter",
+        "compact_layout",
+        "results/output_parallel_3600_square_sparse/output_parallel_3600_square_sparse/bench_suite_2025-11-15_05-34-13",
+        "results/num_steps_square_sparse.csv",
+    ),
+    
+    # (
+    #     "S2 UFR no_perimeter, compact",
+    #     "shared_2-route_upper",
+    #     "compact_layout",
+    #     "results/output_parallel_3600_compact/output_parallel_3600/bench_suite_2025-11-15_05-34-13",
+    #     "results/num_steps.csv",
+    # ),
+    # (
+    #     "S2 UFR no_perimeter, square_sparse",
+    #     "shared_2-route_upper",
+    #     "compact_layout",
+    #     "results/output_parallel_3600_square_sparse/output_parallel_3600_square_sparse/bench_suite_2025-11-15_05-34-13",
+    #     "results/num_steps_square_sparse.csv",
+    # ),
+    (
+        "S2 UFR perimeter, compact",
+        "shared_2-route_upper-anchilla_perimeter",
+        "compact_layout",
+        "results/output_parallel_3600_compact/output_parallel_3600/bench_suite_2025-11-15_05-34-13",
+        "results/num_steps.csv",
+    ),
+    # (
+    #     "S2 UFR perimeter, square_sparse",
+    #     "shared_2-route_upper-anchilla_perimeter",
+    #     "compact_layout",
+    #     "results/output_parallel_3600_square_sparse/output_parallel_3600_square_sparse/bench_suite_2025-11-15_05-34-13",
+    #     "results/num_steps_square_sparse.csv",
+    # ),
+]
 
-# # COMPACT
-# architecture = "compact_layout"
-# layout = "shared_2-route_bottom-anchilla_perimeter"
-# wisq_outputs_dir = "results/output_parallel_3600_compact/output_parallel_3600/bench_suite_2025-11-15_05-34-13"
-# input_file = "results/num_steps.csv"
-# output_file = "results/distillation_factories_compact.csv"
-
-# SQUARE SPARSE
-architecture = "compact_layout"
-layout = "shared_2-route_bottom-anchilla_perimeter"
-wisq_outputs_dir = "results/output_parallel_3600_square_sparse/output_parallel_3600_square_sparse/bench_suite_2025-11-15_05-34-13"
-input_file = "results/num_steps_square_sparse.csv"
-output_file = "results/distillation_factories_square_sparse.csv"
 
 # ---------------------------------------------------------
-# Main CSV generation
+# Create Excel workbook
 # ---------------------------------------------------------
-with open(input_file, "r", newline="") as f_in, open(output_file, "w", newline="") as f_out:
-    reader = csv.reader(f_in)
-    writer = csv.writer(f_out)
+wb = Workbook()
+first_sheet = True
 
-    header = next(reader)  # skip first row
 
-    writer.writerow([
-        "bench_name", "logical_qubits", "total_patches", "magic_states", "timesteps",
+# ---------------------------------------------------------
+# Main Loop
+# ---------------------------------------------------------
+for sheet_name, layout, architecture, wisq_dir, input_csv in CONFIGS:
+
+    print(f"Processing: {sheet_name}")
+
+    if first_sheet:
+        ws = wb.active
+        ws.title = sheet_name
+        first_sheet = False
+    else:
+        ws = wb.create_sheet(title=sheet_name)
+
+    # Write header
+    ws.append([
+        "bench_name", "logical_qubits", "total_patches",
+        "magic_states", "timesteps",
         "factories_15to1", "spacetime_15to1",
         "factories_20to4", "spacetime_20to4",
         "factories_116to12", "spacetime_116to12"
     ])
 
-    for row in reader:
-        bench_name = row[0].strip()
+    # Read input steps CSV
+    with open(input_csv, "r") as f_in:
+        reader = csv.reader(f_in)
+        next(reader)  # skip header
 
-        logical_qubits = extract_num_logical_qubits(bench_name)
-        num_magic_states, num_timesteps, num_total_patches = extract_json_data(
-            bench_name, layout, wisq_outputs_dir
-        )
+        for row in reader:
+            bench_name = row[0].strip()
 
-        # ---- Number of factories ----
-        f15 = factories_required(num_magic_states, 1)      # 15→1
-        f20 = factories_required(num_magic_states, 4)      # 20→4
-        f116 = factories_required(num_magic_states, 12)    # 116→12
+            logical_qubits = extract_num_logical_qubits(bench_name)
+            num_magic_states, num_timesteps, num_total_patches = extract_json_data(
+                bench_name, layout, architecture, wisq_dir
+            )
 
-        # ---- Spacetime Products ----
-        st15 = spacetime_product(num_total_patches+15*f15, num_timesteps)
-        st20 = spacetime_product(num_total_patches+20*f20, num_timesteps)
-        st116 = spacetime_product(num_total_patches+116*f116, num_timesteps)
+            # Factories
+            f15 = factories_required(num_magic_states, 1)
+            f20 = factories_required(num_magic_states, 4)
+            f116 = factories_required(num_magic_states, 12)
 
-        writer.writerow([
-            bench_name, logical_qubits, num_total_patches, num_magic_states, num_timesteps,
-            f15, st15,
-            f20, st20,
-            f116, st116
-        ])
+            # Spacetime
+            st15 = spacetime_product(num_total_patches + 15*f15, num_timesteps)
+            st20 = spacetime_product(num_total_patches + 20*f20, num_timesteps)
+            st116 = spacetime_product(num_total_patches + 116*f116, num_timesteps)
 
-print(f"Wrote output to {output_file}")
+            ws.append([
+                bench_name, logical_qubits, num_total_patches,
+                num_magic_states, num_timesteps,
+                f15, st15,
+                f20, st20,
+                f116, st116
+            ])
+
+# Save final workbook
+output_xlsx = "results/distillation_factories_all_configs.xlsx"
+wb.save(output_xlsx)
+
+print(f"✔ Wrote Excel file with all sheets to: {output_xlsx}")
