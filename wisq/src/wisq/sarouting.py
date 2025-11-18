@@ -35,6 +35,7 @@ print(HBM_ARCH)
 def route_gate(
     indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms
 ):
+    print("trying gate...", indexed_gate, f"({mapping[indexed_gate[1][0]]})")
     device_graph = rx.generators.grid_graph(rows=grid_height, cols=grid_len)
     for idx in device_graph.node_indices():
         device_graph[idx] = idx  # payload = original index
@@ -84,7 +85,7 @@ def route_gate(
                 ),
             )
             pairs = [
-                (vn, hn)
+                (mapping[gate[0]], hn) if vn in sorted_msf else (vn, hn)
                 for magic_state in sorted_msf
                 for vn in vertical_neighbors(
                     mapping[gate[0]], grid_len, grid_height, omitted_edges=[]
@@ -93,12 +94,12 @@ def route_gate(
                     magic_state, grid_len, grid_height, omitted_edges=[]
                 )
             ]
-
+    pairs_before_filter = pairs
     # filter pairs by checking payload existence
     if HBM_ARCH == "ARCH_C" and len(gate) == 1: # for T gates in ARCH_C:
         pairs = [
             (s, t) for s, t in pairs
-            if device_graph.find_node_by_weight(s) is not None
+            if hbm_graph.find_node_by_weight(s) is not None
             and hbm_graph.find_node_by_weight(t) is not None
         ]
     else:
@@ -108,14 +109,20 @@ def route_gate(
             and device_graph.find_node_by_weight(t) is not None
         ]
 
-    # print("Filtered:", pairs)
-
+    
     graph_to_use = hbm_graph if (HBM_ARCH == "ARCH_C" and len(gate) == 1) else device_graph
+    
+    print("nodes:",graph_to_use.node_indices())
+    pairs = list(pairs)
+    print("Pairs before filter:", pairs_before_filter)
+    print("Pairs after filter:", pairs)
+    
     for s_payload, t_payload in pairs:
         # convert payload -> internal index
         s = graph_to_use.find_node_by_weight(s_payload)
         t = graph_to_use.find_node_by_weight(t_payload)
         if s is None or t is None:
+            print(f"pair {s_payload, t_payload} is None ({s,t})")
             continue
 
         const_1 = lambda _: 1
