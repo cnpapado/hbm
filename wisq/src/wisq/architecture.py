@@ -41,38 +41,141 @@ def hbm_shared_2_positions(arch):
     return sorted(ms)
 
 
+# def hbm_shared_4_positions(arch):
+#     """Magic states placed for every 2 data qubits (positions x and x+2) with a magic state
+#     in between and in the row below, without overlapping pairs."""
+#     width = arch["width"]
+#     height = arch["height"]
+#     alg = set(arch["alg_qubits"])
+#     ms = set()
+
+#     # Group data qubits by row
+#     row_dict = {}
+#     for q in alg:
+#         row = q // width
+#         col = q % width
+#         row_dict.setdefault(row, []).append(col)
+
+#     for row in range(height - 1):  # cannot place below last row
+#         if row not in row_dict:
+#             continue
+#         cols = sorted(row_dict[row])
+#         i = 0
+#         while i + 1 < len(cols):
+#             c1, c2 = cols[i], cols[i + 1]
+#             # Ensure a spacing of 2 for "x and x+2" pairs
+#             if c2 - c1 >= 2:
+#                 mid_col = (c1 + c2) // 2
+#                 below_row = row + 1
+#                 ms.add(below_row * width + mid_col)
+#                 i += 2  # skip next qubit to avoid overlap
+#             else:
+#                 i += 1
+
+#     return sorted(ms)
+
 def hbm_shared_4_positions(arch):
-    """Magic states placed for every 2 data qubits (positions x and x+2) with a magic state
-    in between and in the row below, without overlapping pairs."""
+    """Magic states placed for every 4 data qubits (a 2x2 patch).
+    Processes every 2nd data-qubit row, taking pairs horizontally."""
     width = arch["width"]
     height = arch["height"]
     alg = set(arch["alg_qubits"])
     ms = set()
 
-    # Group data qubits by row
     row_dict = {}
     for q in alg:
         row = q // width
-        col = q % width
-        row_dict.setdefault(row, []).append(col)
+        row_dict.setdefault(row, []).append(q % width)
 
-    for row in range(height - 1):  # cannot place below last row
-        if row not in row_dict:
-            continue
+    sorted_rows = sorted(row_dict.keys())
+
+    # STEP BY 2 ROWS: This ensures the MS serves the row below it as well
+    for r_idx in range(0, len(sorted_rows), 2):
+        row = sorted_rows[r_idx]
         cols = sorted(row_dict[row])
+        
         i = 0
         while i + 1 < len(cols):
             c1, c2 = cols[i], cols[i + 1]
-            # Ensure a spacing of 2 for "x and x+2" pairs
             if c2 - c1 >= 2:
                 mid_col = (c1 + c2) // 2
                 below_row = row + 1
-                ms.add(below_row * width + mid_col)
-                i += 2  # skip next qubit to avoid overlap
+                if below_row < height:
+                    ms.add(below_row * width + mid_col)
+                i += 2  # skip next qubit
             else:
                 i += 1
 
-    return sorted(ms)
+    return sorted(list(ms))
+
+def hbm_shared_8_positions(arch):
+    """Magic states placed for every 8 data qubits (a 2x4 patch).
+    Processes every 2nd data-qubit row, taking chunks of 4 horizontally."""
+    width = arch["width"]
+    height = arch["height"]
+    alg = set(arch["alg_qubits"])
+    ms = set()
+
+    row_dict = {}
+    for q in alg:
+        row = q // width
+        row_dict.setdefault(row, []).append(q % width)
+
+    sorted_rows = sorted(row_dict.keys())
+
+    # STEP BY 2 ROWS to serve a 2x4 patch
+    for r_idx in range(0, len(sorted_rows), 2):
+        row = sorted_rows[r_idx]
+        cols = sorted(row_dict[row])
+        
+        i = 0
+        while i + 3 < len(cols):
+            c1, c4 = cols[i], cols[i + 3]
+            # Center horizontally between the 1st and 4th qubit
+            mid_col = (c1 + c4) // 2
+            below_row = row + 1
+            
+            if below_row < height:
+                ms.add(below_row * width + mid_col)
+            
+            i += 4  # skip to the next chunk of 4
+            
+    return sorted(list(ms))
+
+def hbm_shared_16_positions(arch):
+    """Magic states placed for every 16 data qubits (a 4x4 patch).
+    Processes every 4th data-qubit row, taking chunks of 4 horizontally."""
+    width = arch["width"]
+    height = arch["height"]
+    alg = set(arch["alg_qubits"])
+    ms = set()
+
+    row_dict = {}
+    for q in alg:
+        row = q // width
+        row_dict.setdefault(row, []).append(q % width)
+
+    sorted_rows = sorted(row_dict.keys())
+
+    # STEP BY 4 ROWS to serve a 4x4 patch
+    for r_idx in range(0, len(sorted_rows), 4):
+        row = sorted_rows[r_idx]
+        cols = sorted(row_dict[row])
+        
+        i = 0
+        while i + 3 < len(cols):
+            c1, c4 = cols[i], cols[i + 3]
+            # Center horizontally
+            mid_col = (c1 + c4) // 2
+            # Center vertically (2 rows down in the physical grid)
+            below_row = row + 2 
+            
+            if below_row < height:
+                ms.add(below_row * width + mid_col)
+            
+            i += 4  # skip to the next chunk of 4
+            
+    return sorted(list(ms))
 
 
 
@@ -180,6 +283,14 @@ def square_sparse_layout(alg_qubit_count, magic_states):
         if "anchilla_perimeter" in HBM_CONFIG:
             arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = hbm_shared_4_positions(arch)
+    elif magic_states == "shared_8":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
+        msf_faces = hbm_shared_8_positions(arch)
+    elif magic_states == "shared_16":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
+        msf_faces = hbm_shared_16_positions(arch)
     elif magic_states == "single_magic_state":
         if "anchilla_perimeter" in HBM_CONFIG:
             arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
@@ -209,6 +320,14 @@ def compact_layout(alg_qubit_count, magic_states):
         if "anchilla_perimeter" in HBM_CONFIG:
             arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
         msf_faces = hbm_shared_4_positions(arch)
+    elif magic_states == "shared_8":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
+        msf_faces = hbm_shared_8_positions(arch)
+    elif magic_states == "shared_16":
+        if "anchilla_perimeter" in HBM_CONFIG:
+            arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))
+        msf_faces = hbm_shared_16_positions(arch)
     elif magic_states == "single_magic_state":
         if "anchilla_perimeter" in HBM_CONFIG:
             arch = insert_row_below(insert_row_above(insert_column_right(insert_column_left(arch))))

@@ -132,6 +132,10 @@ def map_and_route(
         arch = layout_fn(total_qubits, magic_states="shared_2")
     elif "shared_4" in HBM_CONFIG:
         arch = layout_fn(total_qubits, magic_states="shared_4")
+    elif "shared_8" in HBM_CONFIG:
+        arch = layout_fn(total_qubits, magic_states="shared_8")
+    elif "shared_16" in HBM_CONFIG:
+        arch = layout_fn(total_qubits, magic_states="shared_16")
     elif "shared_none" in HBM_CONFIG: 
         arch = layout_fn(total_qubits, magic_states="shared_2") # shared_2 hack for ARCH_A 
     elif "single_magic_state" in HBM_CONFIG:
