@@ -153,9 +153,17 @@ def route_gate(
             path = [graph_to_use.get_node_data(s)] + path
         if t not in path:
             path.append(graph_to_use.get_node_data(t))
-        route = [(id, gate, path)]
+        # route = [(id, gate, path)]
+        # for v in path:
+        #     to_remove.add(v)
+        #to_remove.add(v) is not updated 
+        #after routing
+        route = [(id, gate, path)]                                                                                
         for v in path:
-            to_remove.add(v)
+            if HBM_ARCH == "ARCH_C" and len(gate) == 1:
+                to_remove_hbm.add(v)
+            else:
+                to_remove.add(v)
     else:
         route = []
     return route, to_remove, to_remove_hbm
