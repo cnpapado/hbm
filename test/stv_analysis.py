@@ -180,7 +180,7 @@
 
 # colors  = {"ArchA": "#2ecc71", 2: "#3498db", 4: "#9b59b6", 8: "#e67e22", 16: "#e74c3c"}
 # markers = {"ArchA": "D",       2: "o",       4: "s",       8: "^",       16: "v"}
-# labels  = {"ArchA": "Arch A",  2: "C\_S2",   4: "C\_S4",   8: "C\_S8",   16: "C\_S16"}
+# labels  = {"ArchA": "Arch A",  2: "C_S2",   4: "C_S4",   8: "C_S8",   16: "C_S16"}
 
 # fig, axes = plt.subplots(1, 3, figsize=(17, 5), sharey=False)
 
@@ -199,7 +199,7 @@
 #         ax.plot(subset["N"], subset[col],
 #                 color=colors[S], marker=markers[S],
 #                 linewidth=2, markersize=7,
-#                 label=f"C\_S{S}")
+#                 label=f"C_S{S}")
 
 #     ax.axhline(y=1.0, color="black", linestyle=":", linewidth=1.5, label="Break-even (2D baseline)")
 #     ax.set_xlabel("Grid Size N (logical qubits)", fontsize=11)
@@ -217,10 +217,9 @@
 #     fontsize=13, fontweight="bold"
 # )
 # plt.tight_layout()
-# plt.savefig("stv_efficiency.pdf", dpi=200, bbox_inches="tight")
-# print("Saved stv_efficiency.pdf")
+# plt.savefig("stv_efficiency.png", dpi=200, bbox_inches="tight")
+# print("Saved stv_efficiency.png")
 # print("\nDone.")
-
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -364,10 +363,10 @@ df = pd.DataFrame(records)
 # ── Print formatted table ─────────────────────────────────────────────────────
 
 ratio_cols = ["ratio_ArchA"] + [f"ratio_S{S}" for S in sharing_ratios]
-col_labels = ["Arch A", "C_S2", "C_S4", "C_S8", "C_S16"]
+col_labels = ["3D-Dedicated", "3D-Shared-2", "3D-Shared-4", "3D-Shared-8", "3D-Shared-16"]
 
 print("=" * 90)
-print(f"Space-Time Volume Efficiency Ratio  STV_2D / STV_HBMS  (d² cancels — scale-invariant)")
+print(f"Space-Time Volume Efficiency Ratio  STV_2D / STV_HBMS")
 print(f"Values > 1.0 → HBMS more efficient | Values < 1.0 → 2D baseline more efficient")
 print("=" * 90)
 print(f"{'Benchmark':<22}", end="")
@@ -400,47 +399,74 @@ print("\nFull results saved to stv_results.csv")
 # ── Plot ──────────────────────────────────────────────────────────────────────
 
 intensities      = [10, 50, 90]
-intensity_labels = {10: "Low Intensity (P=10%)", 50: "Medium Intensity (P=50%)", 90: "High Intensity (P=90%)"}
+intensity_labels = {10: "Low T Intensity (P=10%)", 50: "Medium T Intensity (P=50%)", 90: "High T Intensity (P=90%)"}
 
-colors  = {"ArchA": "#2ecc71", 2: "#3498db", 4: "#9b59b6", 8: "#e67e22", 16: "#e74c3c"}
-markers = {"ArchA": "D",       2: "o",       4: "s",       8: "^",       16: "v"}
-labels  = {"ArchA": "Arch A",  2: "C_S2",   4: "C_S4",   8: "C_S8",   16: "C_S16"}
+plt.rcParams.update({
+    "font.family": "serif",
+    "font.size": 58,
+    "axes.titlesize": 58,
+    "axes.labelsize": 58,
+    "axes.labelweight": "bold",
+    "axes.titleweight": "bold",
+    "axes.linewidth": 2.0,
+    "xtick.labelsize": 58,
+    "ytick.labelsize": 58,
+    "xtick.major.size": 10,
+    "xtick.major.width": 2,
+    "ytick.major.size": 10,
+    "ytick.major.width": 2,
+    "savefig.dpi": 300,
+    "pdf.fonttype": 42,
+    "ps.fonttype": 42,
+    "text.usetex": False,
+})
 
-fig, axes = plt.subplots(1, 3, figsize=(17, 5), sharey=False)
+colors  = {"ArchA": '#1f77b4', 2: '#2ca02c', 4: '#9467bd', 8: '#ff7f0e', 16: '#e377c2'}
+markers = {"ArchA": 's',       2: '^',       4: 'v',       8: 'D',       16: 'p'}
+labels  = {"ArchA": "Dedicated", 2: "Shared-2", 4: "Shared-4", 8: "Shared-8", 16: "Shared-16"}
+
+fig, axes = plt.subplots(1, 3, figsize=(45, 15), sharey=True)
 
 for ax, intensity in zip(axes, intensities):
     subset = df[df["intensity"] == intensity].sort_values("N")
 
-    # Arch A
+    # 3D-Dedicated
     ax.plot(subset["N"], subset["ratio_ArchA"],
             color=colors["ArchA"], marker=markers["ArchA"],
-            linewidth=2, markersize=7, linestyle="--",
-            label="Arch A (upper bound)")
+            linewidth=6, markersize=20, linestyle="--",
+            label=labels["ArchA"])
 
     # Sharing ratios
     for S in sharing_ratios:
         col = f"ratio_S{S}"
         ax.plot(subset["N"], subset[col],
                 color=colors[S], marker=markers[S],
-                linewidth=2, markersize=7,
-                label=f"C_S{S}")
+                linewidth=6, markersize=20,
+                label=labels[S])
 
-    ax.axhline(y=1.0, color="black", linestyle=":", linewidth=1.5, label="Break-even (2D baseline)")
-    ax.set_xlabel("Grid Size N (logical qubits)", fontsize=11)
-    ax.set_ylabel(r"$\mathrm{STV_{2D}\ /\ STV_{HBMS}}$", fontsize=11)
-    ax.set_title(intensity_labels[intensity], fontsize=12, fontweight="bold")
-    ax.set_xticks(subset["N"].tolist())
-    ax.set_xticklabels([str(n) for n in subset["N"].tolist()], rotation=45, fontsize=8)
-    ax.legend(fontsize=8, loc="upper left")
-    ax.grid(True, alpha=0.3)
+    ax.axhline(y=1.0, color="black", linestyle=":", linewidth=5, label="2D baseline")
+    ax.set_xlabel("Grid Size (N)")
+    # ax.set_ylabel(r"$\mathrm{STV_{2D}\ /\ STV_{HBMS}}$")
+    if intensity == 10:
+        ax.set_ylabel("STV Ratio")
+    ax.set_title(intensity_labels[intensity], pad=30)
+    # ax.set_xticks(subset["N"].tolist())
+    # ax.set_xticklabels([str(n) for n in subset["N"].tolist()], rotation=45)
+    x_ticks = [16, 64, 100, 144, 225, 256, 289, 361, 400]                                    
+    ax.set_xticks(x_ticks)                                                                     
+    ax.set_xticklabels(x_ticks, rotation=45)
+    if intensity == 10:
+        ax.legend(fontsize=46, loc="upper right")
+    ax.grid(True, which='major', linestyle='--', alpha=0.4)
     ax.yaxis.set_minor_locator(MultipleLocator(0.25))
 
-fig.suptitle(
-    r"HBM Space-Time Volume Efficiency Ratio — $d^2$-invariant" "\n"
-    r"(ratio $> 1$ means HBMS requires less total qubit$\times$cycle resources than 2D baseline)",
-    fontsize=13, fontweight="bold"
-)
+# fig.suptitle(
+#     r"HBM Space-Time Volume Efficiency Ratio" "\n"
+#     r"(ratio $> 1$ means HBMS requires less total qubit$\times$cycle resources than 2D baseline)",
+#     fontweight="bold"
+# )
 plt.tight_layout()
-plt.savefig("stv_efficiency.png", dpi=200, bbox_inches="tight")
-print("Saved stv_efficiency.png")
+plt.savefig("stv_efficiency_v2.pdf", bbox_inches="tight")
+# print("Saved stv_efficiency.png")
 print("\nDone.")
+

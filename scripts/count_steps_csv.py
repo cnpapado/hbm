@@ -10,15 +10,16 @@ import csv
 # === CLI ===
 parser = argparse.ArgumentParser(description="Run WISQ benchmarks in parallel")
 parser.add_argument("--runs", type=int, default=1)
-parser.add_argument("--parallel", type=int, default=8, help="Number of parallel processes")
-parser.add_argument("--tmr", type=str, default="3604", help="TMR value to use (default: 180)")
+parser.add_argument("--parallel", type=int, default=64, help="Number of parallel processes")
+parser.add_argument("--tmr", type=str, default="3600", help="TMR value to use (default: 180)")
 args = parser.parse_args()
 
 wisq_path = "wisq"
-benchmarks_dir = "../quantum-compiler-benchmark-circuits/synthetic_2"
+# benchmarks_dir = "../quantum-compiler-benchmark-circuits/synthetic_2"
+benchmarks_dir = "../test/benchmarks_batch"
 
 # === Setup output ===
-output_root = os.path.join(os.getcwd(), "output_parallel_3604")
+output_root = os.path.join(os.getcwd(), "new_benchmarks")
 bench_folder_name = os.path.basename(os.path.normpath(benchmarks_dir))
 bench_output_dir = os.path.join(output_root, bench_folder_name)
 os.makedirs(bench_output_dir, exist_ok=True)
@@ -26,29 +27,29 @@ os.makedirs(bench_output_dir, exist_ok=True)
 # === configurations ===
 HBM_CASES = [
     # name                                                     config                                       extra args
-    ("no_hbm-compact_layout",                                  "no_hbm",                                   ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
+    # ("no_hbm-compact_layout",                                  "no_hbm",                                   ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("no_hbm_single_magic_state-compact_layout",               "no_hbm_single_magic_state",                ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_none-compact_layout",                             "shared_none",                              ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_2-route_bottom-compact_layout",                   "shared_2-route_bottom",                    ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
-    ("shared_2-route_upper-compact_layout",                    "shared_2-route_upper",                     ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
+    # ("shared_2-route_upper-compact_layout",                    "shared_2-route_upper",                     ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_4-route_bottom-compact_layout",                   "shared_4-route_bottom",                    ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_4-route_upper-compact_layout",                    "shared_4-route_upper",                     ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_none-anchilla_perimeter-compact_layout",          "shared_none-anchilla_perimeter",           ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_2-route_bottom-anchilla_perimeter-compact_layout","shared_2-route_bottom-anchilla_perimeter", ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
-    ("shared_2-route_upper-anchilla_perimeter-compact_layout", "shared_2-route_upper-anchilla_perimeter",  ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
+    # ("shared_2-route_upper-anchilla_perimeter-compact_layout", "shared_2-route_upper-anchilla_perimeter",  ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_4-route_bottom-anchilla_perimeter-compact_layout","shared_4-route_bottom-anchilla_perimeter", ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_4-route_upper-anchilla_perimeter-compact_layout", "shared_4-route_upper-anchilla_perimeter",  ["-arch", "compact_layout", "-tmr", f"{args.tmr}"]),
 
     ("no_hbm-square_sparse",                                  "no_hbm",                                   ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
     # ("no_hbm_single_magic_state-square_sparse",               "no_hbm_single_magic_state",                ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
-    # ("shared_none-square_sparse",                             "shared_none",                              ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
+    ("shared_none-square_sparse",                             "shared_none",                              ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_2-route_bottom-square_sparse",                   "shared_2-route_bottom",                    ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
-    ("shared_2-route_upper-square_sparse",                    "shared_2-route_upper",                     ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
+    # ("shared_2-route_upper-square_sparse",                    "shared_2-route_upper",                     ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_4-route_bottom-square_sparse",                   "shared_4-route_bottom",                    ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_4-route_upper-square_sparse",                    "shared_4-route_upper",                     ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_none-anchilla_perimeter-square_sparse",          "shared_none-anchilla_perimeter",           ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_2-route_bottom-anchilla_perimeter-square_sparse","shared_2-route_bottom-anchilla_perimeter", ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
-    ("shared_2-route_upper-anchilla_perimeter-square_sparse", "shared_2-route_upper-anchilla_perimeter",  ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
+    # ("shared_2-route_upper-anchilla_perimeter-square_sparse", "shared_2-route_upper-anchilla_perimeter",  ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_4-route_bottom-anchilla_perimeter-square_sparse","shared_4-route_bottom-anchilla_perimeter", ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
     # ("shared_4-route_upper-anchilla_perimeter-square_sparse", "shared_4-route_upper-anchilla_perimeter",  ["-arch", "square_sparse_layout", "-tmr", f"{args.tmr}"]),
 ]

@@ -163,7 +163,7 @@ def analyze_file(filepath):
 # 4. MAIN BATCH EXECUTION
 # ==========================================
 if __name__ == "__main__":
-    input_dir = "benchmarks_batch"
+    input_dir = "benchmarks_bursty_cx"
     
     if not os.path.exists(input_dir):
         print(f"Error: Directory '{input_dir}' not found.")

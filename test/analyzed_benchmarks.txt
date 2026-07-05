@@ -1,0 +1,782 @@
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n100_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     100 (Logical 10x10)
+   - Physical Grid:   21x21
+   - Circuit Depth:   68 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     7
+   - Avg Simul T:     2.26
+   - 2D Perim Limit:  40 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n100_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     100 (Logical 10x10)
+   - Physical Grid:   21x21
+   - Circuit Depth:   87 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     26
+   - Avg Simul T:     12.64
+   - 2D Perim Limit:  40 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n100_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     100 (Logical 10x10)
+   - Physical Grid:   21x21
+   - Circuit Depth:   204 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     90
+   - Avg Simul T:     48.53
+   - 2D Perim Limit:  40 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 146 layers (71.6% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n144_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     144 (Logical 12x12)
+   - Physical Grid:   25x25
+   - Circuit Depth:   54 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     14
+   - Avg Simul T:     3.05
+   - 2D Perim Limit:  48 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n144_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     144 (Logical 12x12)
+   - Physical Grid:   25x25
+   - Circuit Depth:   63 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     80
+   - Avg Simul T:     17.74
+   - 2D Perim Limit:  48 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 2 layers (3.2% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n144_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     144 (Logical 12x12)
+   - Physical Grid:   25x25
+   - Circuit Depth:   145 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     138
+   - Avg Simul T:     70.21
+   - 2D Perim Limit:  48 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 123 layers (84.8% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n16_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     16 (Logical 4x4)
+   - Physical Grid:   9x9
+   - Circuit Depth:   342 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     3
+   - Avg Simul T:     1.40
+   - 2D Perim Limit:  16 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n16_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     16 (Logical 4x4)
+   - Physical Grid:   9x9
+   - Circuit Depth:   428 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     10
+   - Avg Simul T:     3.30
+   - 2D Perim Limit:  16 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n16_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     16 (Logical 4x4)
+   - Physical Grid:   9x9
+   - Circuit Depth:   1079 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     16
+   - Avg Simul T:     9.64
+   - 2D Perim Limit:  16 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n225_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     225 (Logical 15x15)
+   - Physical Grid:   31x31
+   - Circuit Depth:   31 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     15
+   - Avg Simul T:     4.21
+   - 2D Perim Limit:  60 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n225_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     225 (Logical 15x15)
+   - Physical Grid:   31x31
+   - Circuit Depth:   38 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     67
+   - Avg Simul T:     31.43
+   - 2D Perim Limit:  60 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 3 layers (7.9% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n225_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     225 (Logical 15x15)
+   - Physical Grid:   31x31
+   - Circuit Depth:   97 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     180
+   - Avg Simul T:     103.12
+   - 2D Perim Limit:  60 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 74 layers (76.3% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n256_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     256 (Logical 16x16)
+   - Physical Grid:   33x33
+   - Circuit Depth:   30 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     9
+   - Avg Simul T:     4.36
+   - 2D Perim Limit:  64 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n256_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     256 (Logical 16x16)
+   - Physical Grid:   33x33
+   - Circuit Depth:   35 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     62
+   - Avg Simul T:     31.43
+   - 2D Perim Limit:  64 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n256_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     256 (Logical 16x16)
+   - Physical Grid:   33x33
+   - Circuit Depth:   83 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     225
+   - Avg Simul T:     120.73
+   - 2D Perim Limit:  64 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 67 layers (80.7% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n25_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     25 (Logical 5x5)
+   - Physical Grid:   11x11
+   - Circuit Depth:   229 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     4
+   - Avg Simul T:     1.40
+   - 2D Perim Limit:  20 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n25_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     25 (Logical 5x5)
+   - Physical Grid:   11x11
+   - Circuit Depth:   298 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     15
+   - Avg Simul T:     4.21
+   - 2D Perim Limit:  20 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n25_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     25 (Logical 5x5)
+   - Physical Grid:   11x11
+   - Circuit Depth:   727 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     25
+   - Avg Simul T:     13.69
+   - 2D Perim Limit:  20 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 26 layers (3.6% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n289_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     289 (Logical 17x17)
+   - Physical Grid:   35x35
+   - Circuit Depth:   29 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     10
+   - Avg Simul T:     4.52
+   - 2D Perim Limit:  68 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n289_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     289 (Logical 17x17)
+   - Physical Grid:   35x35
+   - Circuit Depth:   36 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     89
+   - Avg Simul T:     34.38
+   - 2D Perim Limit:  68 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 7 layers (19.4% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n289_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     289 (Logical 17x17)
+   - Physical Grid:   35x35
+   - Circuit Depth:   74 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     249
+   - Avg Simul T:     133.78
+   - 2D Perim Limit:  68 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 61 layers (82.4% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n361_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     361 (Logical 19x19)
+   - Physical Grid:   39x39
+   - Circuit Depth:   22 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     13
+   - Avg Simul T:     6.42
+   - 2D Perim Limit:  76 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n361_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     361 (Logical 19x19)
+   - Physical Grid:   39x39
+   - Circuit Depth:   29 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     74
+   - Avg Simul T:     39.29
+   - 2D Perim Limit:  76 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n361_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     361 (Logical 19x19)
+   - Physical Grid:   39x39
+   - Circuit Depth:   66 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     261
+   - Avg Simul T:     152.31
+   - 2D Perim Limit:  76 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 46 layers (69.7% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n400_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     400 (Logical 20x20)
+   - Physical Grid:   41x41
+   - Circuit Depth:   24 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     31
+   - Avg Simul T:     6.42
+   - 2D Perim Limit:  80 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n400_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     400 (Logical 20x20)
+   - Physical Grid:   41x41
+   - Circuit Depth:   26 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     160
+   - Avg Simul T:     45.83
+   - 2D Perim Limit:  80 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 3 layers (11.5% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n400_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     400 (Logical 20x20)
+   - Physical Grid:   41x41
+   - Circuit Depth:   61 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     364
+   - Avg Simul T:     165.00
+   - 2D Perim Limit:  80 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 45 layers (73.8% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n49_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     49 (Logical 7x7)
+   - Physical Grid:   15x15
+   - Circuit Depth:   124 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     7
+   - Avg Simul T:     1.79
+   - 2D Perim Limit:  28 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n49_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     49 (Logical 7x7)
+   - Physical Grid:   15x15
+   - Circuit Depth:   151 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     26
+   - Avg Simul T:     8.03
+   - 2D Perim Limit:  28 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n49_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     49 (Logical 7x7)
+   - Physical Grid:   15x15
+   - Circuit Depth:   380 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     44
+   - Avg Simul T:     26.68
+   - 2D Perim Limit:  28 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 200 layers (52.6% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n64_p10.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     64 (Logical 8x8)
+   - Physical Grid:   17x17
+   - Circuit Depth:   111 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  1122 (T + 2Q)
+   - Total T-Gates:   122
+   - Magic Ratio:     10.87% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     6
+   - Avg Simul T:     1.69
+   - 2D Perim Limit:  32 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n64_p50.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     64 (Logical 8x8)
+   - Physical Grid:   17x17
+   - Circuit Depth:   124 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  2100 (T + 2Q)
+   - Total T-Gates:   1100
+   - Magic Ratio:     52.38% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     23
+   - Avg Simul T:     9.09
+   - 2D Perim Limit:  32 per cycle
+
+------------------------------------------------------------
+
+============================================================
+ BENCHMARK ANALYSIS REPORT: bench_n64_p90.qasm
+ (Filtering: Depth = T-gates + 2Q-gates only)
+============================================================
+
+[1] ARCHITECTURE SPECS (Square Sparse)
+   - Data Qubits:     64 (Logical 8x8)
+   - Physical Grid:   17x17
+   - Circuit Depth:   313 Critical Layers
+
+[2] GATE STATISTICS
+   - Critical Gates:  10900 (T + 2Q)
+   - Total T-Gates:   9900
+   - Magic Ratio:     90.83% (T / Critical Gates)
+
+[3] CONGESTION METRICS
+   - Max Simul T:     56
+   - Avg Simul T:     32.46
+   - 2D Perim Limit:  32 per cycle
+
+   [!] CRITICAL BOTTLENECK DETECTED
+       In 187 layers (59.7% of execution),
+       demand exceeds the 2D perimeter bandwidth.
+
+------------------------------------------------------------

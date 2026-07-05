@@ -1,0 +1,39 @@
+
+======================================
+Benchmark                 | Baseline  
+--------------------------------------
+bench_n16_p10             | 647       
+bench_n16_p50             | 744       
+bench_n16_p90             | 1613      
+bench_n25_p10             | 604       
+bench_n25_p50             | 713       
+bench_n25_p90             | 1481      
+bench_n49_p10             | 549       
+bench_n49_p50             | 623       
+bench_n49_p90             | 1197      
+bench_n64_p10             | 502       
+bench_n64_p50             | 595       
+bench_n64_p90             | 1150      
+bench_n100_p10            | 486       
+bench_n100_p50            | 563       
+bench_n100_p90            | 1093      
+bench_n144_p10            | 452       
+bench_n144_p50            | 491       
+bench_n144_p90            | 923       
+bench_n225_p10            | 428       
+bench_n225_p50            | 475       
+bench_n225_p90            | 781       
+bench_n256_p10            | 413       
+bench_n256_p50            | 440       
+bench_n256_p90            | 790       
+bench_n289_p10            | 406       
+bench_n289_p50            | 452       
+bench_n289_p90            | 681       
+bench_n361_p10            | 396       
+bench_n361_p50            | 406       
+bench_n361_p90            | 581       
+bench_n400_p10            | 394       
+bench_n400_p50            | 409       
+bench_n400_p90            | 607         
+======================================
+
