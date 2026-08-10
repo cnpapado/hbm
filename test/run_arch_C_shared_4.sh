@@ -18,7 +18,7 @@ ARCH_NAME="ARCH_C_shared_4"
 BENCH_DIR="benchmarks_bursty_cx"
 # BENCH_DIR="qft"
 # mkdir -p logs_new
-mkdir -p results_sweep
+mkdir -p results_sweep outs_sweep
 
 # 1. Identify all benchmarks
 FILES=($BENCH_DIR/*.qasm)
@@ -39,8 +39,8 @@ echo "Task ID $SLURM_ARRAY_TASK_ID | Arch: $ARCH_NAME | File: $base"
 # Set the specific HBM_CONFIG required by your WISQ tool
 export HBM_CONFIG="shared_4-route_upper"
 
-# Output naming convention: bench_n16_p10_no_hbm.out
-output_file="${base}_${ARCH_NAME}.out"
+# Output naming convention: outs_sweep/bench_n16_p10_no_hbm.out
+output_file="outs_sweep/${base}_${ARCH_NAME}.out"
 
 # Run WISQ
 wisq "$current_file" -op "$output_file" --mode scmr -tmr 172800

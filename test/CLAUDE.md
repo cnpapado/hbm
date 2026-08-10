@@ -70,12 +70,25 @@ lives at `~/hbm` on the cluster and that a venv exists at `~/hbm/.venv`.
 
 ## Where results land
 
-- Per-run output JSONs: paths named `{base}_{ARCH_NAME}.out` in `test/`.
-- Per-run summaries (one line per benchmark): `results_temp_*/` dirs, as
-  set by each `run_*.sh`.
-- Merged CSVs / txts (`final_merged_data.csv`, `summary_results*.txt`,
-  `benchmark_report*.txt`) come from ad-hoc aggregation runs. Not
-  regenerated automatically.
+For the `run_all.sh` sweep:
+
+- **`outs_sweep/{bench}_{ARCH_NAME}.out`** — full wisq JSON per run. Large
+  (hundreds of KB to MB each; 330 files for a full sweep). Gitignored.
+- **`results_sweep/{bench}.{ARCH_NAME}.res`** — one summary line per run,
+  `bench | ARCH_NAME | timesteps`. Gitignored.
+
+Filenames are collision-free: all 10 `ARCH_NAME` values are distinct and
+each array task owns one benchmark, so no two tasks write the same path.
+
+Older experiments left `results_temp*/` dirs behind (`results_temp`,
+`_compact`, `_new`, `_new_2`, `_new_3`, `_qft`). Those hold results from
+different layouts/timeouts — **do not glob them together with
+`results_sweep/`**. The `*_perimeter.sh` QFT scripts still write to
+`results_temp_qft/`.
+
+Merged CSVs / txts (`final_merged_data.csv`, `summary_results*.txt`,
+`benchmark_report*.txt`) come from ad-hoc aggregation runs. Not
+regenerated automatically.
 
 ## Tips
 

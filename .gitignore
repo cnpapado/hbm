@@ -3,3 +3,7 @@ output/
 *.out
 _wisq
 *.log
+
+# architecture sweep artifacts (see test/run_all.sh)
+outs_sweep/
+results_sweep/
