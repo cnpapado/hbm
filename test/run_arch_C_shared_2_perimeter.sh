@@ -18,7 +18,7 @@ ARCH_NAME="ARCH_C_shared_2_perimeter"
 # BENCH_DIR="benchmarks_universal_cx_2"
 BENCH_DIR="qft"
 # mkdir -p logs_new
-mkdir -p results_temp_qft
+mkdir -p results_sweep
 
 # 1. Identify all benchmarks
 FILES=($BENCH_DIR/*.qasm)
@@ -50,7 +50,7 @@ TIME_RESULT=$(python3 print_timesteps.py "$output_file" --summary)
 
 # 4. Systematic Result Saving
 # Format: [Benchmark] | [Arch] | [Timesteps]
-# Saved to: results_temp/bench_n16_p10.no_hbm.res
-echo "$base | $ARCH_NAME | $TIME_RESULT" > "results_temp_qft/${base}.${ARCH_NAME}.res"
+# Saved to: results_sweep/bench_n16_p10.no_hbm.res
+echo "$base | $ARCH_NAME | $TIME_RESULT" > "results_sweep/${base}.${ARCH_NAME}.res"
 
 echo "Completed $base on $ARCH_NAME"

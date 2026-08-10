@@ -18,7 +18,7 @@ ARCH_NAME="no_hbm"
 BENCH_DIR="benchmarks_bursty_cx"
 # BENCH_DIR="qft"
 # mkdir -p logs_new
-mkdir -p results_temp_compact
+mkdir -p results_sweep
 
 # 1. Identify all benchmarks
 FILES=($BENCH_DIR/*.qasm)
@@ -40,17 +40,17 @@ echo "Task ID $SLURM_ARRAY_TASK_ID | Arch: $ARCH_NAME | File: $base"
 export HBM_CONFIG="no_hbm"
 
 # Output naming convention: bench_n16_p10_no_hbm.out
-output_file="compact_${base}_${ARCH_NAME}.out"
+output_file="${base}_${ARCH_NAME}.out"
 
 # Run WISQ
-wisq "$current_file" -op "$output_file" --mode scmr -arch compact_layout -tmr 172800
+wisq "$current_file" -op "$output_file" --mode scmr -arch square_sparse_layout -tmr 172800
 
 # Extract timesteps (Ideal Timesteps / Actual Timesteps)
 TIME_RESULT=$(python3 print_timesteps.py "$output_file" --summary)
 
 # 4. Systematic Result Saving
 # Format: [Benchmark] | [Arch] | [Timesteps]
-# Saved to: results_temp/bench_n16_p10.no_hbm.res
-echo "$base | $ARCH_NAME | $TIME_RESULT" > "results_temp_compact/${base}.${ARCH_NAME}.res"
+# Saved to: results_sweep/bench_n16_p10.no_hbm.res
+echo "$base | $ARCH_NAME | $TIME_RESULT" > "results_sweep/${base}.${ARCH_NAME}.res"
 
 echo "Completed $base on $ARCH_NAME"

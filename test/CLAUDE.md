@@ -39,9 +39,16 @@ benchmark suite. The array upper bound must match the file count in
 - `run_arch_C_shared_{2,4,8,16}.sh` → `shared_N-route_upper` (Upper-First).
 - `run_arch_C_shared_{2,4}_perimeter.sh` → same + `-anchilla_perimeter`.
 - `run_arch_D_shared_{2,4,8,16}.sh` → `shared_N-route_3d` (generic 3D
-  routing). Results land in `results_temp_3d/`.
-- `run_all.sh` — the sbatch submission driver; uncomment which archs to
-  submit.
+  routing).
+- `run_all.sh` — the sbatch submission driver for the whole sweep.
+
+**Sweep invariants.** For results to be comparable, every config in the
+sweep must share: `BENCH_DIR=benchmarks_bursty_cx`, `square_sparse_layout`,
+`-tmr 172800`, and `results_sweep/` as the `.res` destination. `run_all.sh`
+documents this; don't change one script without changing all of them.
+
+The two `*_perimeter.sh` scripts use `BENCH_DIR="qft"` and a 24h timeout —
+they're a separate experiment and are **not** comparable to the sweep.
 - `run.sh`, `submit_benchmarks.sh` — two-config comparison sweep + its
   sbatch wrapper (loads `python/3.12.10` module, activates `~/hbm/.venv`).
 - `run_array.sh` — dual-config array job over `benchmarks_universal_cx_2/`.
