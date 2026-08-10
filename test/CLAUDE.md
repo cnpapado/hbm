@@ -47,6 +47,20 @@ sweep must share: `BENCH_DIR=benchmarks_bursty_cx`, `square_sparse_layout`,
 `-tmr 172800`, and `results_sweep/` as the `.res` destination. `run_all.sh`
 documents this; don't change one script without changing all of them.
 
+### JKU suite sweep
+
+`run_all_jku.sh` submits a three-way comparison over the 161 real
+benchmarks in `../quantum-compiler-benchmark-circuits/jku_suite/`
+(`--array=0-160`, so 483 tasks):
+
+- `run_jku_no_hbm.sh` → 2D planar baseline
+- `run_jku_arch_C_shared_4.sh` → Upper-First, S=4
+- `run_jku_arch_D_shared_4.sh` → generic 3D, S=4
+
+Artifacts go to `outs_jku/` and `results_jku/`. Unlike
+`benchmarks_bursty_cx`, the JKU circuits **are tracked in git**, so they
+come with a fresh clone.
+
 The two `*_perimeter.sh` scripts use `BENCH_DIR="qft"` and a 24h timeout —
 they're a separate experiment and are **not** comparable to the sweep.
 - `run.sh`, `submit_benchmarks.sh` — two-config comparison sweep + its
