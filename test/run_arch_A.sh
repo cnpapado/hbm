@@ -29,6 +29,11 @@ if [ ! -e "${FILES[0]}" ]; then
 fi
 
 # 2. Assign file based on the Array Task ID
+if [ "$SLURM_ARRAY_TASK_ID" -ge "${#FILES[@]}" ]; then
+    echo "ERROR: task $SLURM_ARRAY_TASK_ID out of range for ${#FILES[@]} benchmarks in $BENCH_DIR" >&2
+    exit 1
+fi
+
 current_file=${FILES[$SLURM_ARRAY_TASK_ID]}
 filename=$(basename "$current_file")
 base="${filename%.*}"
