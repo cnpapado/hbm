@@ -7,5 +7,6 @@ _wisq
 # architecture sweep artifacts (see test/run_all.sh)
 outs_sweep/
 outs_jku/
+logs_*.out
 results_sweep/
 results_jku/

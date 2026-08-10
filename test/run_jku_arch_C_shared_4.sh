@@ -7,7 +7,15 @@
 #SBATCH -t 48:00:00
 #SBATCH --mem=8G
 #SBATCH --job-name=jku-archC4
-#SBATCH --output=/dev/null
+#SBATCH --output=logs_%x_%A_%a.out
+
+# --- Environment -----------------------------------------------------------
+# Slurm does not inherit an activated venv from the submitting shell, so the
+# job must set it up itself or `wisq` will not be on PATH.
+module load python/3.12.10
+source ~/hbm/.venv/bin/activate
+cd ~/hbm/test || exit 1
+command -v wisq >/dev/null || { echo "ERROR: wisq not on PATH - check module load / venv activate" >&2; exit 1; }
 
 # HBM Upper-First (ARCH_C), sharing ratio 4, on the JKU suite.
 ARCH_NAME="ARCH_C_shared_4"
@@ -40,6 +48,7 @@ output_file="outs_jku/${base}_${ARCH_NAME}.out"
 wisq "$current_file" -op "$output_file" --mode scmr -tmr 172800
 
 TIME_RESULT=$(python3 print_timesteps.py "$output_file" --summary)
+[ -z "$TIME_RESULT" ] && TIME_RESULT="ERROR"
 
 echo "$base | $ARCH_NAME | $TIME_RESULT" > "results_jku/${base}.${ARCH_NAME}.res"
 

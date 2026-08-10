@@ -7,7 +7,15 @@
 #SBATCH -t 48:00:00
 #SBATCH --mem=8G
 #SBATCH --job-name=archD-8
-#SBATCH --output=/dev/null
+#SBATCH --output=logs_%x_%A_%a.out
+
+# --- Environment -----------------------------------------------------------
+# Slurm does not inherit an activated venv from the submitting shell, so the
+# job must set it up itself or `wisq` will not be on PATH.
+module load python/3.12.10
+source ~/hbm/.venv/bin/activate
+cd ~/hbm/test || exit 1
+command -v wisq >/dev/null || { echo "ERROR: wisq not on PATH - check module load / venv activate" >&2; exit 1; }
 
 # --- CONFIGURATION ---
 # Change this variable for each of your 5 scripts
@@ -52,6 +60,7 @@ wisq "$current_file" -op "$output_file" --mode scmr -tmr 172800
 
 # Extract timesteps (Ideal Timesteps / Actual Timesteps)
 TIME_RESULT=$(python3 print_timesteps.py "$output_file" --summary)
+[ -z "$TIME_RESULT" ] && TIME_RESULT="ERROR"
 
 # 4. Systematic Result Saving
 # Format: [Benchmark] | [Arch] | [Timesteps]
