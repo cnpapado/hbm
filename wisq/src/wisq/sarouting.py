@@ -11,8 +11,10 @@ HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 
 # shared_2-route_bottom
 # shared_2-route_upper
+# shared_2-route_3d
 # shared_4-route_bottom
 # shared_4-route_upper
+# shared_4-route_3d
 # shared_none-anchilla_perimeter
 # shared_2-route_bottom-anchilla_perimeter
 # shared_2-route_upper-anchilla_perimeter
@@ -24,13 +26,58 @@ if "shared_none" in HBM_CONFIG:
     HBM_ARCH = "ARCH_A" # ARCH_A: 1-1 connectivity
 elif "route_bottom" in HBM_CONFIG:
     HBM_ARCH = "ARCH_B" # ARCH_B: route below then connect to top
+elif "route_3d" in HBM_CONFIG:
+    HBM_ARCH = "ARCH_D" # ARCH_D: generic 3D routing, elevator up/down anywhere
 elif "route_upper" in HBM_CONFIG:
     HBM_ARCH = "ARCH_C" # ARCH_C: connect to top then route on top
 elif "no_hbm" in HBM_CONFIG or HBM_CONFIG == "NO_CONFIG":
     HBM_ARCH = "NO_HBM"
 else:
-    raise ValueError("invalid HBM_CONFIG option")    
-print(HBM_ARCH)   
+    raise ValueError("invalid HBM_CONFIG option")
+print(HBM_ARCH)
+
+
+def _build_3d_graph(grid_len, grid_height, to_remove_lower, to_remove_upper):
+    """Two stacked planes with an elevator edge at every cell.
+
+    Lower plane payloads: [0, N). Upper plane payloads: [N, 2N).
+    Nodes in `to_remove_lower` are excised from the lower plane; likewise
+    `to_remove_upper` from the upper plane. Elevator edges connect payload i
+    to payload i + N whenever both endpoints remain in the graph.
+    """
+    N = grid_len * grid_height
+    g = rx.PyGraph()
+    payload_to_idx = {}
+
+    def add(payload):
+        idx = g.add_node(payload)
+        payload_to_idx[payload] = idx
+        return idx
+
+    for p in range(N):
+        if p not in to_remove_lower:
+            add(p)
+    for p in range(N):
+        upper_payload = p + N
+        if p not in to_remove_upper:
+            add(upper_payload)
+
+    for p in range(N):
+        r, c = divmod(p, grid_len)
+        for np_ in (p + 1 if c + 1 < grid_len else None,
+                    p + grid_len if r + 1 < grid_height else None):
+            if np_ is None:
+                continue
+            if p in payload_to_idx and np_ in payload_to_idx:
+                g.add_edge(payload_to_idx[p], payload_to_idx[np_], 1)
+            up_a, up_b = p + N, np_ + N
+            if up_a in payload_to_idx and up_b in payload_to_idx:
+                g.add_edge(payload_to_idx[up_a], payload_to_idx[up_b], 1)
+        elev_a, elev_b = p, p + N
+        if elev_a in payload_to_idx and elev_b in payload_to_idx:
+            g.add_edge(payload_to_idx[elev_a], payload_to_idx[elev_b], 1)
+
+    return g, payload_to_idx, N
 
 def route_gate(
     indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms
@@ -58,7 +105,57 @@ def route_gate(
     shortest_pair = None
 
     id, gate = indexed_gate
-    if len(gate) == 2:
+    if len(gate) == 2 and HBM_ARCH == "ARCH_D":
+        # Generic 3D CNOT routing: endpoints stay on the lower plane
+        # (data qubits are lower-plane), but the path may detour through
+        # the upper plane's free ancilla cells via elevator edges.
+        g3d, payload_to_idx, N = _build_3d_graph(
+            grid_len, grid_height, to_remove, to_remove_hbm
+        )
+        src_payloads = vertical_neighbors(
+            mapping[gate[0]], grid_len, grid_height, omitted_edges=[]
+        )
+        tgt_payloads = horizontal_neighbors(
+            mapping[gate[1]], grid_len, grid_height, omitted_edges=[]
+        )
+
+        shortest_path_len = 2**31 - 1
+        shortest_route = None
+        for s_pl in src_payloads:
+            if s_pl not in payload_to_idx:
+                continue
+            s_idx = payload_to_idx[s_pl]
+            dist_map = rx.dijkstra_shortest_path_lengths(
+                g3d, edge_cost_fn=lambda w: w, node=s_idx, goal=None,
+            )
+            for t_pl in tgt_payloads:
+                if t_pl not in payload_to_idx:
+                    continue
+                t_idx = payload_to_idx[t_pl]
+                d = dist_map[t_idx] if t_idx in dist_map else math.inf
+                if d < shortest_path_len:
+                    shortest_path_len = d
+                    shortest_route = (s_idx, t_idx)
+
+        if shortest_route is None:
+            return [], to_remove, to_remove_hbm
+
+        s_idx, t_idx = shortest_route
+        if s_idx == t_idx:
+            path_payloads = [g3d.get_node_data(s_idx)]
+        else:
+            path_internal = list(rx.dijkstra_shortest_paths(
+                g3d, source=s_idx, target=t_idx
+            )[t_idx])
+            path_payloads = [g3d.get_node_data(i) for i in path_internal]
+
+        for pl in path_payloads:
+            if pl < N:
+                to_remove.add(pl)
+            else:
+                to_remove_hbm.add(pl - N)
+        return [(id, gate, path_payloads)], to_remove, to_remove_hbm
+    elif len(gate) == 2:
         pairs = [
             (vn, hn)
             for vn in vertical_neighbors(
@@ -72,6 +169,68 @@ def route_gate(
         if HBM_ARCH == "ARCH_A":
             # don't even route T gates
             return ([(id, gate, [])], to_remove, to_remove_hbm)
+        elif HBM_ARCH == "ARCH_D":
+            # Generic 3D routing: build a two-plane graph with an elevator
+            # edge at every cell and let Dijkstra pick where to hop up/down.
+            # Source candidates are lower-plane neighbors of the data qubit;
+            # target candidates are upper-plane neighbors of any magic-state
+            # face (encoded as payload + N).
+            g3d, payload_to_idx, N = _build_3d_graph(
+                grid_len, grid_height, to_remove, to_remove_hbm
+            )
+            src_payloads = vertical_neighbors(
+                mapping[gate[0]], grid_len, grid_height, omitted_edges=[]
+            ) + horizontal_neighbors(
+                mapping[gate[0]], grid_len, grid_height, omitted_edges=[]
+            )
+            tgt_payloads = []
+            for m in msf_faces:
+                for hn in horizontal_neighbors(m, grid_len, grid_height, omitted_edges=[]):
+                    tgt_payloads.append(hn + N)
+                for vn in vertical_neighbors(m, grid_len, grid_height, omitted_edges=[]):
+                    tgt_payloads.append(vn + N)
+
+            shortest_path_len = 2**31 - 1
+            shortest_route = None
+            for s_pl in src_payloads:
+                if s_pl not in payload_to_idx:
+                    continue
+                s_idx = payload_to_idx[s_pl]
+                dist_map = rx.dijkstra_shortest_path_lengths(
+                    g3d, edge_cost_fn=lambda w: w, node=s_idx,
+                    goal=None,
+                )
+                for t_pl in tgt_payloads:
+                    if t_pl not in payload_to_idx:
+                        continue
+                    t_idx = payload_to_idx[t_pl]
+                    d = dist_map[t_idx] if t_idx in dist_map else math.inf
+                    if d < shortest_path_len:
+                        shortest_path_len = d
+                        shortest_route = (s_idx, t_idx)
+                        if take_first_ms:
+                            break
+                if take_first_ms and shortest_route is not None:
+                    break
+
+            if shortest_route is None:
+                return [], to_remove, to_remove_hbm
+
+            s_idx, t_idx = shortest_route
+            if s_idx == t_idx:
+                path_payloads = [g3d.get_node_data(s_idx)]
+            else:
+                path_internal = list(rx.dijkstra_shortest_paths(
+                    g3d, source=s_idx, target=t_idx
+                )[t_idx])
+                path_payloads = [g3d.get_node_data(i) for i in path_internal]
+
+            for pl in path_payloads:
+                if pl < N:
+                    to_remove.add(pl)
+                else:
+                    to_remove_hbm.add(pl - N)
+            return [(id, gate, path_payloads)], to_remove, to_remove_hbm
         else:
             sorted_msf = sorted(
                 msf_faces,
@@ -200,6 +359,13 @@ def initialize_to_remove(msf_faces, mapping):
         for f in msf_faces:
             to_remove_hbm.add(f)
         # remove data from lower plane
+        for q in mapping.keys():
+            to_remove.add(mapping[q])
+    elif HBM_ARCH=="ARCH_D":
+        # 3D routing: magic-state faces occupy upper plane terminals;
+        # data qubits occupy lower plane cells.
+        for f in msf_faces:
+            to_remove_hbm.add(f)
         for q in mapping.keys():
             to_remove.add(mapping[q])
     else:
