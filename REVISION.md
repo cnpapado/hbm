@@ -16,7 +16,7 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 | #2 | `D2-wide`, `D2-tight` | cultivation patch beside each qubit (wide: own patch, grid grows; tight: 1 per 2 qubits in existing routing tiles) | baseline |
 | #3 | `D3-k1`, `D3-khalf`, `D3-k2`, `D3-kquarter` | cultivation patches on top of square sparse (k = patches per qubit) | proposed |
 | #4 | `D4-k1`, `D4-k1p5` | compact plane + cultivation patches on top | proposed |
-| #5 | `D5-S4/S8/S16` | factories on top (current HBMS with real factory footprints) | proposed |
+| #5 | `D5-S<k>` | factories on top (current HBMS with real factory footprints): `ceil(N/k)` factories as vertical strips in the top layer's even columns | proposed |
 
 Flags: `-borrow` (D2: route in-plane to another qubit's ready patch), `-route` (D3/D4: add a
 full routing top layer, counted in qubits), `-3d` (D5: generic 3D routing for T and CNOT).
@@ -45,7 +45,7 @@ The three comparisons (`scripts/revision/compare.py`):
      d=25).
    - On top (D5), they must fit around their port without covering the tiles above data
      qubits or their vertical neighbours. If they don't fit, the run fails immediately.
-   - 1:1 factories on top do not fit, which is why D5 starts at S4.
+   - 1:1 factories on top never fit (`D5-S1` is rejected). S2 fits only on a few grid sizes, which is why the sweep uses S4, S8 and S16.
 
 Defaults (override per run with env vars):
 

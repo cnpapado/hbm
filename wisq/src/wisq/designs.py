@@ -22,7 +22,9 @@ Spec grammar: "<family>-<knob>[-<flag>...]"
   D4-k1       Compact plane + a cultivation patch above every data qubit (proposed).
   D4-k1p5     D4-k1 plus patches above the routing tile shared by the two data rows.
   D5-S<k>     Factories on top (proposed; the current HBMS with real factory footprints).
-              Ports at the shared_<k> positions, Upper-First routing on the top layer.
+              ceil(N/k) factories as vertical strips in the top layer's even columns (the
+              odd columns, above data qubits and their vertical neighbours, stay free);
+              Upper-First routing on the top layer.
 
 Flags:
   -borrow     (D2) a T gate whose own patch is recharging may route in-plane to any other
@@ -54,20 +56,9 @@ import math
 import os
 from dataclasses import dataclass
 
-from .architecture import (
-    hbm_shared_2_positions,
-    hbm_shared_4_positions,
-    hbm_shared_8_positions,
-    hbm_shared_16_positions,
-)
+from .architecture import hbm_shared_4_positions
 
 FAMILIES = ("D0", "D1", "D2", "D3", "D4", "D5")
-SHARED_POSITIONS = {
-    2: hbm_shared_2_positions,
-    4: hbm_shared_4_positions,
-    8: hbm_shared_8_positions,
-    16: hbm_shared_16_positions,
-}
 
 
 @dataclass(frozen=True)
@@ -160,12 +151,9 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
                       allow_direct=True, allow_route=routed, top_routing_layer=routed, **params)
     # D5
     check(None, ("3d",))
-    k = sharing()
-    if k not in SHARED_POSITIONS:
-        raise ValueError(f"D5 supports S2/S4/S8/S16 (the shared_<k> positions), got {spec!r}")
     return Design(spec, family, knob, flags, "square_sparse", "top", "factory",
                   "TOP_3D" if "3d" in flags else "TOP", allow_direct=True, allow_route=True,
-                  top_routing_layer=True, sharing=k, **params)
+                  top_routing_layer=True, sharing=sharing(), **params)
 
 
 _DESIGN_CACHE = {}
@@ -386,48 +374,63 @@ def _d4_compact_top(design, n):
     return arch, acct
 
 
+def _spread(items, k):
+    """k items picked evenly from a list (0 < k <= len(items))."""
+    return [items[int((i + 0.5) * len(items) / k)] for i in range(k)]
+
+
 def _d5_factories_top(design, n):
     arch = _square_sparse(n)
     width, height = arch["width"], arch["height"]
-    ports = SHARED_POSITIONS[design.sharing](arch)
-    data = set(arch["alg_qubits"])
-    elevators = {v for q in data for v in _vertical_neighbors(q, width, height)}
-    port_access = {h for p in ports for h in _horizontal_neighbors(p, width, height)}
-    reserved = data | elevators | set(ports) | port_access
+    f = design.factory_tiles
+    n_fact = math.ceil(n / design.sharing)
 
-    # Grow each factory from its port by BFS over top tiles that are not reserved: tiles
-    # above data qubits and their vertical neighbours stay free so every qubit can reach the
-    # top layer, and each port keeps its horizontal neighbours free so it can be reached.
-    taken, blocked_top = set(), []
-    need = design.factory_tiles - 1
-    for port in ports:
-        frontier, seen, mine = [port], {port}, []
-        while frontier and len(mine) < need:
-            nxt = []
-            for p in frontier:
-                for nb in _neighbors(p, width, height):
-                    if nb in seen:
-                        continue
-                    seen.add(nb)
-                    if nb in reserved or nb in taken:
-                        continue
-                    mine.append(nb)
-                    nxt.append(nb)
-                    if len(mine) == need:
-                        break
-                if len(mine) == need:
-                    break
-            frontier = nxt
-        if len(mine) < need:
-            raise ValueError(
-                f"{design.spec} does not fit: a {design.factory_tiles}-tile factory cannot be "
-                f"placed on the top layer next to port {port} (N={n}, d={design.d}). Use a "
-                f"larger sharing ratio or a smaller factory.")
-        taken.update(mine)
-        blocked_top.extend(mine)
+    # In a square sparse grid the odd columns hold the data qubits and their vertical
+    # neighbours. On the top layer those tiles stay free, so every qubit can go up and route.
+    # Factories therefore sit in the even columns as vertical strips of f tiles, with at
+    # least one free tile between strips in the same column so routing can cross it. The
+    # port (output tile) is the strip's top tile; its horizontal neighbours are free.
+    stripes = list(range(0, width, 2))
+    per_stripe = (height + 1) // (f + 1)
+    if n_fact > per_stripe * len(stripes):
+        raise ValueError(
+            f"{design.spec} does not fit: {n_fact} factories of {f} tiles need more room than "
+            f"the top layer's {len(stripes)} free columns of {height} tiles (N={n}, "
+            f"d={design.d}). Use a larger sharing ratio or a smaller factory.")
+    base, extra = divmod(n_fact, len(stripes))
+    counts = {c: base for c in stripes}
+    for c in (_spread(stripes, extra) if extra else []):
+        counts[c] += 1
+
+    ports, blocked_top = [], []
+    for c, k in counts.items():
+        if k == 0:
+            continue
+        # k <= per_stripe guarantees consecutive starts are at least f + 1 apart.
+        starts = ([int(j * (height - f) / (k - 1)) for j in range(k)] if k > 1
+                  else [(height - f) // 2])
+        for start in starts:
+            ports.append(_pos(start, c, width))
+            blocked_top.extend(_pos(r, c, width) for r in range(start + 1, start + f))
+
+    # The free top tiles must stay connected: every data qubit's top tile and every port.
+    taken = set(ports) | set(blocked_top)
+    first = arch["alg_qubits"][0]
+    seen, stack = {first}, [first]
+    while stack:
+        p = stack.pop()
+        for nb in _neighbors(p, width, height):
+            if nb not in taken and nb not in seen:
+                seen.add(nb)
+                stack.append(nb)
+    if not (all(q in seen for q in arch["alg_qubits"])
+            and all(any(nb in seen for nb in _neighbors(p, width, height)) for p in ports)):
+        raise ValueError(f"{design.spec}: factories cut the top layer apart (N={n}, "
+                         f"d={design.d}). Use a larger sharing ratio or a smaller factory.")
+
     arch.update(magic_states=sorted(ports), blocked=[], blocked_top=sorted(blocked_top))
-    acct = dict(n_factories=len(ports), lower_factory_tiles=0, top_tiles=width * height,
-                top_factory_tiles=len(ports) * design.factory_tiles, outside_factory_tiles=0)
+    acct = dict(n_factories=n_fact, lower_factory_tiles=0, top_tiles=width * height,
+                top_factory_tiles=n_fact * f, outside_factory_tiles=0)
     return arch, acct
 
 

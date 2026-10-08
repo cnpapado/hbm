@@ -119,11 +119,18 @@ def test_d5_factories_leave_access(spec, n):
     data = set(arch["alg_qubits"])
     elevators = {v for q in data for v in neighbors(q, w, h)[0]}
     blocked_top = set(arch["blocked_top"])
+    assert len(arch["magic_states"]) == math.ceil(n / des.sharing)
     assert not blocked_top & (data | elevators)
     assert len(blocked_top) == len(arch["magic_states"]) * (des.factory_tiles - 1)
     for port in arch["magic_states"]:
         _, horiz = neighbors(port, w, h)
         assert any(x not in blocked_top for x in horiz)
+
+
+@pytest.mark.parametrize("n", SIZES)
+def test_d5_one_factory_per_qubit_does_not_fit(n):
+    with pytest.raises(ValueError):
+        build_arch(design("D5-S1"), n)
 
 
 def test_d5_unfit_factory_raises():
