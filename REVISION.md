@@ -45,7 +45,8 @@ The three comparisons (`scripts/revision/compare.py`):
      d=25).
    - On top (D5), they must fit around their port without covering the tiles above data
      qubits or their vertical neighbours. If they don't fit, the run fails immediately.
-   - 1:1 factories on top never fit (`D5-S1` is rejected). S2 fits only on a few grid sizes, which is why the sweep uses S4, S8 and S16.
+   - 1:1 factories on top never fit (`D5-S1` is rejected).
+   - A factory's qubit count is fixed, so its size in tiles grows as d shrinks: 4 tiles at d=25, but 14 tiles at d=13. At d=13 factories on top only fit when shared by many qubits (about S16 and up on small grids), so the sweep includes S4–S32 and the analysis keeps whichever fit. That is a real result for P2, not a bug.
 
 Defaults (override per run with env vars):
 
@@ -73,6 +74,9 @@ Defaults (override per run with env vars):
   - computes qubits, runtime in rounds, and STV = qubits × rounds;
   - marks runs **infeasible** when the T-state error alone exceeds the target (the cultivation fidelity floor);
   - flags `rerun_needed` when d_req changes the recharge steps or factory size used in the simulation. Rerun those with `HBM_D=<d_req>`.
+  - models a vertical merge with the lower threshold your Stim runs measured for it (`--seam-pth`, default `1:0.01,5:0.004,10:0.002` from the HBMS paper's Fig. 11), not as a whole tile at error p′.
+- `make_reruns.py rev.csv > revision/reruns.sh` (run from `test/`): writes the sbatch arrays that rerun flagged rows at their `d_req`, skipping any already done.
+- `compare.py` prefers runs simulated at their own `d_req`; pairs that still use a mismatched run are marked `provisional`.
 - `compare.py rev.csv --prefix rev`: best setting per design, the three pair ratios vs T density (`rev_pairs.csv`, `rev_pairs.png`), and the win fraction per T-density tercile (`rev_regimes.csv`).
 - `draw_design.py SPEC N out.png`: draws both layers of a design.
 
@@ -86,7 +90,11 @@ Defaults (override per run with env vars):
    Then `analyze.py` + `compare.py` on `test/outs_rev/`. If D3 never beats D2, stop and rethink before the full sweep.
 3. **Core**: `submit_revision.sh core` runs all designs on all synthetic circuits, R ∈ {30, 70, 360}.
 4. **Full**: `submit_revision.sh full` adds the JKU suite and the `-borrow` / `-route` / `-3d` variants.
-5. Rerun flagged rows at their `d_req`.
+5. Rerun flagged rows at their `d_req`:
+   `cd test && python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh`
+   Then rerun `analyze.py` + `compare.py`.
+
+The sweep simulates at `HBM_D=13` by default (what these circuits need at p=1e-3, 1% target). The smoke test uses d=25 because it only checks code paths.
 
 ## Not implemented here (separate work)
 

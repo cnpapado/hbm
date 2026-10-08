@@ -9,11 +9,14 @@ For each wisq output JSON (written with HBM_DESIGN set) this computes:
     below --target, using the model below;
   - physical qubits Q(d_req), runtime in rounds, space-time volume STV = Q * rounds.
 
-Error model (per program; eps(d, p) = A * (p / p_th) ** ((d + 1) / 2) per tile per round):
-  data idling      N * steps * d * eps(d, p)
-  routing merges   (T + CNOT path tiles) * d * eps(d, p)
-  vertical seams   vertical_merges * d * eps(d, p')      (p' = mult * p; top designs only)
+Error model (per program; eps(d, p, p_th) = A * (p / p_th) ** ((d + 1) / 2) per tile-round):
+  data idling      N * steps * d * eps(d, p, p_th)
+  routing merges   (T + CNOT path tiles) * d * eps(d, p, p_th)
+  vertical seams   vertical_merges * d * eps(d, p, p_th_v(mult))   (top designs only)
   T states         T count * eps_source                  (cultivation or factory output)
+A vertical merge with coupling error p' = mult * p uses the lower threshold p_th_v(mult)
+measured for that merge in Stim (HBMS paper, Fig. 11: ~1e-2 at 1p, ~4e-3 at 5p, ~2e-3 at
+10p; override with --seam-pth). Only the coupler qubits along the seam see p'.
 A run whose T-state error alone exceeds the target is infeasible for that circuit (the
 cultivation fidelity floor).
 
@@ -43,6 +46,15 @@ def eps(d, p, A, p_th):
     return A * (p / p_th) ** ((d + 1) / 2)
 
 
+def parse_seam_pth(text):
+    """'1:0.01,5:0.004' -> {1.0: 0.01, 5.0: 0.004}"""
+    out = {}
+    for item in text.split(","):
+        mult, pth = item.split(":")
+        out[float(mult)] = float(pth)
+    return out
+
+
 def circuit_stats(gates):
     level = defaultdict(int)
     n_t = n_cx = 0
@@ -60,11 +72,11 @@ def circuit_stats(gates):
     return dict(n_used=len(qubits), n_t=n_t, n_cx=n_cx, ideal_depth=depth)
 
 
-def program_error(d, args, des, st, steps, pprime):
+def program_error(d, args, des, st, steps, mult):
     e = eps(d, args.p, args.A, args.p_th)
     total = des["n_logical"] * steps * d * e
     total += (st.get("t_path_tiles", 0) + st.get("cx_path_tiles", 0)) * d * e
-    total += st.get("vertical_merges", 0) * d * eps(d, pprime, args.A, args.p_th)
+    total += st.get("vertical_merges", 0) * d * eps(d, args.p, args.A, args.seam_pth[mult])
     return total
 
 
@@ -116,7 +128,6 @@ def analyze_file(path, args):
     rows = []
     e_src = cs["n_t"] * source_error(des, args)
     for mult in args.pprime:
-        pprime = mult * args.p
         row = dict(common, pprime_mult=mult, e_source=e_src)
         if e_src > args.target:
             rows.append(dict(row, feasible=False, d_req=None, Q=None, rounds=None, STV=None,
@@ -124,7 +135,7 @@ def analyze_file(path, args):
             continue
         d_req = None
         for d in range(3, args.dmax + 1, 2):
-            if program_error(d, args, des, st, n_steps, pprime) + e_src <= args.target:
+            if program_error(d, args, des, st, n_steps, mult) + e_src <= args.target:
                 d_req = d
                 break
         if d_req is None:
@@ -138,7 +149,7 @@ def analyze_file(path, args):
                      and math.ceil(des["factory_qubits"] / (2 * d_req * d_req))
                      != des["factory_tiles"]))
         rows.append(dict(row, feasible=True, d_req=d_req, Q=q, rounds=rounds, STV=q * rounds,
-                         error=program_error(d_req, args, des, st, n_steps, pprime) + e_src,
+                         error=program_error(d_req, args, des, st, n_steps, mult) + e_src,
                          rerun_needed=rerun))
     return rows
 
@@ -157,8 +168,14 @@ def main():
                     help="T-state error from cultivation (Gidney 2025: 1e-7 at p=1e-3)")
     ap.add_argument("--factory-error", type=float, default=4.5e-8,
                     help="T-state error from the factory (Litinski 2019 (15-to-1)_{17,7,7})")
+    ap.add_argument("--seam-pth", type=parse_seam_pth, default="1:0.01,5:0.004,10:0.002",
+                    help="threshold of a vertical merge per p' multiple, 'mult:p_th,...' "
+                         "(default from the HBMS paper's Stim results, Fig. 11)")
     ap.add_argument("--dmax", type=int, default=61)
     args = ap.parse_args()
+    missing = [m for m in args.pprime if m not in args.seam_pth]
+    if missing:
+        ap.error(f"--seam-pth has no threshold for p' multiples {missing}")
 
     files = []
     for d in args.dirs:

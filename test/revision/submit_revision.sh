@@ -7,8 +7,10 @@
 #   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + optional variants
 #
 # --dry-run prints the sbatch commands without submitting.
-# Every run uses HBM_D=25 unless you export HBM_D before calling this script. After
-# analysis, rows flagged rerun_needed should be rerun with HBM_D set to their d_req.
+# Runs are simulated at HBM_D=13 (what the small/medium circuits need at p=1e-3 and a 1%
+# target) unless you export HBM_D first. After analysis, rerun the rows whose d_req differs:
+#   python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh
+SIM_D="${HBM_D:-13}"
 
 set -euo pipefail
 cd "$(dirname "$0")/.."  # -> test/
@@ -25,14 +27,14 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]
     local n
     n=$(wc -l < "$list" | tr -d ' ')
     local cmd=(sbatch --array="0-$((n - 1))" --job-name="rev-${design}-R${rounds}"
-               --export="ALL,DESIGN=${design},BENCH_LIST=${list},HBM_CULT_ROUNDS=${rounds}"
+               --export="ALL,DESIGN=${design},BENCH_LIST=${list},HBM_CULT_ROUNDS=${rounds},HBM_D=${SIM_D}"
                revision/run_design.sh)
     if [ "$DRY" = "--dry-run" ]; then echo "${cmd[*]}"; else "${cmd[@]}"; fi
 }
 
 CULT_P1=(D2-wide D2-tight D3-k1 D3-khalf D3-k2 D3-kquarter)
 CULT_P3=(D4-k1 D4-k1p5)
-FACT=(D0-S4 D0-S8 D0-S16 D1-S4 D1-S8 D1-S16 D5-S4 D5-S8 D5-S16)
+FACT=(D0-S4 D0-S8 D0-S16 D0-S32 D1-S4 D1-S8 D1-S16 D1-S32 D5-S4 D5-S8 D5-S16 D5-S32)
 EXTRA=(D2-wide-borrow D2-tight-borrow D3-k1-route D5-S8-3d)
 ROUNDS=(30 70 360)  # cultivation recharge: Gidney optimistic / typical, IBM pessimistic
 

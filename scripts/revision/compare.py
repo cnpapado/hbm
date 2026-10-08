@@ -38,17 +38,23 @@ def load(path):
             except (KeyError, TypeError, ValueError):
                 r[k] = math.nan
         r["feasible"] = r.get("feasible") == "True"
+        r["rerun_needed"] = r.get("rerun_needed") == "True"
     return rows
 
 
 def best_by_family(rows):
-    """(bench, pprime, source, recharge_rounds, family) -> best feasible row."""
+    """(bench, pprime, source, recharge_rounds, family) -> best feasible row.
+
+    Rows simulated at their own d_req are preferred; a row whose simulation d differs from
+    its d_req (rerun_needed) is used only when no consistent row exists for that key.
+    """
     best = {}
     for r in rows:
         if r.get("status") != "ok" or not r["feasible"] or math.isnan(r["STV"]):
             continue
         key = (r["bench"], r["pprime_mult"], r["source"], r["recharge_rounds"], r["family"])
-        if key not in best or r["STV"] < best[key]["STV"]:
+        rank = (r["rerun_needed"], r["STV"])
+        if key not in best or rank < (best[key]["rerun_needed"], best[key]["STV"]):
             best[key] = r
     return best
 
@@ -79,6 +85,7 @@ def pair_rows(rows):
                     ratio=(b["STV"] / p["STV"]) if b and p else (math.inf if p else 0.0),
                     qubit_ratio=(b["Q"] / p["Q"]) if b and p else math.nan,
                     time_ratio=(b["rounds"] / p["rounds"]) if b and p else math.nan,
+                    provisional=any(x is not None and x["rerun_needed"] for x in (b, p)),
                 ))
     return out
 

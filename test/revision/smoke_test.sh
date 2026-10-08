@@ -14,6 +14,7 @@ cd "$(dirname "$0")/../.."  # -> repo root
 OUT=test/revision/smoke
 mkdir -p "$OUT/figs"
 BENCH=test/benchmarks_bursty_cx/bench_n16_p50.qasm
+# d=25 here only checks the code paths (D5-S4/S8 fit at d=25, not at d=13).
 export HBM_D="${HBM_D:-25}" HBM_CULT_ROUNDS="${HBM_CULT_ROUNDS:-70}"
 unset HBM_CONFIG
 
