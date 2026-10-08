@@ -3,10 +3,15 @@ import math
 import random
 import numpy as np
 from .architecture import vertical_neighbors, horizontal_neighbors
+from .designs import get_design
+from . import design_routing
 import rustworkx as rx
 import os
 
 HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
+
+# HBM_DESIGN (revision designs #0-#5) takes precedence over HBM_CONFIG; see designs.py.
+DESIGN = get_design()
 
 
 # shared_2-route_bottom
@@ -34,7 +39,16 @@ elif "no_hbm" in HBM_CONFIG or HBM_CONFIG == "NO_CONFIG":
     HBM_ARCH = "NO_HBM"
 else:
     raise ValueError("invalid HBM_CONFIG option")
+if DESIGN is not None:
+    HBM_ARCH = "DESIGN"
+    print(f"HBM_DESIGN={DESIGN.spec} d={DESIGN.d} recharge={DESIGN.recharge_rounds} rounds"
+          f" = {DESIGN.recharge_steps} steps")
 print(HBM_ARCH)
+
+
+def get_last_stats():
+    """Routing statistics of the last HBM_DESIGN run (None in legacy mode)."""
+    return design_routing.stats() if DESIGN is not None else None
 
 
 def _build_3d_graph(grid_len, grid_height, to_remove_lower, to_remove_upper):
@@ -331,6 +345,8 @@ def route_gate(
 def try_order(
     order, executable, grid_len, grid_height, msf_faces, mapping, take_first_ms
 ):
+    if DESIGN is not None:
+        return design_routing.try_order(order, executable)
     step = []
     to_remove, to_remove_hbm = initialize_to_remove(msf_faces, mapping)
     for i in range(len(executable)):
@@ -659,6 +675,8 @@ def sim_anneal_route(
     grid_height = arch["height"]
     msf_faces = arch["magic_states"]
     mapping = {q: p for (q, p) in mapping}
+    if DESIGN is not None:
+        design_routing.begin(DESIGN, arch, mapping)
     gates_id_table = {i: gate for i, gate in enumerate(gates)}
     crit_dict = {}
     if temperature > termination_temp:
@@ -666,6 +684,8 @@ def sim_anneal_route(
     tried_steps = 0
     while len(gates_id_table) != 0:
         executable, remaining = executable_subset(gates_id_table)
+        if DESIGN is not None:
+            design_routing.CTX.t = len(timesteps)  # sources' readiness depends on the step
         step, tried = best_realizable_set_found(
             gates_id_table,
             executable,
@@ -682,6 +702,8 @@ def sim_anneal_route(
         )
         tried_steps += tried
         timesteps.append(step)
+        if DESIGN is not None:
+            design_routing.commit(step, executable)
         routed_ids = [x[0] for x in step]
         not_executed = {
             id: gates_id_table[id] for id in executable if id not in routed_ids

@@ -1,7 +1,7 @@
 import json
 import re
 from .phased_graph import build_phased_map
-from .sarouting import sim_anneal_route
+from .sarouting import sim_anneal_route, get_last_stats
 from .sat_scmr import solve
 import signal
 
@@ -39,26 +39,34 @@ def extract_qubits_from_gates(gate_list):
     return qubits
 
 
-def dump(arch, map, steps, id_to_op, output_path, gates):
+def dump(arch, map, steps, id_to_op, output_path, gates, stats=None):
     output = {}
     output["map"] = {k: v for k, v in map}
     output["steps"] = [label_step(id_to_op, step) for step in steps]
     output["arch"] = arch
     output["gates"] = gates
+    if stats is not None:
+        output["stats"] = stats
     with open(output_path, "w") as f:
         json.dump(output, f, indent=4)
 
 
 def label_step(id_to_op, step):
-    return [labeled_gate_path(id_to_op, *gate_path) for gate_path in step]
+    # HBM_DESIGN steps carry the source each T gate consumed (see design_routing.Step).
+    state = getattr(step, "state", None)
+    sources = state.face_of if state is not None else {}
+    return [labeled_gate_path(id_to_op, *gate_path, source=sources.get(gate_path[0]))
+            for gate_path in step]
 
 
-def labeled_gate_path(id_to_op, id, args, path):
+def labeled_gate_path(id_to_op, id, args, path, source=None):
     dict = {}
     dict["id"] = id
     dict["op"] = id_to_op[id]
     dict["qubits"] = args
     dict["path"] = path
+    if source is not None:
+        dict["source"] = source
     return dict
 
 
@@ -94,8 +102,10 @@ def run_dascot(circ, gates, arch, output_path, timeout):
         )
     except TimeoutException:
         print("Routing timed out. Writing partial output...")
+        # arch and stats let the analysis report what timed out (HBM_DESIGN runs).
         with open(output_path, "w") as f:
-            json.dump({"map": phased_map, "steps": "timeout"}, f)
+            json.dump({"map": phased_map, "steps": "timeout", "arch": arch,
+                       "stats": get_last_stats()}, f)
         return
     finally:
         signal.alarm(0)

@@ -18,6 +18,13 @@ project context and env-var contract.
   import into a global `HBM_ARCH ∈ {NO_HBM, ARCH_A, ARCH_B, ARCH_C, ARCH_D}`.
   `route_gate` dispatches on `HBM_ARCH` for both T-gates and CNOTs.
   `sim_anneal_route` drives the scheduler.
+- `designs.py` — revision designs #0–#5 (`HBM_DESIGN`): spec parsing, layouts, factory
+  placement with a fit check, qubit accounting (`arch["design"]`), and the direct-source
+  map. Pure functions; covered by `tests/test_designs.py`.
+- `design_routing.py` — routing used only when `HBM_DESIGN` is set: sources with
+  finite recharge (`ready_at`), one T per source per step, direct merges, routed T gates on
+  the lower plane / top layer / 3D graph, stall reasons, and run statistics. `sarouting`
+  delegates `try_order` to it and calls `begin` / `commit` around each step.
 - `dascot.py` — sdriver: `run_dascot`, `run_sat_scmr`. Sets `signal.SIGALRM`
   for `-tmr`. `dump` serializes `{map, steps, arch, gates}` to JSON.
 - `sat_scmr.py` — alternate SAT-based mapping/routing (mostly untouched by

@@ -2,6 +2,8 @@ import argparse
 import ast
 from qiskit import QuantumCircuit
 from .architecture import square_sparse_layout, compact_layout
+from .designs import get_design, build_arch
+from .sarouting import get_last_stats
 from .dascot import (
     extract_gates_from_file,
     extract_qubits_from_gates,
@@ -120,6 +122,25 @@ def map_and_route(
     id_to_op = {i: ops[i] for i in range(len(ops))}
     total_qubits = len(extract_qubits_from_gates(gates))
     circ = QuantumCircuit.from_qasm_file(input_path)
+
+    design = get_design()
+    if design is not None:
+        # HBM_DESIGN fixes the whole layout (data plane, sources, factories); -arch is unused.
+        if mode != "dascot":
+            raise ValueError("HBM_DESIGN is only supported with the dascot solver")
+        expected = "compact_layout" if design.layout == "compact" else "square_sparse_layout"
+        if arch_name != expected:
+            print(f"note: {design.spec} uses {expected}; ignoring -arch {arch_name}")
+        arch = build_arch(design, total_qubits)
+        if visualize is not None:
+            print(f"saving visualization of arch at {visualize}")
+            visualize_architecture(arch, visualize)
+        result = run_dascot(circ, gates, arch, output_path, timeout)
+        if result is None:  # timed out; run_dascot already wrote the partial output
+            return
+        map, steps = result
+        dump(arch, map, steps, id_to_op, output_path, gates, stats=get_last_stats())
+        return
 
     if arch_name == "square_sparse_layout":
         layout_fn = square_sparse_layout

@@ -71,6 +71,13 @@ Examples:
 - HBM Upper-First, sharing 4: `HBM_CONFIG=shared_4-route_upper`
 - HBM generic 3D, sharing 4: `HBM_CONFIG=shared_4-route_3d`
 
+**Revision designs (`HBM_DESIGN`).** Setting `HBM_DESIGN=<spec>` (e.g. `D3-k1`,
+`D5-S8`) selects one of the fair-baseline designs #0–#5 and overrides `HBM_CONFIG`:
+finite-recharge magic sources, real factory footprints and qubit accounting. Unset, the
+legacy `HBM_CONFIG` path above is unchanged. See `REVISION.md` for the spec grammar, the
+physical-parameter env vars, the Slurm scripts in `test/revision/` and the analysis in
+`scripts/revision/`.
+
 Output is JSON: `{map, arch, gates, steps: [[{id, op, qubits, path}, ...]]}`.
 For ARCH_D, `path` entries with payload `>= arch.width * arch.height` refer
 to upper-plane cells (encoded as `original_idx + N`); everything else is a

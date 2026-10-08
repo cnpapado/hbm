@@ -70,6 +70,14 @@ they're a separate experiment and are **not** comparable to the sweep.
 Note `submit_benchmarks.sh` and `scripts/run_count_steps.sh` assume the repo
 lives at `~/hbm` on the cluster and that a venv exists at `~/hbm/.venv`.
 
+### Revision sweep (`revision/`)
+
+`revision/run_design.sh` (one benchmark x one `HBM_DESIGN` spec per array task),
+`revision/submit_revision.sh pilot|core|full [--dry-run]` (builds benchmark lists in
+`revision/lists/`, submits), and `revision/smoke_test.sh` (non-Slurm end-to-end check).
+Outputs go to `outs_rev/<suite>/` and `results_rev/<suite>/`, logs to `logs_rev/`. See
+`../REVISION.md`.
+
 ## Analysis scripts under `test/`
 
 - `print_timesteps.py <out.json> [--summary]` — reports `len(steps)` (and

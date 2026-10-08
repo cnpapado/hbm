@@ -10,3 +10,9 @@ outs_jku/
 logs_*.out
 results_sweep/
 results_jku/
+# revision sweep artifacts (see REVISION.md, test/revision/)
+outs_rev/
+results_rev/
+logs_rev/
+test/revision/lists/
+test/revision/smoke/
