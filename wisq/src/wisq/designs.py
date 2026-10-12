@@ -392,13 +392,19 @@ def _cult_acct(n_patches, top_tiles=0):
 
 
 def _d0_edge(design, n, n_fact):
+    """Ports evenly spaced on the ring, starting mid-top. Corner tiles are left out: they
+    have only two neighbours and are farthest from the data."""
     arch = _add_ring(_square_sparse(n))
-    slots = _perimeter_slots(arch["width"], arch["height"])
+    width, height = arch["width"], arch["height"]
+    corners = {_pos(0, 0, width), _pos(0, width - 1, width), _pos(height - 1, 0, width),
+               _pos(height - 1, width - 1, width)}
+    slots = [p for p in _perimeter_slots(width, height) if p not in corners]
     if n_fact > len(slots):
         raise ValueError(f"{design.spec}: {n_fact} ports do not fit on a ring of "
                          f"{len(slots)} tiles (N={n})")
-    step = len(slots) / n_fact
-    ports = sorted({slots[int(i * step)] for i in range(n_fact)})
+    start = slots.index(_pos(0, (width - 1) // 2, width))  # middle of the top edge
+    slots = slots[start:] + slots[:start]
+    ports = sorted({slots[int(i * len(slots) / n_fact)] for i in range(n_fact)})
     arch.update(magic_states=ports, blocked=[], blocked_top=[])
     return arch, _factory_acct(design, len(ports))
 
