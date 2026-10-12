@@ -1,6 +1,9 @@
 """Draw a revision design (lower plane and top layer) to check the layout by eye.
 
-Usage: python draw_design.py SPEC N OUT.png      e.g. python draw_design.py D3-k1 16 d3k1.png
+Usage: python draw_design.py SPEC N OUT.png [CIRCUIT.qasm]
+  e.g. python draw_design.py D3-k1 16 d3k1.png
+       python draw_design.py D1-mesh-X1 16 d1.png test/benchmarks_bursty_cx/bench_n16_p50.qasm
+Factory designs with an X<m> count need the circuit (its T demand sets the factory count).
 Physical parameters come from the HBM_* env vars (see wisq/src/wisq/designs.py).
 """
 
@@ -12,6 +15,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.patches import Circle, Patch, Rectangle  # noqa: E402
 
+from wisq.dascot import extract_gates_from_file  # noqa: E402
 from wisq.designs import build_arch, parse_design  # noqa: E402
 
 DATA, ROUTE, SOURCE, FACTORY, EDGE = "#1f5fae", "#d9d9d9", "#ee8a3c", "#f8c9a0", "#3a3a3a"
@@ -37,8 +41,9 @@ def draw_plane(ax, arch, x0, kinds, dots):
 
 def main():
     spec, n, out = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+    gates = extract_gates_from_file(sys.argv[4])[0] if len(sys.argv) > 4 else None
     design = parse_design(spec)
-    arch = build_arch(design, n)
+    arch = build_arch(design, n, gates=gates)
     acct = arch["design"]
     data = set(arch["alg_qubits"])
     sources = set(arch["magic_states"])
@@ -68,11 +73,13 @@ def main():
     ax.set_ylim(-1.6, h + 1.6)
     ax.set_aspect("equal")
     ax.axis("off")
+    demand = (f", demand λ={acct['demand_lambda']:.2f} → F*={acct['f_star']}"
+              if acct.get("f_star") else "")
     ax.set_title(
         f"{spec}, N={n}, d={acct['d']}: {acct['lower_tiles']} lower + {acct['top_tiles']} top "
         f"tiles, {acct['n_sources']} sources, {acct['n_factories']} factories "
-        f"({acct['factory_tiles']} tiles each), recharge {acct['recharge_steps']} steps",
-        fontsize=8, loc="left")
+        f"({acct['factory_w']}x{acct['factory_h']} tiles each){demand}, "
+        f"recharge {acct['recharge_steps']} steps", fontsize=8, loc="left")
     ax.legend(handles=[Patch(facecolor=DATA, label="data"), Patch(facecolor=ROUTE, label="routing"),
                        Patch(facecolor=SOURCE, label="source (port / patch)"),
                        Patch(facecolor=FACTORY, label="factory")],

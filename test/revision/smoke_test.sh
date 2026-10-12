@@ -13,20 +13,24 @@ set -uo pipefail
 cd "$(dirname "$0")/../.."  # -> repo root
 OUT=test/revision/smoke
 mkdir -p "$OUT/figs"
+rm -f "$OUT"/*.out "$OUT"/*.log  # outputs of earlier smoke runs (older format)
 BENCH=test/benchmarks_bursty_cx/bench_n16_p50.qasm
-# d=25 here only checks the code paths (D5-S4/S8 fit at d=25, not at d=13).
-export HBM_D="${HBM_D:-25}" HBM_CULT_ROUNDS="${HBM_CULT_ROUNDS:-70}"
+# d=25 here only checks the code paths: at d=13 a factory is 4x4 tiles and bench_n16_p50
+# needs F*=13 of them, which do not fit on the top layer of a 16-qubit chip (D5 is rejected,
+# as it should be). The sweep itself runs at d=13.
+export HBM_D="${HBM_D:-25}" HBM_CULT_ROUNDS="${HBM_CULT_ROUNDS:-60}"
 unset HBM_CONFIG
 
 echo "== 1. unit tests"
 python -m pytest -q wisq/tests/test_designs.py || echo "!! unit tests failed"
 
-SPECS=(D0-S4 D1-S4 D2-wide D2-tight D2-wide-borrow D3-k1 D3-khalf D3-k2 D3-kquarter
-       D3-k1-route D4-k1 D4-k1p5 D5-S4 D5-S8 D5-S8-3d)
+SPECS=(D0-X1 D1-band-X1 D1-mesh-X1 D2-wide D2-tight D2-wide-borrow D3-k1 D3-khalf D3-k2
+       D3-kquarter D3-k1-route D4-k1 D4-k1p5 D5-X1 D5-X0.5 D5-X1-3d)
 
 echo "== 2. drawings"
 for s in "${SPECS[@]}"; do
-    python scripts/revision/draw_design.py "$s" 16 "$OUT/figs/$s.png" || echo "!! draw $s failed"
+    python scripts/revision/draw_design.py "$s" 16 "$OUT/figs/$s.png" "$BENCH" \
+        || echo "!! draw $s failed"
 done
 
 echo "== 3. routing bench_n16_p50"

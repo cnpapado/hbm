@@ -13,17 +13,22 @@ Error model (per program; eps(d, p, p_th) = A * (p / p_th) ** ((d + 1) / 2) per 
   data idling      N * steps * d * eps(d, p, p_th)
   routing merges   (T + CNOT path tiles) * d * eps(d, p, p_th)
   vertical seams   vertical_merges * d * eps(d, p, p_th_v(mult))   (top designs only)
-  T states         T count * eps_source                  (cultivation or factory output)
+  T states         T count * eps_source                  (cultivation grade or factory output)
 A vertical merge with coupling error p' = mult * p uses the lower threshold p_th_v(mult)
 measured for that merge in Stim (HBMS paper, Fig. 11: ~1e-2 at 1p, ~4e-3 at 5p, ~2e-3 at
 10p; override with --seam-pth). Only the coupler qubits along the seam see p'.
 A run whose T-state error alone exceeds the target is infeasible for that circuit (the
 cultivation fidelity floor).
 
-Physical qubits: tiles * 2 d^2 + n_factories * factory_qubits, where tiles counts every
-lower- and top-layer tile except factory tiles (cultivation patches count as tiles).
+Cultivation grades (--cult-grades, rounds:error:qubits; Tour de gross arXiv:2506.03094
+App. A.6, Table 5, p = 1e-3, at 6 gate layers per round): 60 rounds -> 3e-6 with 454
+qubits (d1 = 3), 360 rounds -> 2e-9 with 463 qubits (d1 = 5). A run's grade is looked up by
+its HBM_CULT_ROUNDS. Factory output error: Litinski 2019 Table 1, (15-to-1)_{17,7,7}: 4.5e-8.
 
-The simulation used a fixed d (HBM_D) to turn recharge rounds into timesteps and to size
+Physical qubits: tiles * 2 d^2 + n_patches * patch_qubits + n_factories * factory_qubits,
+where tiles counts every lower- and top-layer tile except factory and patch tiles.
+
+The simulation used a fixed d (HBM_D) to turn recharge rounds into steps and to size
 factories in tiles. If d_req changes either of those, the row is flagged rerun_needed:
 rerun that design with HBM_D=d_req for exact numbers.
 
@@ -55,6 +60,15 @@ def parse_seam_pth(text):
     return out
 
 
+def parse_grades(text):
+    """'60:3e-6:454,360:2e-9:463' -> {60: (3e-6, 454), 360: (2e-9, 463)}"""
+    out = {}
+    for item in text.split(","):
+        rounds, err, qubits = item.split(":")
+        out[int(rounds)] = (float(err), int(qubits))
+    return out
+
+
 def circuit_stats(gates):
     level = defaultdict(int)
     n_t = n_cx = 0
@@ -80,14 +94,31 @@ def program_error(d, args, des, st, steps, mult):
     return total
 
 
+def cult_grade(des, args):
+    if des["cult_rounds"] not in args.cult_grades:
+        raise KeyError(f"no cultivation grade for {des['cult_rounds']} rounds; add it to "
+                       f"--cult-grades")
+    return args.cult_grades[des["cult_rounds"]]
+
+
 def source_error(des, args):
-    return args.cult_error if des["source"] == "cultivation" else args.factory_error
+    if des["source"] == "cultivation":
+        return cult_grade(des, args)[0]
+    return args.factory_error
 
 
-def qubits(d, des):
+def qubits(d, des, args):
+    n_patches = des.get("n_patches", 0)
     tiles = (des["lower_tiles"] - des["lower_factory_tiles"]
-             + des["top_tiles"] - des["top_factory_tiles"])
-    return tiles * 2 * d * d + des["n_factories"] * des["factory_qubits"]
+             + des["top_tiles"] - des["top_factory_tiles"] - n_patches)
+    patch_q = cult_grade(des, args)[1] if n_patches else 0
+    return (tiles * 2 * d * d + n_patches * patch_q
+            + des["n_factories"] * des["factory_qubits"])
+
+
+def factory_tiles_at(d, des):
+    w, h = des["factory_sites"]
+    return math.ceil(w / d) * math.ceil(h / d)
 
 
 def analyze_file(path, args):
@@ -103,7 +134,9 @@ def analyze_file(path, args):
                 placement=des["placement"], d_sim=des["d"],
                 recharge_rounds=des["recharge_rounds"], recharge_steps=des["recharge_steps"],
                 N=des["n_logical"], lower_tiles=des["lower_tiles"], top_tiles=des["top_tiles"],
-                n_factories=des["n_factories"], n_sources=des["n_sources"])
+                n_factories=des["n_factories"], n_patches=des.get("n_patches", 0),
+                n_sources=des["n_sources"], demand_lambda=des.get("demand_lambda"),
+                f_star=des.get("f_star"))
     steps = data.get("steps")
     if not isinstance(steps, list):
         return [dict(base, status="timeout")]
@@ -142,12 +175,11 @@ def analyze_file(path, args):
             rows.append(dict(row, feasible=False, d_req=None, Q=None, rounds=None, STV=None,
                              error=None, rerun_needed=False))
             continue
-        q = qubits(d_req, des)
+        q = qubits(d_req, des, args)
         rounds = n_steps * d_req
         rerun = (math.ceil(des["recharge_rounds"] / d_req) != des["recharge_steps"]
-                 or (des["n_factories"] > 0 and des["family"] in ("D1", "D5")
-                     and math.ceil(des["factory_qubits"] / (2 * d_req * d_req))
-                     != des["factory_tiles"]))
+                 or (des["family"] in ("D1", "D5")
+                     and factory_tiles_at(d_req, des) != des["factory_tiles"]))
         rows.append(dict(row, feasible=True, d_req=d_req, Q=q, rounds=rounds, STV=q * rounds,
                          error=program_error(d_req, args, des, st, n_steps, mult) + e_src,
                          rerun_needed=rerun))
@@ -164,8 +196,9 @@ def main():
     ap.add_argument("--target", type=float, default=0.01, help="allowed program error")
     ap.add_argument("--A", type=float, default=0.1)
     ap.add_argument("--p-th", dest="p_th", type=float, default=0.01)
-    ap.add_argument("--cult-error", type=float, default=1e-7,
-                    help="T-state error from cultivation (Gidney 2025: 1e-7 at p=1e-3)")
+    ap.add_argument("--cult-grades", type=parse_grades, default="60:3e-6:454,360:2e-9:463",
+                    help="cultivation grades 'rounds:T-error:qubits,...' (Tour de gross "
+                         "App. A.6, Table 5, p=1e-3)")
     ap.add_argument("--factory-error", type=float, default=4.5e-8,
                     help="T-state error from the factory (Litinski 2019 (15-to-1)_{17,7,7})")
     ap.add_argument("--seam-pth", type=parse_seam_pth, default="1:0.01,5:0.004,10:0.002",

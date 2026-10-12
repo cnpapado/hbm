@@ -9,7 +9,8 @@ reach it. Rules per timestep (one lattice-surgery step = d rounds):
     routing tiles); if the design allows routing it then routes to any ready source,
     reaching any free side of that source;
   - CNOTs route as in DASCOT: from a vertical neighbour of the control to a horizontal
-    neighbour of the target, in-plane (on the two-layer graph for TOP_3D designs).
+    neighbour of the target, in-plane (on the two-layer graph for TOP_3D designs; TOP_3D_T
+    designs route only T gates on the two-layer graph).
 
 Paths in the output use lower-plane positions as-is and top-layer positions offset by
 width * height (the ARCH_D convention). Direct T gates have an empty path.
@@ -229,7 +230,7 @@ def _route_t(gid, gate, st):
             st.upper.update(path)
             face = targets[path[-1]]
             path = [p + n for p in path]
-    else:  # TOP_3D
+    else:  # TOP_3D_T or TOP_3D: in-plane to any free vertical link, then up
         g, idx = _graph_3d(st.lower, st.upper)
         targets = _targets(avail, st.upper, offset=n)
         path = _best_path(g, idx, CTX.vertical(q) + [q + n], targets)

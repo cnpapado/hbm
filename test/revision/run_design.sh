@@ -25,8 +25,8 @@ command -v wisq >/dev/null || { echo "ERROR: wisq not on PATH" >&2; exit 1; }
 : "${BENCH_LIST:?BENCH_LIST not set}"
 TMR="${TMR:-172800}"
 export HBM_DESIGN="$DESIGN"
-export HBM_D="${HBM_D:-25}"
-export HBM_CULT_ROUNDS="${HBM_CULT_ROUNDS:-70}"
+export HBM_D="${HBM_D:-13}"
+export HBM_CULT_ROUNDS="${HBM_CULT_ROUNDS:-60}"
 export HBM_FACTORY_ROUNDS="${HBM_FACTORY_ROUNDS:-43}"
 export HBM_FACTORY_QUBITS="${HBM_FACTORY_QUBITS:-4620}"
 unset HBM_CONFIG

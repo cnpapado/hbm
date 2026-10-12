@@ -1,4 +1,4 @@
-"""Layout invariants for the revision designs (wisq/src/wisq/designs.py).
+"""Layout and sizing rules for the revision designs (wisq/src/wisq/designs.py).
 
 Run: python -m pytest -q wisq/tests/test_designs.py
 """
@@ -7,16 +7,17 @@ import math
 
 import pytest
 
-from wisq.designs import build_arch, direct_sources, parse_design
+from wisq.designs import build_arch, direct_sources, factory_count, parse_design
 
-SPECS = ["D0-S4", "D0-S8", "D1-S4", "D1-S8", "D1-S16", "D2-wide", "D2-tight", "D2-wide-borrow",
-         "D3-k1", "D3-khalf", "D3-k2", "D3-kquarter", "D3-k1-route", "D4-k1", "D4-k1p5",
-         "D5-S4", "D5-S8", "D5-S16", "D5-S8-3d"]
+SPECS = ["D0-S4", "D0-S8", "D1-band-S4", "D1-band-S8", "D1-mesh-S4", "D1-mesh-S8",
+         "D2-wide", "D2-tight", "D2-wide-borrow", "D3-k1", "D3-khalf", "D3-k2", "D3-kquarter",
+         "D3-k1-route", "D4-k1", "D4-k1p5", "D5-S4", "D5-S8", "D5-S16", "D5-S8-3d"]
 SIZES = [16, 25, 49, 100]
 
 
 def design(spec, **kw):
-    params = dict(d=25, cult_rounds=70, factory_rounds=43, factory_qubits=4620)
+    params = dict(d=25, cult_rounds=60, factory_rounds=43, factory_qubits=4620,
+                  factory_sites=(45, 51))
     params.update(kw)
     return parse_design(spec, **params)
 
@@ -28,18 +29,36 @@ def neighbors(p, w, h):
     return vert, horiz
 
 
-@pytest.mark.parametrize("bad", ["D9-S4", "D0", "D0-k1", "D2-medium", "D3-k3", "D5-S3",
-                                 "D2-wide-route", "D3-k1-borrow"])
+@pytest.mark.parametrize("bad", ["D9-S4", "D0", "D0-k1", "D0-S4-X1", "D1-S4", "D1-grid-S4",
+                                 "D1-band-mesh-S4", "D2-medium", "D3-k3", "D5-S0", "D5-X0",
+                                 "D2-wide-route", "D3-k1-borrow", "D5-S4-route"])
 def test_invalid_specs_rejected(bad):
     with pytest.raises(ValueError):
         design(bad)
 
 
-def test_recharge_steps():
-    assert design("D3-k1").recharge_steps == 3  # ceil(70 / 25)
-    assert design("D3-k1", cult_rounds=360).recharge_steps == 15
-    assert design("D5-S8").recharge_steps == 2  # ceil(43 / 25)
-    assert design("D5-S8").factory_tiles == 4  # ceil(4620 / 1250)
+def test_recharge_and_footprint():
+    # Cultivation grades (Tour de gross App. A.6): 60 and 360 rounds.
+    assert design("D3-k1", d=13).recharge_steps == 5  # ceil(60 / 13)
+    assert design("D3-k1", d=13, cult_rounds=360).recharge_steps == 28
+    # (15-to-1)_{17,7,7}: 42.6 cycles, 45 x 51 lattice sites (Litinski 2019 Table 1, Fig. 11).
+    assert design("D5-S8", d=13).recharge_steps == 4  # ceil(43 / 13)
+    assert (design("D5-S8", d=13).factory_w, design("D5-S8", d=13).factory_h) == (4, 4)
+    assert (design("D5-S8").factory_w, design("D5-S8").factory_h) == (2, 3)  # d = 25
+
+
+def test_factory_count_from_demand():
+    gates = [(0,)] * 10  # 10 T gates on one qubit: T count 10, ideal depth 10, lambda = 1
+    expected = {"X1": 3, "X0.5": 2, "X2": 6, "X0.25": 1}  # F* = ceil(1 * (1 + ceil(43/25)))
+    for token, n_fact in expected.items():
+        count, lam, f_star = factory_count(design(f"D0-{token}"), 16, gates)
+        assert (count, lam, f_star) == (n_fact, 1.0, 3)
+    assert factory_count(design("D0-S4"), 16, None)[0] == 4
+
+
+def test_x_count_needs_the_circuit():
+    with pytest.raises(ValueError):
+        build_arch(design("D0-X1"), 16)
 
 
 @pytest.mark.parametrize("spec", SPECS)
@@ -69,6 +88,14 @@ def test_layout_invariants(spec, n):
         assert any(v not in lower_taken for v in vert), (spec, n, q, "no free vertical side")
         assert any(x not in lower_taken for x in horiz), (spec, n, q, "no free horizontal side")
 
+    # Every source can be reached: a free neighbour on its own layer.
+    taken = (set(data) | blocked | set(sources)) if des.placement == "plane" else (
+        blocked_top | set(sources))
+    if des.allow_route:
+        for p in sources:
+            vert, horiz = neighbors(p, w, h)
+            assert any(x not in taken for x in vert + horiz), (spec, n, p, "unreachable source")
+
     # Designs without routing must give every data qubit a direct source.
     if not des.allow_route:
         direct = direct_sources(arch, des)
@@ -77,27 +104,32 @@ def test_layout_invariants(spec, n):
     acct = arch["design"]
     assert acct["lower_tiles"] == w * h
     assert acct["n_sources"] == len(sources)
+    if des.source == "cultivation":
+        assert acct["n_patches"] == len(sources) and acct["n_factories"] == 0
+    else:
+        assert acct["n_factories"] == len(sources) == math.ceil(n / des.count_value)
 
 
 @pytest.mark.parametrize("n", SIZES)
 def test_d0_ports_on_ring(n):
     arch = build_arch(design("D0-S4"), n)
     w, h = arch["width"], arch["height"]
-    assert len(arch["magic_states"]) == math.ceil(n / 4)
     for p in arch["magic_states"]:
         r, c = divmod(p, w)
         assert r in (0, h - 1) or c in (0, w - 1)
 
 
+@pytest.mark.parametrize("variant", ["band", "mesh"])
 @pytest.mark.parametrize("n", SIZES)
-def test_d1_factory_counts(n):
-    des = design("D1-S4")
+def test_d1_factory_footprints(variant, n):
+    des = design(f"D1-{variant}-S4")
     arch = build_arch(des, n)
     n_fact = math.ceil(n / 4)
-    block = 2 * math.ceil(des.factory_tiles / 2)
-    assert len(arch["magic_states"]) == n_fact
-    assert len(arch["blocked"]) == n_fact * (block - 1)
-    assert arch["design"]["lower_factory_tiles"] == n_fact * block
+    assert len(arch["blocked"]) == n_fact * (des.factory_tiles - 1)
+    assert arch["design"]["lower_factory_tiles"] == n_fact * des.factory_tiles
+    if variant == "mesh":
+        acct = arch["design"]
+        assert acct["mesh_a"] * acct["mesh_b"] >= n_fact
 
 
 @pytest.mark.parametrize("n", SIZES)
@@ -112,19 +144,13 @@ def test_d2_tight_one_patch_per_qubit_side(n):
 
 @pytest.mark.parametrize("spec", ["D5-S4", "D5-S8", "D5-S16"])
 @pytest.mark.parametrize("n", SIZES)
-def test_d5_factories_leave_access(spec, n):
+def test_d5_factories_on_top(spec, n):
     des = design(spec)
     arch = build_arch(des, n)
-    w, h = arch["width"], arch["height"]
-    data = set(arch["alg_qubits"])
-    elevators = {v for q in data for v in neighbors(q, w, h)[0]}
     blocked_top = set(arch["blocked_top"])
-    assert len(arch["magic_states"]) == math.ceil(n / des.sharing)
-    assert not blocked_top & (data | elevators)
+    assert len(arch["magic_states"]) == math.ceil(n / des.count_value)
     assert len(blocked_top) == len(arch["magic_states"]) * (des.factory_tiles - 1)
-    for port in arch["magic_states"]:
-        _, horiz = neighbors(port, w, h)
-        assert any(x not in blocked_top for x in horiz)
+    assert arch["design"]["top_factory_tiles"] == len(arch["magic_states"]) * des.factory_tiles
 
 
 @pytest.mark.parametrize("n", SIZES)
@@ -135,4 +161,4 @@ def test_d5_one_factory_per_qubit_does_not_fit(n):
 
 def test_d5_unfit_factory_raises():
     with pytest.raises(ValueError):
-        build_arch(design("D5-S4", factory_qubits=200000), 16)
+        build_arch(design("D5-S4", factory_sites=(200, 200)), 16)

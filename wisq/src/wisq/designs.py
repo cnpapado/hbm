@@ -3,74 +3,90 @@
 A design is selected with the HBM_DESIGN env var. When HBM_DESIGN is unset nothing in
 this module is used and the legacy HBM_CONFIG behaviour is unchanged.
 
-Spec grammar: "<family>-<knob>[-<flag>...]"
+Spec grammar ("-"-separated tokens):
 
-  D0-S<k>     Edge (baseline). Square sparse plane plus a ring; ceil(N/k) output ports on
-              the ring, each fed by its own distillation factory outside the grid.
-  D1-S<k>     Factories inside (baseline). Square sparse plane with bands of factory blocks
-              between data rows; ceil(N/k) factories, each with one output port.
-  D2-wide     Cultivation next door (baseline). One cultivation patch directly above every
-              data qubit; one extra row per data row keeps the routing channels.
-  D2-tight    Cultivation next door, shared (baseline). Patches replace the routing tiles
-              between pairs of data rows: one patch per 2 data qubits, no extra area.
-  D3-k1       Cultivation on top (proposed). A patch directly above every data qubit.
-  D3-khalf    Patches above the routing tiles between pairs of data rows (1 per 2 qubits).
-  D3-k2       Patches above every data qubit and above every routing tile that touches a
-              data qubit's vertical (Z) side.
-  D3-kquarter One patch per 2x2 data block (shared_4 positions), reached by routing on a
-              full top routing layer.
-  D4-k1       Compact plane + a cultivation patch above every data qubit (proposed).
-  D4-k1p5     D4-k1 plus patches above the routing tile shared by the two data rows.
-  D5-S<k>     Factories on top (proposed; the current HBMS with real factory footprints).
-              ceil(N/k) factories as vertical strips in the top layer's even columns (the
-              odd columns, above data qubits and their vertical neighbours, stay free);
-              Upper-First routing on the top layer.
+  Factory designs need a count token, S<k> or X<m>:
+    S<k>   ceil(N/k) factories (fixed sharing ratio).
+    X<m>   ceil(m * F*) factories, where F* = ceil(lambda * (1 + ceil(R_f / d))) is the
+           break-even count: lambda = T count / ideal depth (the circuit's T demand per step)
+           and one factory delivers a state every 1 + ceil(R_f / d) steps. This is
+           Litinski's sizing rule (A Game of Surface Codes, Sec. 4.4: add distillation blocks
+           until supply matches consumption), applied to the circuit's demand.
 
-Flags:
-  -borrow     (D2) a T gate whose own patch is recharging may route in-plane to any other
-              ready patch.
-  -route      (D3-k1/k2/khalf, D4) add a full routing top layer (counted in the qubit total)
-              so a T gate may route on top to any ready patch.
-  -3d         (D5) generic 3D routing (as ARCH_D) for T gates and CNOTs.
+  D0-<count>         Edge (baseline; Litinski, A Game of Surface Codes, Sec. 4; "peripheral
+                     placement" in Holmes et al. 2019). Square sparse plane plus a ring of
+                     output ports, each fed by its own factory outside the grid.
+  D1-band-<count>    Factories inside (baseline). Bands of factories between data rows.
+  D1-mesh-<count>    Factories inside (baseline; Holmes et al. 2019, Fig. 3b, distributed
+                     factories "each responsible for magic-state requests in a sub-region of
+                     the lattice"). The data qubits are split into an a x b mesh of near-square
+                     sub-regions with one factory at the centre of each.
+  D5-<count>[-3d]    Factories on top (proposed). The same a x b mesh on the top layer.
+                     A factory covers the top tiles above some data qubits, so T gates route
+                     on the two-layer graph: in-plane to any free vertical link, then up
+                     (CNOTs stay in-plane; -3d lets CNOTs use the top layer too).
 
-Physical parameters (env vars, all optional):
-  HBM_D                 code distance used to convert rounds to timesteps (default 25)
-  HBM_CULT_ROUNDS       rounds for a cultivation patch to produce its next T state, decoder wait
-                        included (default 70; Gidney 2025: ~30000 qubit-rounds per T at 1e-7 on
-                        a ~512-qubit patch, plus ~10 rounds of decoding)
-  HBM_FACTORY_ROUNDS    rounds between factory outputs (default 43; Litinski 2019,
-                        (15-to-1)_{17,7,7} at p=1e-3 -- verify against the table)
-  HBM_FACTORY_QUBITS    physical qubits per factory (default 4620, same source)
+  D2-wide | D2-tight[-borrow]           Cultivation next door (baseline). wide: a patch
+                     directly above every data qubit, one extra row per data row; tight: patches
+                     replace the routing tiles between pairs of data rows (1 per 2 qubits).
+                     -borrow: a T gate may route in-plane to another qubit's ready patch.
+  D3-k1 | D3-khalf | D3-k2 | D3-kquarter[-route]   Cultivation on top (proposed).
+                     k1: patch above each data qubit; khalf: above the routing tiles between
+                     pairs of data rows; k2: above every data qubit and every routing tile on a
+                     data qubit's vertical side; kquarter: one per 2x2 data block, reached by a
+                     full top routing layer. -route: add that routing layer to k1/k2/khalf.
+  D4-k1 | D4-k1p5[-route]                Compact plane + cultivation on top (proposed).
 
-One timestep is one lattice-surgery step of d rounds. A source used at timestep t is
-ready again at t + 1 + ceil(rounds / d).
+Physical parameters (env vars; defaults are for p = 1e-3):
+  HBM_D               data code distance; converts rounds to steps, sizes factories in tiles
+                      (default 13).
+  HBM_CULT_ROUNDS     mean rounds for one cultivation patch to deliver a kept T state
+                      (default 60). Tour de gross (arXiv:2506.03094) App. A.6, Table 5: 351
+                      gate layers for d1 = 3 (error 3e-6, 454 qubits) and 2167 for d1 = 5
+                      (error 2e-9, 463 qubits), at 6 gate layers per surface-code round
+                      (Sec. 3) -> ~60 and ~360 rounds. Cross-check for d1 = 3: Gidney 2025
+                      (arXiv:2505.15917) Sec. 3, 30,000 qubit-rounds per T state at 1e-7
+                      / ~512 qubits ~= 59 rounds.
+  HBM_FACTORY_ROUNDS  rounds between factory outputs (default 43). Litinski 2019
+                      (arXiv:1905.06903) Table 1: (15-to-1)_{17,7,7}, the only single-level
+                      factory listed at p = 1e-3, 42.6 code cycles, output error 4.5e-8.
+  HBM_FACTORY_QUBITS  physical qubits per factory (default 4620, same table).
+  HBM_FACTORY_SITES   factory footprint in lattice sites, "WxH" (default 45x51): Litinski
+                      2019 Fig. 11, (dX + 4dZ) x 3dX for (15-to-1)_{dX,dZ,dm}. In tiles:
+                      ceil(45/d) x ceil(51/d), i.e. 4x4 at d = 13 and 2x3 at d = 25.
+
+One step is one lattice-surgery step of d rounds. A source used at step t is ready again at
+t + 1 + ceil(rounds / d).
 
 Lattice-surgery boundary convention (DASCOT): a CNOT runs from a vertical neighbour of the
 control to a horizontal neighbour of the target, and a T gate leaves from the data qubit's
-vertical (Z) side. Every design therefore leaves each data qubit at least one free vertical
+vertical (Z) side. Every design leaves each data qubit a free vertical and a free horizontal
 side, and "direct" sources (consumed without routing) sit on a data qubit's vertical side or
 directly above it.
 """
 
 import math
 import os
+import re
+from collections import defaultdict
 from dataclasses import dataclass
 
 from .architecture import hbm_shared_4_positions
 
 FAMILIES = ("D0", "D1", "D2", "D3", "D4", "D5")
+FACTORY_FAMILIES = ("D0", "D1", "D5")
 
 
 @dataclass(frozen=True)
 class Design:
     spec: str
     family: str
-    knob: str
+    knob: str  # reporting label, e.g. "mesh-X1", "X0.5", "k1"
     flags: frozenset
     layout: str  # "square_sparse" | "compact"
     placement: str  # "plane" | "top"
     source: str  # "factory" | "cultivation"
-    routing: str  # "PLANE" | "TOP" | "TOP_3D"
+    routing: str  # "PLANE" | "TOP" | "TOP_3D_T" (T on the 3D graph) | "TOP_3D" (T and CNOT)
     allow_direct: bool
     allow_route: bool
     top_routing_layer: bool
@@ -78,7 +94,10 @@ class Design:
     cult_rounds: int
     factory_rounds: int
     factory_qubits: int
-    sharing: int = 0  # k in "S<k>" for factory designs
+    factory_sites: tuple  # (width, height) in lattice sites
+    count_mode: str = ""  # "S" | "X" for factory designs
+    count_value: float = 0.0
+    variant: str = ""  # "band" | "mesh" for D1
 
     @property
     def recharge_rounds(self):
@@ -93,47 +112,83 @@ class Design:
         return 2 * self.d * self.d
 
     @property
+    def factory_w(self):
+        return math.ceil(self.factory_sites[0] / self.d)
+
+    @property
+    def factory_h(self):
+        return math.ceil(self.factory_sites[1] / self.d)
+
+    @property
     def factory_tiles(self):
-        return math.ceil(self.factory_qubits / self.tile_qubits)
+        return self.factory_w * self.factory_h
 
 
-def _env_int(name, default):
+def _env(name, default, cast=int):
     value = os.getenv(name)
-    return default if value in (None, "") else int(value)
+    return default if value in (None, "") else cast(value)
 
 
-def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qubits=None):
+def _sites(text):
+    w, h = text.lower().split("x")
+    return int(w), int(h)
+
+
+def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qubits=None,
+                 factory_sites=None):
     """Parse a design spec. Physical parameters default to the HBM_* env vars."""
-    parts = spec.strip().split("-")
-    family, knob, flags = parts[0], (parts[1] if len(parts) > 1 else ""), frozenset(parts[2:])
+    tokens = spec.strip().split("-")
+    family, rest = tokens[0], tokens[1:]
     if family not in FAMILIES:
         raise ValueError(f"unknown design family {family!r} in {spec!r}")
     params = dict(
-        d=d if d is not None else _env_int("HBM_D", 25),
-        cult_rounds=cult_rounds if cult_rounds is not None else _env_int("HBM_CULT_ROUNDS", 70),
+        d=d if d is not None else _env("HBM_D", 13),
+        cult_rounds=cult_rounds if cult_rounds is not None else _env("HBM_CULT_ROUNDS", 60),
         factory_rounds=(factory_rounds if factory_rounds is not None
-                        else _env_int("HBM_FACTORY_ROUNDS", 43)),
+                        else _env("HBM_FACTORY_ROUNDS", 43)),
         factory_qubits=(factory_qubits if factory_qubits is not None
-                        else _env_int("HBM_FACTORY_QUBITS", 4620)),
+                        else _env("HBM_FACTORY_QUBITS", 4620)),
+        factory_sites=(factory_sites if factory_sites is not None
+                       else _env("HBM_FACTORY_SITES", (45, 51), _sites)),
     )
 
-    def sharing():
-        if not knob.startswith("S") or not knob[1:].isdigit() or int(knob[1:]) < 1:
-            raise ValueError(f"{family} needs a knob S<k> with k >= 1, got {spec!r}")
-        return int(knob[1:])
+    if family in FACTORY_FAMILIES:
+        counts = [t for t in rest if re.fullmatch(r"S[1-9]\d*|X\d+(\.\d+)?", t)]
+        if len(counts) != 1 or (counts[0][0] == "X" and float(counts[0][1:]) <= 0):
+            raise ValueError(f"{family} needs exactly one count token S<k> or X<m> (m > 0), "
+                             f"got {spec!r}")
+        count = counts[0]
+        others = [t for t in rest if t != count]
+        count_kw = dict(count_mode=count[0], count_value=float(count[1:]))
+        if family == "D0":
+            if others:
+                raise ValueError(f"unexpected tokens {others} in {spec!r}")
+            return Design(spec, family, count, frozenset(), "square_sparse", "plane", "factory",
+                          "PLANE", allow_direct=True, allow_route=True,
+                          top_routing_layer=False, **count_kw, **params)
+        if family == "D1":
+            variants = [t for t in others if t in ("band", "mesh")]
+            if len(variants) != 1 or len(others) != 1:
+                raise ValueError(f"D1 needs one layout token, band or mesh, got {spec!r}")
+            return Design(spec, family, f"{variants[0]}-{count}", frozenset(), "square_sparse",
+                          "plane", "factory", "PLANE", allow_direct=True, allow_route=True,
+                          top_routing_layer=False, variant=variants[0], **count_kw, **params)
+        # D5
+        if set(others) - {"3d"}:
+            raise ValueError(f"unexpected tokens {sorted(set(others) - {'3d'})} in {spec!r}")
+        return Design(spec, family, count, frozenset(others), "square_sparse", "top", "factory",
+                      "TOP_3D" if "3d" in others else "TOP_3D_T", allow_direct=True,
+                      allow_route=True, top_routing_layer=True, **count_kw, **params)
+
+    knob, flags = (rest[0] if rest else ""), frozenset(rest[1:])
 
     def check(allowed_knobs, allowed_flags):
-        if allowed_knobs is not None and knob not in allowed_knobs:
+        if knob not in allowed_knobs:
             raise ValueError(f"{family} knob must be one of {allowed_knobs}, got {spec!r}")
         unknown = flags - set(allowed_flags)
         if unknown:
             raise ValueError(f"flags {sorted(unknown)} not valid for {family} in {spec!r}")
 
-    if family in ("D0", "D1"):
-        check(None, ())
-        return Design(spec, family, knob, flags, "square_sparse", "plane", "factory", "PLANE",
-                      allow_direct=True, allow_route=True, top_routing_layer=False,
-                      sharing=sharing(), **params)
     if family == "D2":
         check(("wide", "tight"), ("borrow",))
         return Design(spec, family, knob, flags, "square_sparse", "plane", "cultivation",
@@ -144,16 +199,11 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
         routed = knob == "kquarter" or "route" in flags
         return Design(spec, family, knob, flags, "square_sparse", "top", "cultivation", "TOP",
                       allow_direct=True, allow_route=routed, top_routing_layer=routed, **params)
-    if family == "D4":
-        check(("k1", "k1p5"), ("route",))
-        routed = "route" in flags
-        return Design(spec, family, knob, flags, "compact", "top", "cultivation", "TOP",
-                      allow_direct=True, allow_route=routed, top_routing_layer=routed, **params)
-    # D5
-    check(None, ("3d",))
-    return Design(spec, family, knob, flags, "square_sparse", "top", "factory",
-                  "TOP_3D" if "3d" in flags else "TOP", allow_direct=True, allow_route=True,
-                  top_routing_layer=True, sharing=sharing(), **params)
+    # D4
+    check(("k1", "k1p5"), ("route",))
+    routed = "route" in flags
+    return Design(spec, family, knob, flags, "compact", "top", "cultivation", "TOP",
+                  allow_direct=True, allow_route=routed, top_routing_layer=routed, **params)
 
 
 _DESIGN_CACHE = {}
@@ -167,6 +217,36 @@ def get_design():
     if spec not in _DESIGN_CACHE:
         _DESIGN_CACHE[spec] = parse_design(spec)
     return _DESIGN_CACHE[spec]
+
+
+# --------------------------------------------------------------------------------------
+# Factory count
+# --------------------------------------------------------------------------------------
+
+def circuit_demand(gates):
+    """(T count, ideal depth): depth is the DAG depth over CNOT and T gates."""
+    level = defaultdict(int)
+    n_t = 0
+    for g in gates:
+        if len(g) == 1:
+            n_t += 1
+            level[g[0]] += 1
+        else:
+            nxt = max(level[g[0]], level[g[1]]) + 1
+            level[g[0]] = level[g[1]] = nxt
+    return n_t, max(level.values(), default=0)
+
+
+def factory_count(design, n, gates):
+    """Number of factories, plus (lambda, F*) for X<m> counts."""
+    if design.count_mode == "S":
+        return math.ceil(n / design.count_value), None, None
+    if gates is None:
+        raise ValueError(f"{design.spec}: X<m> factory counts need the circuit's gates")
+    n_t, depth = circuit_demand(gates)
+    lam = n_t / depth if depth else 0.0
+    f_star = max(1, math.ceil(lam * (1 + design.recharge_steps)))
+    return max(1, math.ceil(design.count_value * f_star)), lam, f_star
 
 
 # --------------------------------------------------------------------------------------
@@ -195,29 +275,61 @@ def _neighbors(pos, width, height):
     return _vertical_neighbors(pos, width, height) + _horizontal_neighbors(pos, width, height)
 
 
-def _grid_from_rows(row_kinds, width, data_cols):
-    """Build a plane from a list of row kinds. 'D' rows hold data at data_cols."""
-    alg = []
-    for r, kind in enumerate(row_kinds):
-        if kind == "D":
-            alg.extend(_pos(r, c, width) for c in data_cols)
+def _grid(row_kinds, col_kinds):
+    """A plane from row and column kinds; data sits where a 'D' row meets a 'D' column."""
+    width = len(col_kinds)
+    alg = [_pos(r, c, width) for r, rk in enumerate(row_kinds) if rk == "D"
+           for c, ck in enumerate(col_kinds) if ck == "D"]
     return {"height": len(row_kinds), "width": width, "alg_qubits": alg}
 
 
-def _square_sparse_rows(n):
+def _square_sparse_kinds(n):
     s = math.ceil(math.sqrt(n))
-    return ["R"] + ["D", "R"] * s, 2 * s + 1, list(range(1, 2 * s, 2))
+    kinds = ["R"] + ["D", "R"] * s
+    return kinds, list(kinds), s
 
 
 def _square_sparse(n):
-    rows, width, data_cols = _square_sparse_rows(n)
-    return _grid_from_rows(rows, width, data_cols)
+    rows, cols, _ = _square_sparse_kinds(n)
+    return _grid(rows, cols)
 
 
 def _compact(n):
     width = 2 * math.ceil(n / 2) - 1
-    data_cols = list(range(0, width, 2))
-    return _grid_from_rows(["D", "R", "D"], width, data_cols)
+    return _grid(["D", "R", "D"], ["D" if c % 2 == 0 else "R" for c in range(width)])
+
+
+def _split(n, k):
+    """n items into k groups, sizes as even as possible."""
+    return [n // k + (1 if i < n % k else 0) for i in range(k)]
+
+
+def _spread(items, k):
+    """k items picked evenly from a list (0 < k <= len(items))."""
+    return [items[int((i + 0.5) * len(items) / k)] for i in range(k)]
+
+
+def _mesh_shape(f, s):
+    """a x b sub-regions with a * b >= f, a, b <= s, least waste, then most square."""
+    best = None
+    for a in range(1, s + 1):
+        b = math.ceil(f / a)
+        if b > s:
+            continue
+        key = (a * b - f, abs(a - b))
+        if best is None or key < best[0]:
+            best = (key, a, b)
+    if best is None:
+        raise ValueError(f"{f} factories need more than {s} x {s} sub-regions")
+    return best[1], best[2]
+
+
+def _mesh_slots(a, b, f):
+    """The f of the a*b mesh cells that hold a factory (empty cells spread evenly)."""
+    cells = [(i, j) for i in range(a) for j in range(b)]
+    empty = a * b - f
+    skip = set(_spread(cells, empty)) if empty else set()
+    return [c for c in cells if c not in skip]
 
 
 def _paired_row_positions(arch):
@@ -260,85 +372,145 @@ def _add_ring(arch):
     return {"height": h + 2, "width": w + 2, "alg_qubits": [shift(q) for q in arch["alg_qubits"]]}
 
 
+def _block(top, left, h, w, width):
+    return [_pos(top + dr, left + dc, width) for dr in range(h) for dc in range(w)]
+
+
 # --------------------------------------------------------------------------------------
-# Design builders
+# Design builders. Each returns (arch, accounting).
 # --------------------------------------------------------------------------------------
 
-def _d0_edge(design, n):
+def _factory_acct(design, n_fact, lower=0, top=0, top_tiles=0):
+    return dict(n_factories=n_fact, n_patches=0, lower_factory_tiles=lower,
+                top_tiles=top_tiles, top_factory_tiles=top,
+                outside_factory_tiles=0 if (lower or top) else n_fact * design.factory_tiles)
+
+
+def _cult_acct(n_patches, top_tiles=0):
+    return dict(n_factories=0, n_patches=n_patches, lower_factory_tiles=0, top_tiles=top_tiles,
+                top_factory_tiles=0, outside_factory_tiles=0)
+
+
+def _d0_edge(design, n, n_fact):
     arch = _add_ring(_square_sparse(n))
     slots = _perimeter_slots(arch["width"], arch["height"])
-    n_ports = math.ceil(n / design.sharing)
-    if n_ports > len(slots):
-        raise ValueError(f"{design.spec}: {n_ports} ports do not fit on a ring of "
-                         f"{len(slots)} tiles")
-    step = len(slots) / n_ports
-    ports = sorted({slots[int(i * step)] for i in range(n_ports)})
+    if n_fact > len(slots):
+        raise ValueError(f"{design.spec}: {n_fact} ports do not fit on a ring of "
+                         f"{len(slots)} tiles (N={n})")
+    step = len(slots) / n_fact
+    ports = sorted({slots[int(i * step)] for i in range(n_fact)})
     arch.update(magic_states=ports, blocked=[], blocked_top=[])
-    acct = dict(n_factories=len(ports), lower_factory_tiles=0, top_tiles=0, top_factory_tiles=0,
-                outside_factory_tiles=len(ports) * design.factory_tiles)
-    return arch, acct
+    return arch, _factory_acct(design, len(ports))
 
 
-def _d1_inside(design, n):
-    rows, width, data_cols = _square_sparse_rows(n)
-    s = len(data_cols)
-    n_fact = math.ceil(n / design.sharing)
-    block_w = math.ceil(design.factory_tiles / 2)  # blocks are 2 rows tall
-    per_band = (width - 2) // block_w  # columns 0 and width-1 stay free for routing
+def _d1_band(design, n, n_fact):
+    """Bands of factories (h rows + 1 routing row) between data rows.
+
+    As many factories per band as fit while keeping >= 1 free column in the middle so
+    routes can cross the band. Bands are spread evenly over the gaps between data rows
+    (stacking when there are more bands than gaps). Ports are top-edge tiles next to the
+    free column, facing the routing row above.
+    """
+    rows0, cols, s = _square_sparse_kinds(n)
+    width = len(cols)
+    w, h = design.factory_w, design.factory_h
+    per_band = (width - 1) // w
     if per_band < 1:
-        raise ValueError(f"{design.spec}: a {design.factory_tiles}-tile factory does not fit "
-                         f"in a {width}-wide grid")
+        raise ValueError(f"{design.spec}: a {w}-tile-wide factory does not fit in a "
+                         f"{width}-wide grid (N={n}, d={design.d})")
     n_bands = math.ceil(n_fact / per_band)
+    interior = list(range(1, s))
+    if n_bands <= len(interior):
+        chosen = _spread(interior, n_bands)
+    else:
+        order = sorted(interior, key=lambda g: abs(g - s / 2)) + [0, s]
+        chosen = [order[j % len(order)] for j in range(n_bands)]
 
-    # Distribute bands over the s+1 gaps around data rows: interior gaps first (closest to
-    # the middle first), then the top and bottom edges; wrap around if more bands remain.
-    order = sorted(range(1, s), key=lambda g: abs(g - s / 2)) + [0, s]
-    bands_at = {}
-    for i in range(n_bands):
-        g = order[i % len(order)]
-        bands_at[g] = bands_at.get(g, 0) + 1
-
-    # Row sequence: gap g sits after the routing row that follows data row g-1.
-    seq = ["R"]
-    for g in range(s + 1):
-        seq += ["F", "F", "R"] * bands_at.get(g, 0)
+    rows = ["R"]
+    for g in range(s + 1):  # gap g sits after data row g-1
+        rows += (["F"] * h + ["R"]) * chosen.count(g)
         if g < s:
-            seq += ["D", "R"]
-    arch = _grid_from_rows(seq, width, data_cols)
+            rows += ["D", "R"]
+    arch = _grid(rows, cols)
+
+    left_n = math.ceil(per_band / 2)
+    free = width - per_band * w
+    starts = [i * w for i in range(left_n)] + [left_n * w + free + i * w
+                                                for i in range(per_band - left_n)]
+    order, lo, hi = [], 0, per_band - 1  # fill outside-in so partial bands stay symmetric
+    while lo <= hi:
+        order += [lo] if lo == hi else [lo, hi]
+        lo, hi = lo + 1, hi - 1
+    band_tops = [r for r in range(len(rows)) if rows[r] == "F" and (r == 0 or rows[r - 1] != "F")]
 
     ports, blocked, placed = [], [], 0
-    band_tops = [r for r in range(len(seq) - 1) if seq[r] == "F" and seq[r + 1] == "F"
-                 and (r == 0 or seq[r - 1] != "F")]
     for top in band_tops:
-        for j in range(per_band):
+        for i in order:
             if placed == n_fact:
                 break
-            c0 = 1 + j * block_w
-            tiles = [_pos(top + dr, c0 + dc, width) for dr in (0, 1) for dc in range(block_w)]
-            port = _pos(top if placed % 2 == 0 else top + 1, c0, width)
+            c0 = starts[i]
+            port = _pos(top, c0 + w - 1 if i < left_n else c0, width)
             ports.append(port)
-            blocked.extend(t for t in tiles if t != port)
+            blocked += [t for t in _block(top, c0, h, w, width) if t != port]
             placed += 1
     arch.update(magic_states=sorted(ports), blocked=sorted(blocked), blocked_top=[])
-    acct = dict(n_factories=placed, lower_factory_tiles=placed * 2 * block_w, top_tiles=0,
-                top_factory_tiles=0, outside_factory_tiles=0)
+    return arch, _factory_acct(design, placed, lower=placed * w * h)
+
+
+def _d1_mesh(design, n, n_fact):
+    """Holmes et al. 2019 distributed factories: one factory at the centre of each of a x b
+    near-square sub-regions of the data qubits.
+
+    A band of factory rows (h rows + 1 routing row) is inserted after the middle data row of
+    each sub-region row, and each factory is centred in its sub-region's columns. Sub-regions
+    narrower than a factory plus one crossing column get extra routing columns. Ports are the
+    factory's top-edge middle tile, facing the routing row next to its data.
+    """
+    s = math.ceil(math.sqrt(n))
+    w, h = design.factory_w, design.factory_h
+    a, b = _mesh_shape(n_fact, s)
+    cols, spans = ["R"], []
+    for k in _split(s, b):
+        group = ["D", "R"] * k
+        pad = max(0, w + 1 - len(group))
+        group = ["R"] * (pad // 2) + group + ["R"] * (pad - pad // 2)
+        spans.append((len(cols), len(cols) + len(group)))
+        cols += group
+    rows, band_tops = ["R"], []
+    for m in _split(s, a):
+        for i in range(m):
+            rows += ["D", "R"]
+            if i + 1 == max(1, m // 2):
+                band_tops.append(len(rows))
+                rows += ["F"] * h + ["R"]
+    arch = _grid(rows, cols)
+    width = len(cols)
+
+    ports, blocked = [], []
+    for i, j in _mesh_slots(a, b, n_fact):
+        lo, hi = spans[j]
+        c0 = lo + (hi - lo - w) // 2
+        port = _pos(band_tops[i], c0 + w // 2, width)
+        ports.append(port)
+        blocked += [t for t in _block(band_tops[i], c0, h, w, width) if t != port]
+    arch.update(magic_states=sorted(ports), blocked=sorted(blocked), blocked_top=[])
+    acct = _factory_acct(design, n_fact, lower=n_fact * w * h)
+    acct.update(mesh_a=a, mesh_b=b)
     return arch, acct
 
 
 def _d2_cultivation_plane(design, n):
     if design.knob == "wide":
-        rows, width, data_cols = _square_sparse_rows(n)
-        seq = ["R"] + ["P", "D", "R"] * len(data_cols)
-        arch = _grid_from_rows(seq, width, data_cols)
-        patches = [_pos(r, c, width) for r, kind in enumerate(seq) if kind == "P"
-                   for c in data_cols]
+        _, cols, s = _square_sparse_kinds(n)
+        rows = ["R"] + ["P", "D", "R"] * s
+        arch = _grid(rows, cols)
+        patches = [_pos(r, c, len(cols)) for r, rk in enumerate(rows) if rk == "P"
+                   for c, ck in enumerate(cols) if ck == "D"]
     else:  # tight
         arch = _square_sparse(n)
         patches = _paired_row_positions(arch)
     arch.update(magic_states=sorted(patches), blocked=[], blocked_top=[])
-    acct = dict(n_factories=0, lower_factory_tiles=0, top_tiles=0, top_factory_tiles=0,
-                outside_factory_tiles=0)
-    return arch, acct
+    return arch, _cult_acct(len(patches))
 
 
 def _d3_cultivation_top(design, n):
@@ -356,9 +528,7 @@ def _d3_cultivation_top(design, n):
         patches = hbm_shared_4_positions(arch)
     arch.update(magic_states=sorted(patches), blocked=[], blocked_top=[])
     top_tiles = width * height if design.top_routing_layer else len(patches)
-    acct = dict(n_factories=0, lower_factory_tiles=0, top_tiles=top_tiles, top_factory_tiles=0,
-                outside_factory_tiles=0)
-    return arch, acct
+    return arch, _cult_acct(len(patches), top_tiles)
 
 
 def _d4_compact_top(design, n):
@@ -369,103 +539,97 @@ def _d4_compact_top(design, n):
         patches += [_pos(1, c, width) for c in range(0, width, 2)]
     arch.update(magic_states=sorted(set(patches)), blocked=[], blocked_top=[])
     top_tiles = width * arch["height"] if design.top_routing_layer else len(arch["magic_states"])
-    acct = dict(n_factories=0, lower_factory_tiles=0, top_tiles=top_tiles, top_factory_tiles=0,
-                outside_factory_tiles=0)
-    return arch, acct
+    return arch, _cult_acct(len(arch["magic_states"]), top_tiles)
 
 
-def _spread(items, k):
-    """k items picked evenly from a list (0 < k <= len(items))."""
-    return [items[int((i + 0.5) * len(items) / k)] for i in range(k)]
+def _spread_starts(length, size, k, spec):
+    """Start offsets of k blocks of `size` spread evenly over `length`, without overlap."""
+    starts = [min(max(0, round((j + 0.5) * length / k - size / 2)), length - size)
+              for j in range(k)]
+    if any(b < a + size for a, b in zip(starts, starts[1:])) or length < size:
+        raise ValueError(f"{spec} does not fit: {k} factories of size {size} in {length} tiles")
+    return starts
 
 
-def _d5_factories_top(design, n):
+def _d5_factories_top(design, n, n_fact):
+    """The D1 mesh on the top layer: one factory per sub-region, spread evenly.
+
+    A factory necessarily covers the top tiles above some data qubits, so T gates use the
+    two-layer graph (routing TOP_3D_T): in-plane to any free vertical link, then up. The run
+    fails here if the factories do not fit on the top layer.
+    """
     arch = _square_sparse(n)
     width, height = arch["width"], arch["height"]
-    f = design.factory_tiles
-    n_fact = math.ceil(n / design.sharing)
+    s = math.ceil(math.sqrt(n))
+    w, h = design.factory_w, design.factory_h
+    try:
+        a, b = _mesh_shape(n_fact, s)
+    except ValueError as e:
+        raise ValueError(f"{design.spec} does not fit: {e}") from e
+    xs = _spread_starts(width, w, b, design.spec)
+    ys = _spread_starts(height, h, a, design.spec)
 
-    # In a square sparse grid the odd columns hold the data qubits and their vertical
-    # neighbours. On the top layer those tiles stay free, so every qubit can go up and route.
-    # Factories therefore sit in the even columns as vertical strips of f tiles, with at
-    # least one free tile between strips in the same column so routing can cross it. The
-    # port (output tile) is the strip's top tile; its horizontal neighbours are free.
-    stripes = list(range(0, width, 2))
-    per_stripe = (height + 1) // (f + 1)
-    if n_fact > per_stripe * len(stripes):
-        raise ValueError(
-            f"{design.spec} does not fit: {n_fact} factories of {f} tiles need more room than "
-            f"the top layer's {len(stripes)} free columns of {height} tiles (N={n}, "
-            f"d={design.d}). Use a larger sharing ratio or a smaller factory.")
-    base, extra = divmod(n_fact, len(stripes))
-    counts = {c: base for c in stripes}
-    for c in (_spread(stripes, extra) if extra else []):
-        counts[c] += 1
-
-    ports, blocked_top = [], []
-    for c, k in counts.items():
-        if k == 0:
-            continue
-        # k <= per_stripe guarantees consecutive starts are at least f + 1 apart.
-        starts = ([int(j * (height - f) / (k - 1)) for j in range(k)] if k > 1
-                  else [(height - f) // 2])
-        for start in starts:
-            ports.append(_pos(start, c, width))
-            blocked_top.extend(_pos(r, c, width) for r in range(start + 1, start + f))
-
-    # The free top tiles must stay connected: every data qubit's top tile and every port.
-    taken = set(ports) | set(blocked_top)
-    first = arch["alg_qubits"][0]
-    seen, stack = {first}, [first]
-    while stack:
-        p = stack.pop()
-        for nb in _neighbors(p, width, height):
-            if nb not in taken and nb not in seen:
-                seen.add(nb)
-                stack.append(nb)
-    if not (all(q in seen for q in arch["alg_qubits"])
-            and all(any(nb in seen for nb in _neighbors(p, width, height)) for p in ports)):
-        raise ValueError(f"{design.spec}: factories cut the top layer apart (N={n}, "
-                         f"d={design.d}). Use a larger sharing ratio or a smaller factory.")
-
-    arch.update(magic_states=sorted(ports), blocked=[], blocked_top=sorted(blocked_top))
-    acct = dict(n_factories=n_fact, lower_factory_tiles=0, top_tiles=width * height,
-                top_factory_tiles=n_fact * f, outside_factory_tiles=0)
+    blocks = [(ys[i], xs[j]) for i, j in _mesh_slots(a, b, n_fact)]
+    taken = {t for top, left in blocks for t in _block(top, left, h, w, width)}
+    ports, blocked = [], []
+    for top, left in blocks:
+        # Port: the middle tile of an edge (top, bottom, left, right) whose outside neighbour
+        # is free, so the port can be reached.
+        candidates = [((top, left + w // 2), (top - 1, left + w // 2)),
+                      ((top + h - 1, left + w // 2), (top + h, left + w // 2)),
+                      ((top + h // 2, left), (top + h // 2, left - 1)),
+                      ((top + h // 2, left + w - 1), (top + h // 2, left + w))]
+        port = None
+        for (pr, pc), (orow, ocol) in candidates:
+            if 0 <= orow < height and 0 <= ocol < width and _pos(orow, ocol, width) not in taken:
+                port = _pos(pr, pc, width)
+                break
+        if port is None:
+            raise ValueError(f"{design.spec} does not fit: factory at ({top}, {left}) has no "
+                             f"free side for its port (N={n}, d={design.d})")
+        ports.append(port)
+        blocked += [t for t in _block(top, left, h, w, width) if t != port]
+    arch.update(magic_states=sorted(ports), blocked=[], blocked_top=sorted(blocked))
+    acct = _factory_acct(design, n_fact, top=n_fact * w * h, top_tiles=width * height)
+    acct.update(mesh_a=a, mesh_b=b)
     return arch, acct
 
 
-BUILDERS = {
-    "D0": _d0_edge,
-    "D1": _d1_inside,
-    "D2": _d2_cultivation_plane,
-    "D3": _d3_cultivation_top,
-    "D4": _d4_compact_top,
-    "D5": _d5_factories_top,
-}
-
-
-def build_arch(design, n_qubits):
+def build_arch(design, n_qubits, gates=None):
     """Build the architecture dict for a design.
 
-    Keys: height, width, alg_qubits, magic_states (source tiles: lower-plane positions for
-    plane designs, top-layer positions for top designs), blocked (lower tiles occupied by
-    factories), blocked_top (top tiles occupied by factories), design (accounting).
+    gates (list of qubit tuples) is needed for X<m> factory counts. Keys: height, width,
+    alg_qubits, magic_states (source tiles: lower-plane positions for plane designs,
+    top-layer positions for top designs), blocked (lower tiles occupied by factories),
+    blocked_top (top tiles occupied by factories), design (parameters and accounting).
     """
-    arch, acct = BUILDERS[design.family](design, n_qubits)
+    lam = f_star = None
+    if design.source == "factory":
+        n_fact, lam, f_star = factory_count(design, n_qubits, gates)
+        builder = {"D0": _d0_edge, "D5": _d5_factories_top}.get(design.family)
+        if design.family == "D1":
+            builder = _d1_mesh if design.variant == "mesh" else _d1_band
+        arch, acct = builder(design, n_qubits, n_fact)
+    else:
+        builder = {"D2": _d2_cultivation_plane, "D3": _d3_cultivation_top,
+                   "D4": _d4_compact_top}[design.family]
+        arch, acct = builder(design, n_qubits)
     if not arch["magic_states"]:
         raise ValueError(f"{design.spec}: no magic-state sources for N={n_qubits}")
-    lower_tiles = arch["width"] * arch["height"]
     arch["design"] = dict(
         spec=design.spec, family=design.family, knob=design.knob, flags=sorted(design.flags),
-        layout=design.layout, placement=design.placement, source=design.source,
-        routing=design.routing, allow_direct=design.allow_direct,
+        variant=design.variant, layout=design.layout, placement=design.placement,
+        source=design.source, routing=design.routing, allow_direct=design.allow_direct,
         allow_route=design.allow_route, top_routing_layer=design.top_routing_layer,
         d=design.d, recharge_rounds=design.recharge_rounds,
-        recharge_steps=design.recharge_steps, factory_qubits=design.factory_qubits,
-        factory_rounds=design.factory_rounds, factory_tiles=design.factory_tiles,
-        cult_rounds=design.cult_rounds, tile_qubits=design.tile_qubits,
+        recharge_steps=design.recharge_steps, cult_rounds=design.cult_rounds,
+        factory_qubits=design.factory_qubits, factory_rounds=design.factory_rounds,
+        factory_sites=list(design.factory_sites), factory_w=design.factory_w,
+        factory_h=design.factory_h, factory_tiles=design.factory_tiles,
+        tile_qubits=design.tile_qubits, count_mode=design.count_mode,
+        count_value=design.count_value, demand_lambda=lam, f_star=f_star,
         n_logical=n_qubits, n_sources=len(arch["magic_states"]),
-        lower_tiles=lower_tiles, **acct,
+        lower_tiles=arch["width"] * arch["height"], **acct,
     )
     return arch
 

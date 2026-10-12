@@ -131,7 +131,7 @@ def map_and_route(
         expected = "compact_layout" if design.layout == "compact" else "square_sparse_layout"
         if arch_name != expected:
             print(f"note: {design.spec} uses {expected}; ignoring -arch {arch_name}")
-        arch = build_arch(design, total_qubits)
+        arch = build_arch(design, total_qubits, gates=gates)  # gates size X<m> factory counts
         if visualize is not None:
             print(f"saving visualization of arch at {visualize}")
             visualize_architecture(arch, visualize)
