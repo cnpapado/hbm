@@ -7,7 +7,8 @@
 #
 # It (1) runs the design unit tests, (2) draws every design for N=16 into
 # test/revision/smoke/figs, (3) routes bench_n16_p50 with every design (10 min cap each),
-# and (4) runs the analysis on the outputs. Check the figures and the printed table.
+# (4) runs the analysis on the outputs, and (5) adds the Litinski PPM baseline (pair P4).
+# Check the figures and the printed table.
 
 set -uo pipefail
 cd "$(dirname "$0")/../.."  # -> repo root
@@ -47,5 +48,9 @@ done
 
 echo "== 4. analysis"
 python scripts/revision/analyze.py "$OUT" --csv "$OUT/smoke.csv"
-python scripts/revision/compare.py "$OUT/smoke.csv" --prefix "$OUT/smoke"
-echo "done: inspect $OUT/figs/*.png, $OUT/smoke.csv, $OUT/smoke_pairs.png"
+
+echo "== 5. PPM baseline (formula, no routing)"
+python scripts/revision/ppm_baseline.py "$BENCH" --rounds "$HBM_CULT_ROUNDS" --csv "$OUT/ppm.csv"
+python scripts/revision/compare.py "$OUT/smoke.csv" "$OUT/ppm.csv" --prefix "$OUT/smoke" \
+    --R "$HBM_CULT_ROUNDS"
+echo "done: inspect $OUT/figs/*.png, $OUT/smoke.csv, $OUT/smoke_pairs.png, $OUT/smoke_ppm.png"

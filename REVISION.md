@@ -17,6 +17,7 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 | #3 | `D3-k1`, `D3-khalf`, `D3-k2`, `D3-kquarter` | cultivation patches on top of square sparse (k = patches per qubit) | proposed |
 | #4 | `D4-k1`, `D4-k1p5` | compact plane + cultivation patches on top | proposed |
 | #5 | `D5-<count>` | factories on top: the D1 mesh on the top layer | proposed |
+| PPM | `PPM-<block>` (`ppm_baseline.py`) | Litinski Pauli-product measurements: one data block, cultivation patches at its ancilla region, T gates one at a time (see below) | baseline |
 
 **Factory count `<count>`:**
 - `X<m>`: `ceil(m·F*)` factories, where F\* is the break-even count for the circuit's T demand.
@@ -30,10 +31,11 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 - `-route` (D3/D4): add a full routing top layer, counted in qubits.
 - `-3d` (D5): CNOTs may also use the top layer.
 
-**The three comparisons** (`scripts/revision/compare.py`):
+**The four comparisons** (`scripts/revision/compare.py`):
 - **P1, cultivation:** D2 vs D3. What the top layer buys for cultivation.
 - **P2, factories:** best of D0/D1 vs D5. What it buys for factories.
 - **P3, packing:** D2 vs D4. Whether the top layer lets the data plane be compact.
+- **P4, PPM:** best PPM block vs best of D3/D4. Whether a different compilation model (PPM) makes the top layer unnecessary.
 
 ## Parameters and their sources (p = 10⁻³)
 
@@ -78,7 +80,9 @@ plane? Each comparison keeps the source the same and changes only where it sits.
   - pairs each cultivation run with its grade (`--cult-grades`, default `60:3e-6:454,360:2e-9:463`);
   - flags `rerun_needed` when d_req changes the recharge steps or factory size used in the simulation.
 - `make_reruns.py rev.csv > revision/reruns.sh` (run from `test/`): writes sbatch arrays that rerun flagged rows at their d_req.
-- `compare.py rev.csv --prefix rev`: best setting per design family, the three pair ratios vs T density (`rev_pairs.csv`, `rev_pairs.png`), and the win fraction per T-density tercile (`rev_regimes.csv`). It prefers runs simulated at their own d_req and marks pairs that still use a mismatched run as `provisional`.
+- `compare.py rev.csv [ppm.csv] --prefix rev --R 60`: best setting per design family, the pair ratios (`rev_pairs.csv`, `rev_pairs.png`), and the win fraction per tercile (`rev_regimes.csv`). P1–P3 use T density as the x-axis; P4 uses T gates per ideal step. With `ppm.csv` it also writes `rev_ppm.png` (P4 split into STV, runtime and qubit ratios). It prefers runs simulated at their own d_req and marks pairs that still use a mismatched run as `provisional`. A pair is skipped where one side was not run (as opposed to run but infeasible).
+- `ppm_baseline.py BENCH_DIR --csv ppm.csv`: the PPM rows (below).
+- `ppm_qre.py FILES --csv ppm_qre.csv`: cross-checks the PPM fast block against the Microsoft resource estimator.
 - `draw_design.py SPEC N out.png [circuit.qasm]`: draws both layers of a design. `X<m>` counts need the circuit.
 
 ## How to run (on the server)
@@ -88,12 +92,60 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 3. **Core:** `submit_revision.sh core` runs all designs on all synthetic circuits.
 4. **Full:** `submit_revision.sh full` adds the JKU suite and the `-borrow` / `-route` / `-3d` variants.
 5. **Reruns:** `cd test && python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh`, then rerun `analyze.py` + `compare.py`.
+6. **PPM (P4):** seconds, no Slurm. `python scripts/revision/ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv`, then `python scripts/revision/compare.py rev.csv ppm.csv --prefix rev`. Cross-check once: `pip install qsharp && python scripts/revision/ppm_qre.py test/benchmarks_bursty_cx`. Every row must print `match`.
 
 ## Not implemented here
 
 - **Cross-layer merge in Stim (E5):** the real seam circuit, with noise only on the vertical CNOTs. Until then, `analyze.py` uses the Stim thresholds above.
-- **Litinski Pauli-product-measurement baseline:** it's a formula, not a simulation.
+- **Routed PPM:** PPM is a formula (Litinski's own cost model), not a routing simulation. No open-source lattice-surgery compiler routes multi-qubit Pauli-product measurements: liblsqecc (Watkins et al., Quantum 2024), the obvious candidate, rejects them (`dense_patch_computation.cpp`: "Multi patch measurement only supports 2 patches currently"), and its QASM front end compiles gate by gate. The formula gives PPM the benefit of the doubt (below).
 - **qLDPC comparison:** Tour de gross runs live outside this repo, in `~/qldpc-eval`.
+
+## PPM baseline (reviewer 2's PPM comment)
+
+**What it is.** Litinski, *A Game of Surface Codes* (GoSC, Quantum 3, 128, 2019):
+- The Litinski transformation commutes all Cliffords to the end. Every T gate becomes a π/8 rotation about a multi-qubit Pauli product, done by one Pauli-product measurement plus one magic state.
+- GoSC p. 4: "A data block combined with a distillation block constitutes a quantum computer in which T gates are performed one after the other". So runtime = T count × steps per rotation (GoSC Sec. 4: "a time proportional to the T count", p. 18).
+
+**Data blocks** (GoSC Sec. 2 summary, p. 9). One step (GoSC's ⏲) = d code cycles, the same as one HBMS step.
+
+| Block | Tiles | Steps per T |
+|---|---|---|
+| compact | 1.5n + 3 | ≤ 9 |
+| intermediate | 2n + 4 (Fig. 13 caption: 2.5n + 4) | ≤ 5 |
+| fast | 2n + ⌈√(8n)⌉ + 1 | 1 |
+
+**Sources.** The same cultivation grades and recharge rule as D2–D4: one state per 1 + ⌈R/d⌉ steps per patch.
+- Full supply = ⌈(1 + ⌈R/d⌉) / steps per T⌉ patches, so the block never waits.
+- `--source-fracs` also tries ½ and ¼ of that. The block then waits, which mirrors the D3 k sweep.
+
+**Units (GoSC Sec. 5).** Parallel T layers are modelled only as a lower bound on the fast block: u copies, steps = max(T depth, ⌈T/u⌉), u = 1, 2, 4.
+- Ignored: the doubled data, the Bell pairs and the correction-qubit storage.
+- So their STV never drops below the sequential fast block's. GoSC p. 24 agrees: "going from the fast setup to parallelized units is, initially, not a favorable space-time trade-off".
+
+**Benefit of the doubt for PPM:**
+- no tiles for wiring the patches to the ancilla region;
+- no error charged for ancilla-region merges;
+- worst case ("up to") only on the compact and intermediate blocks;
+- compare.py picks the best PPM row per benchmark.
+
+**Independent check.** `ppm_qre.py` feeds the same counts to the Microsoft Azure Quantum Resource Estimator. Its layout is the GoSC fast block run sequentially: microsoft/qsharp `logical_counts.rs`, logical qubits = 2n + ⌈√(8n)⌉ + 1, depth = T count + rotations + measurements. Logical qubits and depth must equal our fast-block row.
+
+**What to expect (back-of-envelope, d = 13, 2d² = 338 qubits per tile).**
+- *Time.* PPM takes T count steps. HBMS takes c × ideal depth steps (c = cost ratio). So runtime ratio PPM/HBMS ≈ λ / c, with λ = T count / ideal depth = T gates per ideal step.
+- *Space.* D3-k1 uses ≈ (2√n+1)² tiles + n patches. PPM-fast uses ≈ 2n + √(8n) + 1 tiles + a few patches. Ratio ≈ 2 (n = 16) to 2.4 (n = 100).
+- *Result.* The top layer should win STV when λ ≳ 2–2.5·c, and PPM when λ is lower. P4's x-axis is λ for this reason. These are predictions; the runs decide.
+
+**Paper text (draft, Sec. on baselines + discussion).**
+
+> *Pauli-product measurements.* Litinski's Pauli-based compilation [GoSC] removes Clifford gates and runs each T gate as one multi-qubit Pauli-product measurement on a data block. It consumes magic states one after the other (GoSC p. 4). It therefore needs only one magic state per step, which a few sources on the data block's boundary supply. Its runtime is the T count, not the circuit depth.
+>
+> The vertical layer targets the opposite regime. Lattice-surgery execution keeps the circuit's parallelism and consumes up to λ = T count / depth magic states per step, which a 2D perimeter cannot supply when λ ≫ 1.
+>
+> We compare both on the same circuits, sources (cultivation, same grades and recharge) and error model. PPM uses its best data block (compact, intermediate or fast). Its source wiring and ancilla merges are free. Fig. X shows the space-time volume ratio against λ:
+> - PPM wins for circuits with λ ≲ [measured];
+> - the vertical layer wins above it, by up to [measured]×.
+>
+> GoSC's time-optimal units (Sec. 5) recover T-depth runtime, but only by replicating the fast block. They do not lower space-time volume (GoSC p. 24), so the crossover in volume stands; in runtime, units need [measured]× more qubits to match the vertical layer.
 
 ## Modelling assumptions to state in the paper
 
