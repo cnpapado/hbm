@@ -92,7 +92,7 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 3. **Core:** `submit_revision.sh core` runs all designs on all synthetic circuits.
 4. **Full:** `submit_revision.sh full` adds the JKU suite and the `-borrow` / `-route` / `-3d` variants.
 5. **Reruns:** `cd test && python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh`, then rerun `analyze.py` + `compare.py`.
-6. **PPM (P4):** seconds, no Slurm. `python scripts/revision/ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv`, then `python scripts/revision/compare.py rev.csv ppm.csv --prefix rev`. Cross-check once: `python scripts/revision/ppm_qre.py test/benchmarks_bursty_cx` on a laptop (needs `pip install "qsharp>=1.0"`, whose Linux wheels need glibc ≥ 2.31; on the cluster pip falls back to the broken legacy IQ# package). Every row must print `match`.
+6. **PPM (P4):** seconds, no Slurm. `python scripts/revision/ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv`, then `python scripts/revision/compare.py rev.csv ppm.csv --prefix rev`. Cross-check once: `module load apptainer && bash test/revision/run_qre.sh`. It runs `ppm_qre.py` in a container, because `qsharp>=1.0` needs glibc ≥ 2.31 and on the cluster pip falls back to the broken legacy IQ# package. Every row must print `match`.
 
 ## Not implemented here
 

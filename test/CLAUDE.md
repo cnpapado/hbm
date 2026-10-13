@@ -74,7 +74,7 @@ lives at `~/hbm` on the cluster and that a venv exists at `~/hbm/.venv`.
 
 `revision/run_design.sh` (one benchmark x one `HBM_DESIGN` spec per array task),
 `revision/submit_revision.sh pilot|core|full [--dry-run]` (builds benchmark lists in
-`revision/lists/`, submits), and `revision/smoke_test.sh` (non-Slurm end-to-end check).
+`revision/lists/`, submits), and `revision/smoke_test.sh` (non-Slurm end-to-end check), and `revision/run_qre.sh` (PPM cross-check against the Microsoft resource estimator, inside an Apptainer container).
 Outputs go to `outs_rev/<suite>/` and `results_rev/<suite>/`, logs to `logs_rev/`. See
 `../REVISION.md`.
 
