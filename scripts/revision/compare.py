@@ -20,6 +20,7 @@ Outputs: <prefix>_pairs.csv, <prefix>_regimes.csv, <prefix>_pairs.png and <prefi
 Usage:
   python compare.py rev.csv --prefix rev --R 60
   python compare.py rev.csv ppm.csv --prefix rev --R 60     # with the PPM rows
+  python compare.py rev.csv ppm.csv --prefix rev --rows     # also print every pair row
 """
 
 import argparse
@@ -100,6 +101,9 @@ def pair_rows(rows):
                     proposed=p["spec"] if p else "infeasible",
                     baseline_STV=b["STV"] if b else math.nan,
                     proposed_STV=p["STV"] if p else math.nan,
+                    baseline_d=b["d_req"] if b else "", proposed_d=p["d_req"] if p else "",
+                    baseline_steps=b["steps"] if b else math.nan,
+                    proposed_steps=p["steps"] if p else math.nan,
                     ratio=(b["STV"] / p["STV"]) if b and p else (math.inf if p else 0.0),
                     qubit_ratio=(b["Q"] / p["Q"]) if b and p else math.nan,
                     time_ratio=(b["rounds"] / p["rounds"]) if b and p else math.nan,
@@ -214,6 +218,7 @@ def main():
     ap.add_argument("csv", nargs="+", help="output of analyze.py (and of ppm_baseline.py)")
     ap.add_argument("--prefix", default="revision")
     ap.add_argument("--R", type=float, default=60, help="cultivation recharge rounds to plot")
+    ap.add_argument("--rows", action="store_true", help="also print every pair row")
     args = ap.parse_args()
 
     pairs = pair_rows([r for path in args.csv for r in load(path)])
@@ -230,6 +235,16 @@ def main():
         print(f"{r['pair'][:2]} p'={r['pprime_mult']:g}p R={r['recharge_rounds']:g} "
               f"{r['x']} {r['x_bin']:>4}: proposed wins {r['proposed_wins']}/{r['n']} "
               f"(median ratio {r['median_ratio']:.2f})")
+    if args.rows:
+        print(f"\n{'':2s} {'bench':16s} {'p_':>3s} {'R':>4s} {'baseline':>18s} {'d':>3s} "
+              f"{'steps':>6s} {'proposed':>18s} {'d':>3s} {'steps':>6s} {'STV':>6s} "
+              f"{'time':>6s} {'qubit':>6s}  (ratios baseline/proposed; * = provisional)")
+        for r in pairs:
+            print(f"{r['pair'][:2]} {r['bench']:16s} {r['pprime_mult']:3g} "
+                  f"{r['recharge_rounds']:4g} {r['baseline']:>18s} {r['baseline_d']:>3s} "
+                  f"{r['baseline_steps']:6.0f} {r['proposed']:>18s} {r['proposed_d']:>3s} "
+                  f"{r['proposed_steps']:6.0f} {r['ratio']:6.2f} {r['time_ratio']:6.2f} "
+                  f"{r['qubit_ratio']:6.2f}{' *' if r['provisional'] else ''}")
 
 
 if __name__ == "__main__":

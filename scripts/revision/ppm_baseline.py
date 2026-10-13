@@ -22,7 +22,9 @@ Litinski, "A Game of Surface Codes" (GoSC; Quantum 3, 128, 2019; arXiv:1808.0289
     We model units only as a lower bound for the fast block: u x (block tiles), u x the
     source rate, steps = max(T depth, ceil(T count / u)). The doubled data, Bell pairs,
     correction qubits and teleportation are ignored, and idling error is charged for the n
-    data qubits only. Its STV is then no lower than the sequential fast block's.
+    data qubits only. At a fixed d this gives the same STV as the sequential fast block (u x
+    the tiles for 1/u of the steps); it can come out lower when the shorter run lets the
+    error target be met at a smaller d.
 
 Magic-state supply uses the same model as the HBMS designs: each source delivers one state
 per (1 + ceil(R/d)) steps. Full supply is ceil(u * (1 + ceil(R/d)) / steps_per_rotation)
