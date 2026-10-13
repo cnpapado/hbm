@@ -12,7 +12,9 @@ next to ours; these two must match. Its code distance and physical qubits are li
 reference only: it splits the error budget differently, charges error per logical cycle
 instead of per round, and makes T states with its own 15-to-1 factories, not cultivation.
 
-Install: pip install qsharp   (newer releases ship the same module as 'qdk')
+Install: pip install "qsharp>=1.0"   (newer releases ship the same module as 'qdk'). Its Linux
+wheels need glibc >= 2.31; on older clusters pip silently installs the legacy IQ# package,
+which fails on import. It needs only the .qasm files and ppm_baseline.py, so run it on a laptop.
 Usage:   python ppm_qre.py test/benchmarks_bursty_cx/bench_n16_p50.qasm [...] --csv ppm_qre.csv
 """
 
@@ -28,7 +30,12 @@ from ppm_baseline import BLOCKS, circuit_stats, read_circuit  # noqa: E402
 try:
     from qdk.estimator import LogicalCounts
 except ImportError:
-    from qsharp.estimator import LogicalCounts
+    try:
+        from qsharp.estimator import LogicalCounts
+    except Exception:  # legacy qsharp 0.x raises IQSharpNotInstalledError on import
+        sys.exit("needs qsharp >= 1.0 (or qdk). pip falls back to the legacy IQ# package on "
+                 "Linux with glibc < 2.31, where no modern wheel installs; run this script on "
+                 "macOS or a newer Linux instead.")
 
 
 def main():
