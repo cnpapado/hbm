@@ -16,3 +16,7 @@ results_rev/
 logs_rev/
 test/revision/lists/
 test/revision/smoke/
+
+# exported Claude Code conversations (never commit)
+/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]-[0-9]*-*.txt
+__pycache__/
