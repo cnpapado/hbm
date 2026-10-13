@@ -14,7 +14,8 @@
 #   DESIGN      design spec, e.g. D3-k1 (see wisq/src/wisq/designs.py)
 #   BENCH_LIST  file with one .qasm path per line (relative to test/)
 #   HBM_D, HBM_CULT_ROUNDS, HBM_FACTORY_ROUNDS, HBM_FACTORY_QUBITS  (optional)
-#   TMR         wisq -tmr in seconds (default 172800 = 48h)
+#   TMR         wisq -tmr in seconds (default 171000 = 47.5 h: wisq must write its timeout
+#               file before Slurm kills the job at 48 h, or the run leaves no trace)
 
 module load python/3.12.10
 source ~/hbm/.venv/bin/activate
@@ -23,7 +24,7 @@ command -v wisq >/dev/null || { echo "ERROR: wisq not on PATH" >&2; exit 1; }
 
 : "${DESIGN:?DESIGN not set}"
 : "${BENCH_LIST:?BENCH_LIST not set}"
-TMR="${TMR:-172800}"
+TMR="${TMR:-171000}"
 export HBM_DESIGN="$DESIGN"
 export HBM_D="${HBM_D:-13}"
 export HBM_CULT_ROUNDS="${HBM_CULT_ROUNDS:-60}"
