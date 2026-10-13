@@ -50,6 +50,16 @@ SUITE="$(basename "$BENCH_LIST" .txt)"
 mkdir -p "outs_rev/$SUITE" "results_rev/$SUITE"
 output_file="outs_rev/$SUITE/${base}__${TAG}.out"
 
+# Skip runs that already finished in any suite (the phases overlap); retry timeouts.
+for f in outs_rev/*/"${base}__${TAG}.out"; do
+    if [ -f "$f" ] && python3 -c 'import json, sys
+sys.exit(0 if isinstance(json.load(open(sys.argv[1])).get("steps"), list) else 1)' "$f" \
+            2>/dev/null; then
+        echo "Skip $base | $TAG: finished run in $f"
+        exit 0
+    fi
+done
+
 echo "Task $SLURM_ARRAY_TASK_ID | $TAG | $current_file"
 wisq "$current_file" -op "$output_file" --mode scmr -tmr "$TMR"
 

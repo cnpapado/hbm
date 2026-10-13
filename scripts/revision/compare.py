@@ -1,25 +1,28 @@
-"""Compare baselines against the proposed designs from analyze.py's CSV.
+"""Compare the baselines against HBM (cultivation on top) by space-time volume.
 
-For each benchmark, vertical-noise multiplier p' and source setting (recharge rounds), every
-design family is reported at its best knob (lowest STV among feasible, finished runs).
-Four pairs, each isolating what the top layer buys:
+Three pairs, all with HBM = D3 (cultivation patches on the top layer):
 
-  P1  cultivation: D2 (next door)            vs D3 (on top)
-  P2  factories:   best of D0/D1 (in-plane)  vs D5 (on top)
-  P3  packing:     D2 (next door)            vs D4 (compact + on top)
-  P4  PPM:         Litinski PPM (ppm_baseline.py) vs best of D3/D4 (on top)
+  P1  DASCOT + cultivation (D2, patches in the data plane)        vs HBM
+  P2  DASCOT + factories   (D0, factories around the data block)  vs HBM
+  P3  Litinski PPM (ppm_baseline.py, cultivation patches)          vs HBM
 
-ratio = STV(baseline) / STV(proposed): > 1 means the proposed design wins.
-P1-P3 are plotted against T density (T per qubit per ideal step); P4 against T gates per
-ideal step (lambda = T count / ideal depth), because PPM runs one T gate per step and
-HBMS runs one ideal step per step, so lambda is their time ratio before stalls.
+ratio = STV(baseline) / STV(HBM): > 1 means HBM wins. STV is the only metric.
 
-Outputs: <prefix>_pairs.csv, <prefix>_regimes.csv, <prefix>_pairs.png and <prefix>_ppm.png
-(P4 split into STV, time and qubit ratios).
+Knobs. Each family is reported at its best knob (lowest STV among feasible, finished runs):
+D2 layout (wide/tight), D3 k, D0 factory count, PPM block. The cultivation recharge time R
+is a knob too: every pair is reported at each R that was run (both sides at the same R,
+D0 at its own factory period) and at R = "best", where each side picks its best R. "best"
+matters when the low-fidelity grade (R = 60, 3e-6) is infeasible for a circuit's T count.
+
+P1 and P2 are plotted against T density (T per qubit per ideal step); P3 against T gates
+per ideal step (lambda = T count / ideal depth), because PPM runs one T gate per step and
+HBM one ideal step per step, so lambda is their time ratio before stalls.
+
+Outputs: <prefix>_pairs.csv, <prefix>_regimes.csv and <prefix>_pairs.png (at --R).
 
 Usage:
-  python compare.py rev.csv --prefix rev --R 60
-  python compare.py rev.csv ppm.csv --prefix rev --R 60     # with the PPM rows
+  python compare.py rev.csv ppm.csv --prefix rev            # plot at R = best
+  python compare.py rev.csv ppm.csv --prefix rev --R 60     # plot at R = 60
   python compare.py rev.csv ppm.csv --prefix rev --rows     # also print every pair row
 """
 
@@ -28,22 +31,22 @@ import csv
 import math
 from collections import defaultdict
 
-PAIRS = [  # (name, baseline families, proposed families, x variable)
-    ("P1 cultivation: next door vs on top", ("D2",), ("D3",), "t_density"),
-    ("P2 factories: in-plane vs on top", ("D0", "D1"), ("D5",), "t_density"),
-    ("P3 packing: next door vs compact + on top", ("D2",), ("D4",), "t_density"),
-    ("P4 Pauli-product measurements vs on top", ("PPM",), ("D3", "D4"), "t_per_step"),
+PAIRS = [  # (name, baseline families, HBM families, x variable)
+    ("P1 DASCOT + cultivation vs HBM", ("D2",), ("D3",), "t_density"),
+    ("P2 DASCOT + factories vs HBM", ("D0",), ("D3",), "t_density"),
+    ("P3 PPM vs HBM", ("PPM",), ("D3",), "t_per_step"),
 ]
 X_LABEL = {"t_density": "T density (T per qubit per ideal step)",
            "t_per_step": "T gates per ideal step (T count / ideal depth)"}
+BEST = "best"
 
 
 def load(path):
     with open(path) as f:
         rows = list(csv.DictReader(f))
     for r in rows:
-        for k in ("STV", "Q", "rounds", "t_density", "pprime_mult", "recharge_rounds", "steps",
-                  "n_t", "ideal_depth"):
+        for k in ("STV", "t_density", "pprime_mult", "recharge_rounds", "steps", "n_t",
+                  "ideal_depth"):
             try:
                 r[k] = float(r[k])
             except (KeyError, TypeError, ValueError):
@@ -53,8 +56,14 @@ def load(path):
     return rows
 
 
+def slots(r):
+    """Recharge settings a row competes in: its own R and "best" for cultivation rows, the
+    single factory setting (None) for factory rows."""
+    return (r["recharge_rounds"], BEST) if r["source"] == "cultivation" else (None,)
+
+
 def best_by_family(rows):
-    """(bench, pprime, source, recharge_rounds, family) -> best feasible row.
+    """(bench, pprime, family, R slot) -> best feasible row.
 
     Rows simulated at their own d_req are preferred; a row whose simulation d differs from
     its d_req (rerun_needed) is used only when no consistent row exists for that key.
@@ -63,65 +72,78 @@ def best_by_family(rows):
     for r in rows:
         if r.get("status") != "ok" or not r["feasible"] or math.isnan(r["STV"]):
             continue
-        key = (r["bench"], r["pprime_mult"], r["source"], r["recharge_rounds"], r["family"])
         rank = (r["rerun_needed"], r["STV"])
-        if key not in best or rank < (best[key]["rerun_needed"], best[key]["STV"]):
-            best[key] = r
+        for slot in slots(r):
+            key = (r["bench"], r["pprime_mult"], r["family"], slot)
+            if key not in best or rank < (best[key]["rerun_needed"], best[key]["STV"]):
+                best[key] = r
     return best
+
+
+def r_label(R):
+    return R if R == BEST else f"{R:g}"
+
+
+def r_order(label):
+    return (1, 0) if label == BEST else (0, float(label))
 
 
 def pair_rows(rows):
     best = best_by_family(rows)
-    benches = sorted({r["bench"] for r in rows if r.get("status") == "ok"})
-    settings = sorted({(r["pprime_mult"], r["source"], r["recharge_rounds"]) for r in rows
-                       if r.get("status") == "ok"})
-    ran = {(r["bench"], r["pprime_mult"], r["source"], r["recharge_rounds"], r["family"])
-           for r in rows if r.get("status") == "ok"}
+    ok = [r for r in rows if r.get("status") == "ok"]
+    factory = {r["family"] for r in ok if r["source"] == "factory"}
+    ran = {(r["bench"], r["pprime_mult"], r["family"], s) for r in ok for s in slots(r)}
+    benches = sorted({r["bench"] for r in ok})
+    pps = sorted({r["pprime_mult"] for r in ok})
+    Rs = sorted({r["recharge_rounds"] for r in ok if r["source"] == "cultivation"}) + [BEST]
     out = []
-    for name, base_fams, prop_fams, _ in PAIRS:
+    for name, base_fams, hbm_fams, _ in PAIRS:
         for bench in benches:
-            for pp, source, rr in settings:
-                keys = lambda fams: [(bench, pp, source, rr, f) for f in fams]  # noqa: E731
-                if not any(k in ran for k in keys(base_fams)) or not any(
-                        k in ran for k in keys(prop_fams)):
-                    continue  # one side was not run here: no pair (unlike "infeasible")
-                pick = lambda fams: min(  # noqa: E731
-                    (best[k] for k in keys(fams) if k in best),
-                    key=lambda r: r["STV"], default=None)
-                b, p = pick(base_fams), pick(prop_fams)
-                if b is None and p is None:
-                    continue
-                ref = p or b
-                out.append(dict(
-                    pair=name, bench=bench, pprime_mult=pp, source=source,
-                    recharge_rounds=rr, N=ref["N"], t_density=ref["t_density"],
-                    t_per_step=(ref["n_t"] / ref["ideal_depth"] if ref["ideal_depth"] > 0
-                                else math.nan),
-                    baseline=b["spec"] if b else "infeasible",
-                    proposed=p["spec"] if p else "infeasible",
-                    baseline_STV=b["STV"] if b else math.nan,
-                    proposed_STV=p["STV"] if p else math.nan,
-                    baseline_d=b["d_req"] if b else "", proposed_d=p["d_req"] if p else "",
-                    baseline_steps=b["steps"] if b else math.nan,
-                    proposed_steps=p["steps"] if p else math.nan,
-                    ratio=(b["STV"] / p["STV"]) if b and p else (math.inf if p else 0.0),
-                    qubit_ratio=(b["Q"] / p["Q"]) if b and p else math.nan,
-                    time_ratio=(b["rounds"] / p["rounds"]) if b and p else math.nan,
-                    provisional=any(x is not None and x["rerun_needed"] for x in (b, p)),
-                ))
+            for pp in pps:
+                for R in Rs:
+                    keys = lambda fams: [  # noqa: E731
+                        (bench, pp, f, None if f in factory else R) for f in fams]
+                    if not any(k in ran for k in keys(base_fams)) or not any(
+                            k in ran for k in keys(hbm_fams)):
+                        continue  # one side was not run here: no pair (unlike "infeasible")
+                    pick = lambda fams: min(  # noqa: E731
+                        (best[k] for k in keys(fams) if k in best),
+                        key=lambda r: r["STV"], default=None)
+                    b, p = pick(base_fams), pick(hbm_fams)
+                    if b is None and p is None:
+                        continue
+                    ref = p or b
+                    side = lambda r, k: r[k] if r else ""  # noqa: E731
+                    out.append(dict(
+                        pair=name, bench=bench, pprime_mult=pp, recharge_rounds=r_label(R),
+                        N=ref["N"], t_density=ref["t_density"],
+                        t_per_step=(ref["n_t"] / ref["ideal_depth"] if ref["ideal_depth"] > 0
+                                    else math.nan),
+                        baseline=b["spec"] if b else "infeasible",
+                        baseline_source=side(b, "source"),
+                        baseline_R=side(b, "recharge_rounds"), baseline_d=side(b, "d_req"),
+                        baseline_steps=side(b, "steps"),
+                        baseline_STV=b["STV"] if b else math.nan,
+                        hbm=p["spec"] if p else "infeasible",
+                        hbm_R=side(p, "recharge_rounds"), hbm_d=side(p, "d_req"),
+                        hbm_steps=side(p, "steps"),
+                        hbm_STV=p["STV"] if p else math.nan,
+                        ratio=(b["STV"] / p["STV"]) if b and p else (math.inf if p else 0.0),
+                        provisional=any(x is not None and x["rerun_needed"] for x in (b, p)),
+                    ))
     return out
 
 
 def regimes(pairs, n_bins=3):
-    """Fraction of benchmarks where the proposed design wins, per tercile of the pair's x."""
+    """Fraction of benchmarks where HBM wins, per tercile of the pair's x."""
     out = []
     xkey = {name: x for name, _, _, x in PAIRS}
     by = defaultdict(list)
     for r in pairs:
         by[(r["pair"], r["pprime_mult"], r["recharge_rounds"])].append(r)
-    for (pair, pp, rr), rs in sorted(by.items()):
+    for (pair, pp, R) in sorted(by, key=lambda k: (k[0], k[1], r_order(k[2]))):
         x = xkey[pair]
-        rs = [r for r in rs if not math.isnan(r[x])]
+        rs = [r for r in by[(pair, pp, R)] if not math.isnan(r[x])]
         if not rs:
             continue
         dens = sorted(r[x] for r in rs)
@@ -134,9 +156,9 @@ def regimes(pairs, n_bins=3):
                 continue
             wins = sum(r["ratio"] > 1 for r in sel)
             ratios = sorted(r["ratio"] for r in sel if math.isfinite(r["ratio"]) and r["ratio"] > 0)
-            out.append(dict(pair=pair, pprime_mult=pp, recharge_rounds=rr, x=x,
+            out.append(dict(pair=pair, pprime_mult=pp, recharge_rounds=R, x=x,
                             x_bin=["low", "mid", "high"][i] if n_bins == 3 else i,
-                            n=len(sel), proposed_wins=wins, win_fraction=wins / len(sel),
+                            n=len(sel), hbm_wins=wins, win_fraction=wins / len(sel),
                             median_ratio=ratios[len(ratios) // 2] if ratios else math.nan))
     return out
 
@@ -154,24 +176,6 @@ def write_csv(path, rows):
 COLORS = {1.0: "#2a78d6", 5.0: "#eb6834", 10.0: "#1baf7a"}  # fixed categorical order
 
 
-def _scatter(ax, sel, x, y):
-    for pp in sorted({r["pprime_mult"] for r in sel}):
-        pts = [r for r in sel if r["pprime_mult"] == pp and math.isfinite(r[y]) and r[y] > 0]
-        ax.scatter([r[x] for r in pts], [r[y] for r in pts], s=30,
-                   color=COLORS.get(pp, "#6d6d6d"), edgecolor="white", linewidth=1,
-                   label=f"p' = {pp:g}p", zorder=3)
-    ax.axhline(1, color="#52514e", lw=1, ls="--", zorder=2)
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    ax.set_xlabel(X_LABEL[x])
-    ax.grid(True, color="#e6e5e1", lw=0.8)
-
-
-def _at_R(pairs, name, R):
-    return [r for r in pairs if r["pair"] == name and math.isfinite(r["ratio"]) and r["ratio"] > 0
-            and (r["source"] == "factory" or r["recharge_rounds"] == R)]
-
-
 def plot(pairs, path, R):
     import matplotlib.pyplot as plt
 
@@ -179,72 +183,66 @@ def plot(pairs, path, R):
     fig, axes = plt.subplots(1, len(shown), figsize=(5.2 * len(shown), 4.2), sharey=True,
                              squeeze=False)
     for ax, (name, _, _, x) in zip(axes[0], shown):
-        _scatter(ax, _at_R(pairs, name, R), x, "ratio")
+        sel = [r for r in pairs if r["pair"] == name and r["recharge_rounds"] == R
+               and math.isfinite(r["ratio"]) and r["ratio"] > 0]
+        for pp in sorted({r["pprime_mult"] for r in sel}):
+            pts = [r for r in sel if r["pprime_mult"] == pp]
+            ax.scatter([r[x] for r in pts], [r["ratio"] for r in pts], s=30,
+                       color=COLORS.get(pp, "#6d6d6d"), edgecolor="white", linewidth=1,
+                       label=f"p' = {pp:g}p", zorder=3)
+        ax.axhline(1, color="#52514e", lw=1, ls="--", zorder=2)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlabel(X_LABEL[x])
+        ax.grid(True, color="#e6e5e1", lw=0.8)
         ax.set_title(name, fontsize=10, loc="left")
-    axes[0][0].set_ylabel("STV(baseline) / STV(proposed)\n> 1: proposed wins")
+    axes[0][0].set_ylabel("STV(baseline) / STV(HBM)\n> 1: HBM wins")
     axes[0][0].legend(frameon=False, fontsize=9)
-    fig.suptitle(f"Cultivation recharge R = {R:g} rounds (factory pairs use the factory period)",
+    what = "each side at its best R" if R == BEST else f"R = {R} rounds"
+    fig.suptitle(f"Cultivation recharge: {what} (D0 uses the factory period)",
                  fontsize=10, x=0.01, ha="left")
     fig.tight_layout()
     fig.savefig(path, dpi=170)
     plt.close(fig)
 
 
-def plot_ppm(pairs, path, R):
-    """P4 split into its two factors: STV ratio = time ratio x qubit ratio."""
-    import matplotlib.pyplot as plt
-
-    name, _, _, x = PAIRS[3]
-    sel = _at_R(pairs, name, R)
-    if not sel:
-        return False
-    fig, axes = plt.subplots(1, 3, figsize=(15.6, 4.2))
-    for ax, (y, title) in zip(axes, [("ratio", "STV: PPM / on top"),
-                                     ("time_ratio", "runtime: PPM / on top"),
-                                     ("qubit_ratio", "qubits: PPM / on top")]):
-        _scatter(ax, sel, x, y)
-        ax.set_title(title, fontsize=10, loc="left")
-    axes[0].set_ylabel("> 1: on top wins")
-    axes[0].legend(frameon=False, fontsize=9)
-    fig.suptitle(f"{name}, cultivation R = {R:g} rounds", fontsize=10, x=0.01, ha="left")
-    fig.tight_layout()
-    fig.savefig(path, dpi=170)
-    plt.close(fig)
-    return True
-
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("csv", nargs="+", help="output of analyze.py (and of ppm_baseline.py)")
     ap.add_argument("--prefix", default="revision")
-    ap.add_argument("--R", type=float, default=60, help="cultivation recharge rounds to plot")
+    ap.add_argument("--R", default=BEST,
+                    help='cultivation recharge rounds to plot, or "best" (default)')
     ap.add_argument("--rows", action="store_true", help="also print every pair row")
     args = ap.parse_args()
+    plot_R = args.R if args.R == BEST else r_label(float(args.R))
 
     pairs = pair_rows([r for path in args.csv for r in load(path)])
     write_csv(f"{args.prefix}_pairs.csv", pairs)
     reg = regimes(pairs)
     write_csv(f"{args.prefix}_regimes.csv", reg)
     if pairs:
-        plot(pairs, f"{args.prefix}_pairs.png", args.R)
-        if plot_ppm(pairs, f"{args.prefix}_ppm.png", args.R):
-            print(f"P4 breakdown -> {args.prefix}_ppm.png")
+        plot(pairs, f"{args.prefix}_pairs.png", plot_R)
     print(f"{len(pairs)} pair rows -> {args.prefix}_pairs.csv, {args.prefix}_regimes.csv, "
           f"{args.prefix}_pairs.png")
     for r in reg:
-        print(f"{r['pair'][:2]} p'={r['pprime_mult']:g}p R={r['recharge_rounds']:g} "
-              f"{r['x']} {r['x_bin']:>4}: proposed wins {r['proposed_wins']}/{r['n']} "
-              f"(median ratio {r['median_ratio']:.2f})")
+        print(f"{r['pair'][:2]} p'={r['pprime_mult']:g}p R={r['recharge_rounds']:>4s} "
+              f"{r['x']} {r['x_bin']:>4}: HBM wins {r['hbm_wins']}/{r['n']} "
+              f"(median STV ratio {r['median_ratio']:.2f})")
     if args.rows:
-        print(f"\n{'':2s} {'bench':16s} {'p_':>3s} {'R':>4s} {'baseline':>18s} {'d':>3s} "
-              f"{'steps':>6s} {'proposed':>18s} {'d':>3s} {'steps':>6s} {'STV':>6s} "
-              f"{'time':>6s} {'qubit':>6s}  (ratios baseline/proposed; * = provisional)")
+        def side(spec, R, d, steps):
+            tag = f"{spec}@R{R:g}" if isinstance(R, float) and spec.startswith(("D2", "D3", "PPM")) \
+                else spec
+            steps = f"{steps:.0f}" if isinstance(steps, float) else ""
+            return f"{tag:>22s} {d:>3s} {steps:>6s}"
+        print(f"\n{'':2s} {'bench':16s} {'p_':>3s} {'R':>4s} {'baseline':>22s} {'d':>3s} "
+              f"{'steps':>6s} {'HBM':>22s} {'d':>3s} {'steps':>6s} {'STV':>6s}"
+              f"  (STV ratio baseline/HBM; * = provisional)")
         for r in pairs:
             print(f"{r['pair'][:2]} {r['bench']:16s} {r['pprime_mult']:3g} "
-                  f"{r['recharge_rounds']:4g} {r['baseline']:>18s} {r['baseline_d']:>3s} "
-                  f"{r['baseline_steps']:6.0f} {r['proposed']:>18s} {r['proposed_d']:>3s} "
-                  f"{r['proposed_steps']:6.0f} {r['ratio']:6.2f} {r['time_ratio']:6.2f} "
-                  f"{r['qubit_ratio']:6.2f}{' *' if r['provisional'] else ''}")
+                  f"{r['recharge_rounds']:>4s} "
+                  f"{side(r['baseline'], r['baseline_R'], r['baseline_d'], r['baseline_steps'])} "
+                  f"{side(r['hbm'], r['hbm_R'], r['hbm_d'], r['hbm_steps'])} "
+                  f"{r['ratio']:6.2f}{' *' if r['provisional'] else ''}")
 
 
 if __name__ == "__main__":

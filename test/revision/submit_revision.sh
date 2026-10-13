@@ -1,16 +1,18 @@
 #!/bin/bash
 #
-# Submit the revision sweep (designs #0-#5) as Slurm array jobs. See REVISION.md.
+# Submit the revision sweep as Slurm array jobs. See REVISION.md.
+# Designs: D0 (DASCOT + factories around the data block), D2 (DASCOT + cultivation in the
+# plane), D3 (HBM: cultivation on top). Cultivation designs run at every recharge time R.
 #
-#   ./submit_revision.sh mini  [--dry-run]   quick check: cultivation designs on the 3 N=16
-#                                            circuits, R=60, short partition (< 4 h)
-#   ./submit_revision.sh pilot [--dry-run]   go/no-go: D2 vs D3 on small synthetic circuits
-#   ./submit_revision.sh core  [--dry-run]   all designs on all synthetic circuits
-#   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + optional variants
+#   ./submit_revision.sh mini  [--dry-run]   quick: N=16 p10 and p50, short partition (< 4 h)
+#   ./submit_revision.sh pilot [--dry-run]   N = 16, 25, 49, 64 (12 circuits)
+#   ./submit_revision.sh core  [--dry-run]   all 33 synthetic circuits
+#   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + the -borrow/-route variants
 #
-# --dry-run prints the sbatch commands without submitting.
-# Top-layer designs route T gates with Upper-First only (routing "TOP"); the general 3D
-# routing ("-3d" flag) is not submitted by any phase.
+# --dry-run prints the sbatch commands without submitting. Phases overlap on purpose:
+# run_design.sh skips a task whose run already finished (in any outs_rev/ suite), so each
+# phase only adds the missing runs. Unfinished (timed-out) runs are retried.
+# Top-layer designs route T gates with Upper-First only (routing "TOP").
 # Runs are simulated at HBM_D=13 (what the small/medium circuits need at p=1e-3 and a 1%
 # target) unless you export HBM_D first. After analysis, rerun the rows whose d_req differs:
 #   python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh
@@ -29,7 +31,8 @@ PHASE="${1:-pilot}"
 DRY="${2:-}"
 mkdir -p logs_rev revision/lists
 
-ls benchmarks_bursty_cx/bench_n16_p*.qasm > revision/lists/synth_n16.txt
+# mini skips p90 (9,900 T gates): pilot runs it on the normal partition (48 h), not 4 h.
+ls benchmarks_bursty_cx/bench_n16_p{10,50}.qasm > revision/lists/synth_n16.txt
 ls benchmarks_bursty_cx/bench_n{16,25,49,64}_p*.qasm > revision/lists/synth_small.txt
 ls benchmarks_bursty_cx/*.qasm > revision/lists/synth_all.txt
 ls ../quantum-compiler-benchmark-circuits/jku_suite/*.qasm > revision/lists/jku.txt
@@ -44,38 +47,33 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]
     if [ "$DRY" = "--dry-run" ]; then echo "${cmd[*]}"; else "${cmd[@]}"; fi
 }
 
-CULT_P1=(D2-wide D2-tight D3-k1 D3-khalf D3-k2 D3-kquarter)
-CULT_P3=(D4-k1 D4-k1p5)
+CULT=(D2-wide D2-tight D3-k1 D3-khalf D3-k2 D3-kquarter)
 ROUNDS=(60 360)
-MULTS=(0.25 0.5 1 2)
-FACT=()
-for m in "${MULTS[@]}"; do
-    FACT+=("D0-X$m" "D1-band-X$m" "D1-mesh-X$m" "D5-X$m")
-done
-EXTRA=(D2-wide-borrow D2-tight-borrow D3-k1-route D4-k1-route)
+FACT=(D0-X0.25 D0-X0.5 D0-X1 D0-X2)
+EXTRA=(D2-wide-borrow D2-tight-borrow D3-k1-route)
 SBATCH_EXTRA=()
+
+run_set() {  # run_set <bench_list>: every design, cultivation at every R
+    for d in "${CULT[@]}"; do
+        for r in "${ROUNDS[@]}"; do submit "$1" "$d" "$r"; done
+    done
+    for d in "${FACT[@]}"; do submit "$1" "$d"; done
+}
 
 case "$PHASE" in
     mini)
         SBATCH_EXTRA=(-p short -t 04:00:00)
         export TMR=13800  # wisq gives up (writes a timeout file) before Slurm kills the job
-        for d in "${CULT_P1[@]}" "${CULT_P3[@]}"; do
-            submit revision/lists/synth_n16.txt "$d" 60
-        done
+        run_set revision/lists/synth_n16.txt
         ;;
     pilot)
-        for d in D2-wide D2-tight D3-k1 D3-khalf D3-k2 D3-kquarter; do
-            for r in "${ROUNDS[@]}"; do submit revision/lists/synth_small.txt "$d" "$r"; done
-        done
+        run_set revision/lists/synth_small.txt
         ;;
     core|full)
         lists=(revision/lists/synth_all.txt)
         [ "$PHASE" = "full" ] && lists+=(revision/lists/jku.txt)
         for list in "${lists[@]}"; do
-            for d in "${CULT_P1[@]}" "${CULT_P3[@]}"; do
-                for r in "${ROUNDS[@]}"; do submit "$list" "$d" "$r"; done
-            done
-            for d in "${FACT[@]}"; do submit "$list" "$d"; done
+            run_set "$list"
             if [ "$PHASE" = "full" ]; then
                 for d in "${EXTRA[@]}"; do submit "$list" "$d" 60; done
             fi

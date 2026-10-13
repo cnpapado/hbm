@@ -41,7 +41,7 @@ alongside the HBMS runs. compare.py keeps the best PPM row per benchmark and set
 
 Usage:
   python ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv
-  python compare.py rev.csv ppm.csv --prefix rev     # adds pair P4 (PPM vs on top)
+  python compare.py rev.csv ppm.csv --prefix rev     # adds pair P3 (PPM vs HBM)
 """
 
 import argparse

@@ -1,4 +1,4 @@
-# Revision: fair magic-state baselines (designs #0–#5)
+# Revision: fair magic-state baselines (D0, D2, D3 and PPM; STV)
 
 Branch `revision/fair-baselines` (based on `feature/generic-3d-routing`). Adds a new design
 mode selected with `HBM_DESIGN`. **When `HBM_DESIGN` is unset, wisq behaves exactly as
@@ -6,38 +6,33 @@ before** (`HBM_CONFIG`, ARCH_A/C/D, all old scripts), so old results stay reprod
 
 ## The question
 
-When is it worth putting magic-state sources on a second layer instead of in the data
-plane? Each comparison keeps the source the same and changes only where it sits.
+Is it worth putting cultivation patches on a second layer (HBM) instead of running DASCOT
+with magic states in the data plane? **Metric: space-time volume (STV) only.**
 
 | Design | Spec | What | Role |
 |---|---|---|---|
-| #0 | `D0-<count>` | factories beside the data block, feeding ports on a ring around it (Litinski, *A Game of Surface Codes* Sec. 4; "peripheral placement" in Holmes et al. 2019) | baseline |
-| #1 | `D1-band-<count>`, `D1-mesh-<count>` | factories inside the data plane. **mesh** = Holmes et al. 2019 Fig. 3b distributed factories, one at the centre of each of a×b sub-regions. **band** = bands between data rows. Both are run; the better counts as the baseline. | baseline |
-| #2 | `D2-wide`, `D2-tight` | cultivation patch beside each qubit (wide: own patch, grid grows; tight: 1 per 2 qubits in existing routing tiles) | baseline |
-| #3 | `D3-k1`, `D3-khalf`, `D3-k2`, `D3-kquarter` | cultivation patches on top of square sparse (k = patches per qubit) | proposed |
-| #4 | `D4-k1`, `D4-k1p5` | compact plane + cultivation patches on top | proposed |
-| #5 | `D5-<count>` | factories on top: the D1 mesh on the top layer | proposed |
+| #0 | `D0-X<m>` | DASCOT with factories: factories beside the data block, feeding ports on a ring around it (Litinski, *A Game of Surface Codes* Sec. 4; "peripheral placement" in Holmes et al. 2019) | baseline |
+| #2 | `D2-wide`, `D2-tight` | DASCOT with cultivation: a patch beside each qubit (wide: own patch, grid grows; tight: 1 per 2 qubits in existing routing tiles) | baseline |
+| #3 | `D3-k1`, `D3-khalf`, `D3-k2`, `D3-kquarter` | HBM: cultivation patches on top of square sparse (k = patches per qubit) | proposed |
 | PPM | `PPM-<block>` (`ppm_baseline.py`) | Litinski Pauli-product measurements: one data block, cultivation patches at its ancilla region, T gates one at a time (see below) | baseline |
 
-**Factory count `<count>`:**
-- `X<m>`: `ceil(m·F*)` factories, where F\* is the break-even count for the circuit's T demand.
-  - F\* = ⌈λ·(1 + ⌈R_f/d⌉)⌉, with λ = T count / ideal depth.
-  - This is Litinski's sizing rule (*A Game of Surface Codes* Sec. 4.4: add distillation blocks until supply matches consumption), applied to the circuit's demand.
-  - The sweep uses m ∈ {¼, ½, 1, 2} and reports each design at its best.
-- `S<k>`: a fixed `ceil(N/k)` factories (kept for tests).
+Not run (the code still builds them and `test_designs.py` still tests them): D1 (factories
+inside the data plane), D4 (compact plane + cultivation on top), D5 (factories on top; with
+Upper-First it does not fit at d=13, rule 5 below).
 
-**Flags:**
-- `-borrow` (D2): route in-plane to another qubit's ready patch.
-- `-route` (D3/D4): add a full routing top layer, counted in qubits.
-- `-3d` (D5): general 3D routing for T gates and CNOTs. Opt-in only; no script runs it.
+**Knobs.** Each design is reported at its best knob:
+- D0: factory count `X<m>` = `ceil(m·F*)` factories, m ∈ {¼, ½, 1, 2}. F\* = ⌈λ·(1 + ⌈R_f/d⌉)⌉, with λ = T count / ideal depth: Litinski's sizing rule (*A Game of Surface Codes* Sec. 4.4: add distillation blocks until supply matches consumption), applied to the circuit's demand. (`S<k>`, a fixed `ceil(N/k)` factories, is kept for tests.)
+- D2: layout (wide, tight). D3: k. PPM: data block, units, source count.
+- **Recharge time R (D2, D3, PPM):** 60 and 360 rounds, the two published cultivation grades (table below). Each pair is reported at each R (both sides at the same R) and at R = best (each side at its own best R). R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
 
-**Routing on the top layer is Upper-First everywhere** (the paper's ARCH_C). A routed T gate goes up above the qubit or above one of its vertical neighbours, then along the top layer to a source. CNOTs stay in the data plane.
+**Flags** (`full` phase only): `-borrow` (D2): route in-plane to another qubit's ready patch. `-route` (D3): add a full routing top layer, counted in qubits.
 
-**The four comparisons** (`scripts/revision/compare.py`):
-- **P1, cultivation:** D2 vs D3. What the top layer buys for cultivation.
-- **P2, factories:** best of D0/D1 vs D5. What it buys for factories.
-- **P3, packing:** D2 vs D4. Whether the top layer lets the data plane be compact.
-- **P4, PPM:** best PPM block vs best of D3/D4. Whether a different compilation model (PPM) makes the top layer unnecessary.
+**Routing on the top layer is Upper-First everywhere** (the paper's ARCH_C). A routed T gate goes up above the qubit or above one of its vertical neighbours, then along the top layer to a source. CNOTs stay in the data plane. General 3D routing (`-3d`) is not run.
+
+**The three comparisons** (`scripts/revision/compare.py`), ratio = STV(baseline) / STV(HBM), > 1: HBM wins:
+- **P1:** DASCOT + cultivation (D2) vs HBM (D3). Same source; only its place changes.
+- **P2:** DASCOT + factories (D0) vs HBM (D3). DASCOT's setup with distillation.
+- **P3:** PPM vs HBM (D3). Whether a different compilation model (PPM) makes the top layer unnecessary.
 
 ## Parameters and their sources (p = 10⁻³)
 
@@ -49,7 +44,7 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 | `HBM_FACTORY_QUBITS` | 4620 | same table |
 | `HBM_FACTORY_SITES` | 45x51 | Litinski 2019 Fig. 11: (d_X+4d_Z)×3d_X lattice sites. In tiles: ⌈45/d⌉×⌈51/d⌉, i.e. 4×4 at d=13 and 2×3 at d=25. |
 
-**d₁ vs d:** d₁ is cultivation's internal fault distance. d₁=7 has no published data at p=10⁻³ (Gidney–Shutty–Jones Sec. 3), so it is not modelled. A circuit that needs T states better than 2×10⁻⁹ is marked infeasible for cultivation; distillation (D0/D1/D5) covers that regime.
+**d₁ vs d:** d₁ is cultivation's internal fault distance. d₁=7 has no published data at p=10⁻³ (Gidney–Shutty–Jones Sec. 3), so it is not modelled. A circuit that needs T states better than 2×10⁻⁹ is marked infeasible for cultivation; distillation (D0) covers that regime.
 
 ## Rules every design follows (`design_routing.py`)
 
@@ -58,13 +53,8 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 3. **Direct merges.** A T gate first uses a ready source on its vertical (Z) side or directly above it. Otherwise it routes to any free side of any ready source, if the design allows routing. If no source can serve it, it waits (`magic_wait` stall).
 4. **CNOTs** route as in DASCOT: from a vertical neighbour of the control to a horizontal neighbour of the target. Every design leaves each data qubit a free vertical side and a free horizontal side; `wisq/tests/test_designs.py` checks this.
 5. **Factory layouts.**
-   - **D1-band:** bands of factories (h rows + 1 routing row) between data rows, as many per band as fit while keeping a free middle column so routes can cross. Bands are spread evenly over the gaps between data rows.
-   - **D1-mesh:** the data qubits are split into a×b near-square sub-regions (a·b ≥ F, as square as possible, empty cells spread evenly). A factory sits at the centre of each sub-region. Sub-regions narrower than a factory plus a crossing column get extra routing columns.
-   - **D5:** the same mesh on the top layer, without extra columns: the top layer has the data plane's footprint. With Upper-First, every data qubit needs a free top tile above itself or a vertical neighbour that connects to a port.
-     - Data sits on odd rows, so a factory covering rows r−1, r and r+1 of a data row r seals that qubit off.
-     - Factories 1–2 rows tall never do; 3-row factories are placed starting on a data row; 4+ rows always do.
-     - So **D5 does not fit at d=13** (a factory is 4×4 tiles). It fits at d=25 (2×3 tiles).
-     - The builder checks this and fails immediately otherwise. Not fitting is a result for P2, not a bug.
+   - **D0:** the square sparse data block plus a ring of output ports around it, each fed by its own factory outside the grid.
+   - **D5 (not run):** factories on the top layer. With Upper-First, every data qubit needs a free top tile above itself or a vertical neighbour that connects to a port. Data sits on odd rows, so a factory 4+ tiles tall seals some qubit off. At d=13 a factory is 4×4 tiles, so **D5 does not fit at d=13** (it fits at d=25, 2×3 tiles). The builder checks this and fails immediately.
 6. **Qubit accounting.** Tiles at 2d² qubits, factories at 4,620 qubits, cultivation patches at 454 or 463 qubits (depending on their grade).
 
 ## Outputs
@@ -86,20 +76,26 @@ plane? Each comparison keeps the source the same and changes only where it sits.
   - pairs each cultivation run with its grade (`--cult-grades`, default `60:3e-6:454,360:2e-9:463`);
   - flags `rerun_needed` when d_req changes the recharge steps or factory size used in the simulation.
 - `make_reruns.py rev.csv > revision/reruns.sh` (run from `test/`): writes sbatch arrays that rerun flagged rows at their d_req.
-- `compare.py rev.csv [ppm.csv] --prefix rev --R 60`: best setting per design family, the pair ratios (`rev_pairs.csv`, `rev_pairs.png`), and the win fraction per tercile (`rev_regimes.csv`). P1–P3 use T density as the x-axis; P4 uses T gates per ideal step. With `ppm.csv` it also writes `rev_ppm.png` (P4 split into STV, runtime and qubit ratios). It prefers runs simulated at their own d_req and marks pairs that still use a mismatched run as `provisional`. A pair is skipped where one side was not run (as opposed to run but infeasible).
+- `compare.py rev.csv [ppm.csv] --prefix rev [--R best|60|360] [--rows]`: best knob per design family; the pair STV ratios at each R and at R = best (`rev_pairs.csv`; `rev_pairs.png` at `--R`, default best); the HBM win fraction per tercile of the x-axis (`rev_regimes.csv`). P1 and P2 use T density as the x-axis, P3 T gates per ideal step. It prefers runs simulated at their own d_req and marks pairs that still use a mismatched run as `provisional`. A pair is skipped where one side was not run (as opposed to run but infeasible). `--rows` prints every pair with each side's spec, R, d_req and steps.
 - `ppm_baseline.py BENCH_DIR --csv ppm.csv`: the PPM rows (below).
 - `ppm_qre.py FILES --csv ppm_qre.csv`: cross-checks the PPM fast block against the Microsoft resource estimator.
 - `draw_design.py SPEC N out.png [circuit.qasm]`: draws both layers of a design. `X<m>` counts need the circuit.
 
 ## How to run (on the server)
 
-1. **Smoke test** (interactive node): `bash test/revision/smoke_test.sh`. It runs the unit tests, draws every design for N=16, routes `bench_n16_p50` with every design, then runs the analysis. It uses d=25 because it only checks code paths. Override with `SMOKE_SPECS="D3-k1 D3-kquarter"`, `SMOKE_BENCH=<qasm>` and `HBM_D=13`.
-1b. **Mini** (Slurm, short partition, < 4 h): `submit_revision.sh mini` runs the cultivation designs (D2, D3, D4) on the three N=16 circuits at R=60.
-2. **Pilot** (go/no-go: D2 vs D3, including the Upper-First D3-kquarter, on 12 small synthetic circuits, R = 60 and 360): `bash test/revision/submit_revision.sh pilot --dry-run`, then again without `--dry-run`. Then run `analyze.py` + `compare.py` on `test/outs_rev/`.
-3. **Core:** `submit_revision.sh core` runs all designs on all synthetic circuits.
-4. **Full:** `submit_revision.sh full` adds the JKU suite and the `-borrow` / `-route` / `-3d` variants.
-5. **Reruns:** `cd test && python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh`, then rerun `analyze.py` + `compare.py`.
-6. **PPM (P4):** seconds, no Slurm. `python scripts/revision/ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv`, then `python scripts/revision/compare.py rev.csv ppm.csv --prefix rev`. Cross-check once: `module load apptainer && bash test/revision/run_qre.sh`. It runs `ppm_qre.py` in a container, because `qsharp>=1.0` needs glibc ≥ 2.31 and on the cluster pip falls back to the broken legacy IQ# package. Every row must print `match`.
+Every phase submits D0 (4 factory counts) and D2, D3 (2 layouts, 4 k's) at R = 60 and 360.
+`run_design.sh` skips a task whose run already finished in any `outs_rev/` suite, so the
+phases overlap safely and each only adds what is missing (timed-out runs are retried).
+Add `--dry-run` to print the sbatch lines first.
+
+1. **Mini** (short partition, < 4 h): `bash test/revision/submit_revision.sh mini`, on `bench_n16_p10` and `bench_n16_p50`.
+2. **Pilot** (normal partition, 48 h): `submit_revision.sh pilot`, the 12 circuits with N = 16, 25, 49, 64 (adds `bench_n16_p90`).
+3. **Core:** `submit_revision.sh core`, all 33 synthetic circuits.
+4. **Full:** `submit_revision.sh full` adds the JKU suite and the `-borrow` / `-route` variants.
+5. **Reruns** at d_req: `cd test && python ../scripts/revision/make_reruns.py ../rev.csv > revision/reruns.sh && bash revision/reruns.sh`.
+6. **After each phase:** `python scripts/revision/analyze.py test/outs_rev --csv rev.csv`, then `python scripts/revision/ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv` (seconds), then `python scripts/revision/compare.py rev.csv ppm.csv --prefix rev --rows`.
+
+`smoke_test.sh` (interactive node) is an optional pre-flight check of the same designs on one circuit.
 
 ## Not implemented here
 
@@ -121,13 +117,13 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 | intermediate | 2n + 4 (Fig. 13 caption: 2.5n + 4) | ≤ 5 |
 | fast | 2n + ⌈√(8n)⌉ + 1 | 1 |
 
-**Sources.** The same cultivation grades and recharge rule as D2–D4: one state per 1 + ⌈R/d⌉ steps per patch.
+**Sources.** The same cultivation grades and recharge rule as D2 and D3: one state per 1 + ⌈R/d⌉ steps per patch.
 - Full supply = ⌈(1 + ⌈R/d⌉) / steps per T⌉ patches, so the block never waits.
 - `--source-fracs` also tries ½ and ¼ of that. The block then waits, which mirrors the D3 k sweep.
 
 **Units (GoSC Sec. 5).** Parallel T layers are modelled only as a lower bound on the fast block: u copies, steps = max(T depth, ⌈T/u⌉), u = 1, 2, 4.
 - Ignored: the doubled data, the Bell pairs and the correction-qubit storage.
-- So their STV never drops below the sequential fast block's. GoSC p. 24 agrees: "going from the fast setup to parallelized units is, initially, not a favorable space-time trade-off".
+- At a fixed d, u units have the same STV as the sequential fast block (u× the tiles for 1/u of the steps). They can come out lower only when the shorter run meets the error target at a smaller d. GoSC p. 24, counting the overheads ignored here: "going from the fast setup to parallelized units is, initially, not a favorable space-time trade-off".
 
 **Benefit of the doubt for PPM:**
 - no tiles for wiring the patches to the ancilla region;
@@ -140,7 +136,7 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 **What to expect (back-of-envelope, d = 13, 2d² = 338 qubits per tile).**
 - *Time.* PPM takes T count steps. HBMS takes c × ideal depth steps (c = cost ratio). So runtime ratio PPM/HBMS ≈ λ / c, with λ = T count / ideal depth = T gates per ideal step.
 - *Space.* D3-k1 uses ≈ (2√n+1)² tiles + n patches. PPM-fast uses ≈ 2n + √(8n) + 1 tiles + a few patches. Ratio ≈ 2 (n = 16) to 2.4 (n = 100).
-- *Result.* The top layer should win STV when λ ≳ 2–2.5·c, and PPM when λ is lower. P4's x-axis is λ for this reason. These are predictions; the runs decide.
+- *Result.* The top layer should win STV when λ ≳ 2–2.5·c, and PPM when λ is lower. P3's x-axis is λ for this reason. These are predictions; the runs decide.
 
 **Paper text (draft, Sec. on baselines + discussion).**
 
@@ -152,11 +148,11 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 > - PPM wins for circuits with λ ≲ [measured];
 > - the vertical layer wins above it, by up to [measured]×.
 >
-> GoSC's time-optimal units (Sec. 5) recover T-depth runtime, but only by replicating the fast block. They do not lower space-time volume (GoSC p. 24), so the crossover in volume stands; in runtime, units need [measured]× more qubits to match the vertical layer.
+> GoSC's time-optimal units (Sec. 5) recover T-depth runtime, but only by replicating the fast block. They do not lower space-time volume (GoSC p. 24), so the crossover stands.
 
 ## Modelling assumptions to state in the paper
 
 - A source can be oriented to match the boundary it merges with, so direct merges and routed endpoints may use any free side of a source.
 - A top-layer source above a data qubit's vertical neighbour is reached through a seam along that qubit's Z edge, without occupying the lower neighbour tile.
 - One step = one lattice-surgery merge = d rounds, whatever the path length. Path length affects congestion and error, not time.
-- Each factory port holds one state; production restarts when it is taken. This holds equally for D0, D1 and D5.
+- Each factory port holds one state; production restarts when it is taken. This holds for D0.
