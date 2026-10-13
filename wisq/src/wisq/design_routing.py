@@ -8,9 +8,11 @@ reach it. Rules per timestep (one lattice-surgery step = d rounds):
   - a T gate first tries a direct source (on its vertical side or directly above it, no
     routing tiles); if the design allows routing it then routes to any ready source,
     reaching any free side of that source;
+  - routed T gates use the design's plane: PLANE in the data plane; TOP is Upper-First (up
+    above the qubit or a vertical neighbour, then along the top layer);
   - CNOTs route as in DASCOT: from a vertical neighbour of the control to a horizontal
-    neighbour of the target, in-plane (on the two-layer graph for TOP_3D designs; TOP_3D_T
-    designs route only T gates on the two-layer graph).
+    neighbour of the target, in-plane. Only the opt-in TOP_3D routing ("-3d" flag, not used
+    by the revision scripts) routes T gates and CNOTs on the two-layer graph.
 
 Paths in the output use lower-plane positions as-is and top-layer positions offset by
 width * height (the ARCH_D convention). Direct T gates have an empty path.
@@ -230,7 +232,7 @@ def _route_t(gid, gate, st):
             st.upper.update(path)
             face = targets[path[-1]]
             path = [p + n for p in path]
-    else:  # TOP_3D_T or TOP_3D: in-plane to any free vertical link, then up
+    else:  # TOP_3D (opt-in): in-plane to any free vertical link, then up
         g, idx = _graph_3d(st.lower, st.upper)
         targets = _targets(avail, st.upper, offset=n)
         path = _best_path(g, idx, CTX.vertical(q) + [q + n], targets)

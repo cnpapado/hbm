@@ -151,6 +151,18 @@ def test_d5_factories_on_top(spec, n):
     assert len(arch["magic_states"]) == math.ceil(n / des.count_value)
     assert len(blocked_top) == len(arch["magic_states"]) * (des.factory_tiles - 1)
     assert arch["design"]["top_factory_tiles"] == len(arch["magic_states"]) * des.factory_tiles
+    # Upper-First: every data qubit can go up above itself or a vertical neighbour.
+    w, h = arch["width"], arch["height"]
+    for q in arch["alg_qubits"]:
+        vert, _ = neighbors(q, w, h)
+        assert any(p not in blocked_top for p in [q] + vert), (spec, n, q, "sealed off")
+
+
+def test_d5_upper_first_rejects_tall_factories():
+    # d=13: a factory is 4x4 tiles, which always covers some data qubit's tile and both of its
+    # vertical neighbours' tiles on the top layer, so Upper-First cannot reach a factory.
+    with pytest.raises(ValueError, match="Upper-First"):
+        build_arch(design("D5-S8", d=13), 16)
 
 
 @pytest.mark.parametrize("n", SIZES)

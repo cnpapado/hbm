@@ -29,7 +29,9 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 **Flags:**
 - `-borrow` (D2): route in-plane to another qubit's ready patch.
 - `-route` (D3/D4): add a full routing top layer, counted in qubits.
-- `-3d` (D5): CNOTs may also use the top layer.
+- `-3d` (D5): general 3D routing for T gates and CNOTs. Opt-in only; no script runs it.
+
+**Routing on the top layer is Upper-First everywhere** (the paper's ARCH_C). A routed T gate goes up above the qubit or above one of its vertical neighbours, then along the top layer to a source. CNOTs stay in the data plane.
 
 **The four comparisons** (`scripts/revision/compare.py`):
 - **P1, cultivation:** D2 vs D3. What the top layer buys for cultivation.
@@ -58,7 +60,11 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 5. **Factory layouts.**
    - **D1-band:** bands of factories (h rows + 1 routing row) between data rows, as many per band as fit while keeping a free middle column so routes can cross. Bands are spread evenly over the gaps between data rows.
    - **D1-mesh:** the data qubits are split into a×b near-square sub-regions (a·b ≥ F, as square as possible, empty cells spread evenly). A factory sits at the centre of each sub-region. Sub-regions narrower than a factory plus a crossing column get extra routing columns.
-   - **D5:** the same mesh on the top layer, without extra columns: the top layer has the data plane's footprint. A near-square factory necessarily covers the top tiles above some data qubits, so T gates use the two-layer graph: in-plane to any free vertical link, then up. A D5 run fails immediately if its factories don't fit (`D5-S1` never does; at d=13 a factory is 4×4 tiles, so small chips only fit a few). Not fitting is a result for P2, not a bug.
+   - **D5:** the same mesh on the top layer, without extra columns: the top layer has the data plane's footprint. With Upper-First, every data qubit needs a free top tile above itself or a vertical neighbour that connects to a port.
+     - Data sits on odd rows, so a factory covering rows r−1, r and r+1 of a data row r seals that qubit off.
+     - Factories 1–2 rows tall never do; 3-row factories are placed starting on a data row; 4+ rows always do.
+     - So **D5 does not fit at d=13** (a factory is 4×4 tiles). It fits at d=25 (2×3 tiles).
+     - The builder checks this and fails immediately otherwise. Not fitting is a result for P2, not a bug.
 6. **Qubit accounting.** Tiles at 2d² qubits, factories at 4,620 qubits, cultivation patches at 454 or 463 qubits (depending on their grade).
 
 ## Outputs
@@ -87,8 +93,9 @@ plane? Each comparison keeps the source the same and changes only where it sits.
 
 ## How to run (on the server)
 
-1. **Smoke test** (interactive node): `bash test/revision/smoke_test.sh`. It runs the unit tests, draws every design for N=16, routes `bench_n16_p50` with every design, then runs the analysis. It uses d=25 because it only checks code paths.
-2. **Pilot** (go/no-go: D2 vs D3 on 12 small synthetic circuits, R = 60 and 360): `bash test/revision/submit_revision.sh pilot --dry-run`, then again without `--dry-run`. Then run `analyze.py` + `compare.py` on `test/outs_rev/`.
+1. **Smoke test** (interactive node): `bash test/revision/smoke_test.sh`. It runs the unit tests, draws every design for N=16, routes `bench_n16_p50` with every design, then runs the analysis. It uses d=25 because it only checks code paths. Override with `SMOKE_SPECS="D3-k1 D3-kquarter"`, `SMOKE_BENCH=<qasm>` and `HBM_D=13`.
+1b. **Mini** (Slurm, short partition, < 4 h): `submit_revision.sh mini` runs the cultivation designs (D2, D3, D4) on the three N=16 circuits at R=60.
+2. **Pilot** (go/no-go: D2 vs D3, including the Upper-First D3-kquarter, on 12 small synthetic circuits, R = 60 and 360): `bash test/revision/submit_revision.sh pilot --dry-run`, then again without `--dry-run`. Then run `analyze.py` + `compare.py` on `test/outs_rev/`.
 3. **Core:** `submit_revision.sh core` runs all designs on all synthetic circuits.
 4. **Full:** `submit_revision.sh full` adds the JKU suite and the `-borrow` / `-route` / `-3d` variants.
 5. **Reruns:** `cd test && python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh`, then rerun `analyze.py` + `compare.py`.

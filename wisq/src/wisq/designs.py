@@ -86,7 +86,7 @@ class Design:
     layout: str  # "square_sparse" | "compact"
     placement: str  # "plane" | "top"
     source: str  # "factory" | "cultivation"
-    routing: str  # "PLANE" | "TOP" | "TOP_3D_T" (T on the 3D graph) | "TOP_3D" (T and CNOT)
+    routing: str  # "PLANE" | "TOP" (Upper-First) | "TOP_3D" (general 3D, opt-in "-3d" only)
     allow_direct: bool
     allow_route: bool
     top_routing_layer: bool
@@ -177,7 +177,7 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
         if set(others) - {"3d"}:
             raise ValueError(f"unexpected tokens {sorted(set(others) - {'3d'})} in {spec!r}")
         return Design(spec, family, count, frozenset(others), "square_sparse", "top", "factory",
-                      "TOP_3D" if "3d" in others else "TOP_3D_T", allow_direct=True,
+                      "TOP_3D" if "3d" in others else "TOP", allow_direct=True,
                       allow_route=True, top_routing_layer=True, **count_kw, **params)
 
     knob, flags = (rest[0] if rest else ""), frozenset(rest[1:])
@@ -557,12 +557,60 @@ def _spread_starts(length, size, k, spec):
     return starts
 
 
+def _upper_first_rows(ys, h, height, design):
+    """Factory row starts that keep Upper-First possible on a square-sparse top layer.
+
+    Upper-First (routing "TOP") enters the top layer above a data qubit or above one of its
+    vertical neighbours. Data sits on odd rows, so a factory covering rows r-1, r, r+1 of a
+    data row r seals off the qubits below it. Factories of h <= 2 rows never do; h = 3 rows
+    must start on a data row; h >= 4 always do, so the design does not fit.
+    """
+    if h <= 2:
+        return ys
+    if h > 3:
+        raise ValueError(f"{design.spec} does not fit with Upper-First: a factory {h} tiles "
+                         f"tall covers the top tiles above some data qubit and both of its "
+                         f"vertical neighbours (needs <= 3 rows; d={design.d})")
+    out = []
+    for y in ys:
+        y += 1 - y % 2  # next data (odd) row
+        if out:
+            y = max(y, out[-1] + h + 1)  # odd + 4: keeps the routing row between free
+        if y > height - h:
+            raise ValueError(f"{design.spec} does not fit with Upper-First: {len(ys)} rows of "
+                             f"factories starting on data rows need more than {height} rows")
+        out.append(y)
+    return out
+
+
+def _check_upper_first(design, arch, n):
+    """Every data qubit needs a free top tile above itself or a vertical neighbour that is a
+    port or reaches one through free top tiles; otherwise its T gates could never run."""
+    width, height = arch["width"], arch["height"]
+    ports = set(arch["magic_states"])
+    free = set(range(width * height)) - set(arch["blocked_top"]) - ports
+    reach = {p for p in free if any(x in ports for x in _neighbors(p, width, height))}
+    stack = list(reach)
+    while stack:
+        for x in _neighbors(stack.pop(), width, height):
+            if x in free and x not in reach:
+                reach.add(x)
+                stack.append(x)
+    for q in arch["alg_qubits"]:
+        if not any(p in ports or p in reach for p in [q] + _vertical_neighbors(q, width, height)):
+            raise ValueError(f"{design.spec} does not fit with Upper-First: data qubit at "
+                             f"{_rc(q, width)} cannot reach a factory on the top layer "
+                             f"(N={n}, d={design.d})")
+
+
 def _d5_factories_top(design, n, n_fact):
     """The D1 mesh on the top layer: one factory per sub-region, spread evenly.
 
-    A factory necessarily covers the top tiles above some data qubits, so T gates use the
-    two-layer graph (routing TOP_3D_T): in-plane to any free vertical link, then up. The run
-    fails here if the factories do not fit on the top layer.
+    T gates use Upper-First (routing "TOP"): up above the qubit or a vertical neighbour, then
+    along the top layer to a factory port. Factory rows are placed so that every qubit keeps
+    such an entry (see _upper_first_rows). The run fails here if the factories do not fit;
+    at d=13 a factory is 4x4 tiles and never fits. The opt-in "-3d" flag (routing TOP_3D)
+    skips these Upper-First rules.
     """
     arch = _square_sparse(n)
     width, height = arch["width"], arch["height"]
@@ -574,6 +622,8 @@ def _d5_factories_top(design, n, n_fact):
         raise ValueError(f"{design.spec} does not fit: {e}") from e
     xs = _spread_starts(width, w, b, design.spec)
     ys = _spread_starts(height, h, a, design.spec)
+    if design.routing == "TOP":
+        ys = _upper_first_rows(ys, h, height, design)
 
     blocks = [(ys[i], xs[j]) for i, j in _mesh_slots(a, b, n_fact)]
     taken = {t for top, left in blocks for t in _block(top, left, h, w, width)}
@@ -596,6 +646,8 @@ def _d5_factories_top(design, n, n_fact):
         ports.append(port)
         blocked += [t for t in _block(top, left, h, w, width) if t != port]
     arch.update(magic_states=sorted(ports), blocked=[], blocked_top=sorted(blocked))
+    if design.routing == "TOP":
+        _check_upper_first(design, arch, n)
     acct = _factory_acct(design, n_fact, top=n_fact * w * h, top_tiles=width * height)
     acct.update(mesh_a=a, mesh_b=b)
     return arch, acct

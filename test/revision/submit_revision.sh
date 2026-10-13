@@ -2,11 +2,15 @@
 #
 # Submit the revision sweep (designs #0-#5) as Slurm array jobs. See REVISION.md.
 #
+#   ./submit_revision.sh mini  [--dry-run]   quick check: cultivation designs on the 3 N=16
+#                                            circuits, R=60, short partition (< 4 h)
 #   ./submit_revision.sh pilot [--dry-run]   go/no-go: D2 vs D3 on small synthetic circuits
 #   ./submit_revision.sh core  [--dry-run]   all designs on all synthetic circuits
 #   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + optional variants
 #
 # --dry-run prints the sbatch commands without submitting.
+# Top-layer designs route T gates with Upper-First only (routing "TOP"); the general 3D
+# routing ("-3d" flag) is not submitted by any phase.
 # Runs are simulated at HBM_D=13 (what the small/medium circuits need at p=1e-3 and a 1%
 # target) unless you export HBM_D first. After analysis, rerun the rows whose d_req differs:
 #   python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh
@@ -25,6 +29,7 @@ PHASE="${1:-pilot}"
 DRY="${2:-}"
 mkdir -p logs_rev revision/lists
 
+ls benchmarks_bursty_cx/bench_n16_p*.qasm > revision/lists/synth_n16.txt
 ls benchmarks_bursty_cx/bench_n{16,25,49,64}_p*.qasm > revision/lists/synth_small.txt
 ls benchmarks_bursty_cx/*.qasm > revision/lists/synth_all.txt
 ls ../quantum-compiler-benchmark-circuits/jku_suite/*.qasm > revision/lists/jku.txt
@@ -33,7 +38,7 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]
     local list="$1" design="$2" rounds="${3:-60}"
     local n
     n=$(wc -l < "$list" | tr -d ' ')
-    local cmd=(sbatch --array="0-$((n - 1))" --job-name="rev-${design}-R${rounds}"
+    local cmd=(sbatch ${SBATCH_EXTRA[@]+"${SBATCH_EXTRA[@]}"} --array="0-$((n - 1))" --job-name="rev-${design}-R${rounds}"
                --export="ALL,DESIGN=${design},BENCH_LIST=${list},HBM_CULT_ROUNDS=${rounds},HBM_D=${SIM_D}"
                revision/run_design.sh)
     if [ "$DRY" = "--dry-run" ]; then echo "${cmd[*]}"; else "${cmd[@]}"; fi
@@ -47,11 +52,19 @@ FACT=()
 for m in "${MULTS[@]}"; do
     FACT+=("D0-X$m" "D1-band-X$m" "D1-mesh-X$m" "D5-X$m")
 done
-EXTRA=(D2-wide-borrow D2-tight-borrow D3-k1-route D5-X1-3d)
+EXTRA=(D2-wide-borrow D2-tight-borrow D3-k1-route D4-k1-route)
+SBATCH_EXTRA=()
 
 case "$PHASE" in
+    mini)
+        SBATCH_EXTRA=(-p short -t 04:00:00)
+        export TMR=13800  # wisq gives up (writes a timeout file) before Slurm kills the job
+        for d in "${CULT_P1[@]}" "${CULT_P3[@]}"; do
+            submit revision/lists/synth_n16.txt "$d" 60
+        done
+        ;;
     pilot)
-        for d in D2-wide D2-tight D3-k1 D3-khalf D3-k2; do
+        for d in D2-wide D2-tight D3-k1 D3-khalf D3-k2 D3-kquarter; do
             for r in "${ROUNDS[@]}"; do submit revision/lists/synth_small.txt "$d" "$r"; done
         done
         ;;
@@ -69,7 +82,7 @@ case "$PHASE" in
         done
         ;;
     *)
-        echo "usage: $0 pilot|core|full [--dry-run]" >&2
+        echo "usage: $0 mini|pilot|core|full [--dry-run]" >&2
         exit 1
         ;;
 esac

@@ -214,6 +214,14 @@ def main():
         w.writeheader()
         w.writerows(rows)
     print(f"{len(files)} circuits -> {len(rows)} rows -> {args.csv}")
+    # lambda = T per ideal step: PPM's cost ratio with the fast block (1 step per T gate).
+    print(f"{'circuit':22s} {'N':>4s} {'T':>7s} {'depth':>7s} {'lambda':>7s} {'T-par':>7s}")
+    for r in rows:
+        if r["spec"] == "PPM-fast" and r["pprime_mult"] == args.pprime[0] \
+                and r["recharge_rounds"] == rows[0]["recharge_rounds"]:
+            lam = r["n_t"] / r["ideal_depth"] if r["ideal_depth"] else float("nan")
+            print(f"{r['bench']:22s} {r['N']:4d} {r['n_t']:7d} {r['ideal_depth']:7d} "
+                  f"{lam:7.2f} {r['t_parallelism']:7.2f}")
 
 
 if __name__ == "__main__":
