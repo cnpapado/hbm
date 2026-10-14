@@ -11,8 +11,9 @@ ratio = STV(baseline) / STV(HBM): > 1 means HBM wins. STV is the only metric.
 Knobs. Each family is reported at its best knob (lowest STV among feasible, finished runs):
 D2 layout (wide/tight), D3 k, D0 factory count, PPM block. The cultivation recharge time R
 is a knob too: every pair is reported at each R that was run (both sides at the same R,
-D0 at its own factory period) and at R = "best", where each side picks its best R. "best"
-matters when the low-fidelity grade (R = 60, 3e-6) is infeasible for a circuit's T count.
+D0 at its own factory period) and at R = "best", where each side picks its best R (only
+where it finished at every R). "best" matters when the low-fidelity grade (R = 60, 3e-6) is
+infeasible for a circuit's T count.
 
 P1 and P2 are plotted against T density (T per qubit per ideal step); P3 against T gates
 per ideal step (lambda = T count / ideal depth), because PPM runs one T gate per step and
@@ -92,19 +93,24 @@ def pair_rows(rows):
     best = best_by_family(rows)
     ok = [r for r in rows if r.get("status") == "ok"]
     factory = {r["family"] for r in ok if r["source"] == "factory"}
-    ran = {(r["bench"], r["pprime_mult"], r["family"], s) for r in ok for s in slots(r)}
+    ran = {(r["bench"], r["pprime_mult"], r["family"], s) for r in ok for s in slots(r)
+           if s != BEST}
     benches = sorted({r["bench"] for r in ok})
     pps = sorted({r["pprime_mult"] for r in ok})
-    Rs = sorted({r["recharge_rounds"] for r in ok if r["source"] == "cultivation"}) + [BEST]
+    sweep = sorted({r["recharge_rounds"] for r in ok if r["source"] == "cultivation"})
     out = []
     for name, base_fams, hbm_fams, _ in PAIRS:
         for bench in benches:
             for pp in pps:
-                for R in Rs:
-                    keys = lambda fams: [  # noqa: E731
-                        (bench, pp, f, None if f in factory else R) for f in fams]
-                    if not any(k in ran for k in keys(base_fams)) or not any(
-                            k in ran for k in keys(hbm_fams)):
+                for R in sweep + [BEST]:
+                    key = lambda f, R: (bench, pp, f, None if f in factory else R)  # noqa: E731
+                    keys = lambda fams: [key(f, R) for f in fams]  # noqa: E731
+                    # A side counts as run at R = best only if it finished at every R of the
+                    # sweep: the best of a partial sweep is not known.
+                    was_run = lambda fams: any(  # noqa: E731
+                        all(key(f, R2) in ran for R2 in (sweep if R == BEST else [R]))
+                        for f in fams)
+                    if not was_run(base_fams) or not was_run(hbm_fams):
                         continue  # one side was not run here: no pair (unlike "infeasible")
                     pick = lambda fams: min(  # noqa: E731
                         (best[k] for k in keys(fams) if k in best),
