@@ -14,8 +14,7 @@
 # phase only adds the missing runs. Unfinished (timed-out) runs are retried.
 # Top-layer designs route T gates with Upper-First only (routing "TOP").
 # Runs are simulated at HBM_D=13 (what the small/medium circuits need at p=1e-3 and a 1%
-# target) unless you export HBM_D first. After analysis, rerun the rows whose d_req differs:
-#   python ../scripts/revision/make_reruns.py rev.csv > revision/reruns.sh && bash revision/reruns.sh
+# target) unless you export HBM_D first; analyze.py computes STV at that d for every design.
 #
 # Parameter choices (see wisq/src/wisq/designs.py for the citations):
 #   cultivation recharge  60 rounds (d1=3, T error 3e-6) and 360 rounds (d1=5, 2e-9):

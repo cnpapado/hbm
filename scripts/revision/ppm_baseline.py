@@ -21,10 +21,8 @@ Litinski, "A Game of Surface Codes" (GoSC; Quantum 3, 128, 2019; arXiv:1808.0289
     setup to parallelized units is, initially, not a favorable space-time trade-off" (p. 24).
     We model units only as a lower bound for the fast block: u x (block tiles), u x the
     source rate, steps = max(T depth, ceil(T count / u)). The doubled data, Bell pairs,
-    correction qubits and teleportation are ignored, and idling error is charged for the n
-    data qubits only. At a fixed d this gives the same STV as the sequential fast block (u x
-    the tiles for 1/u of the steps); it can come out lower when the shorter run lets the
-    error target be met at a smaller d.
+    correction qubits and teleportation are ignored. At a fixed d this gives about the same
+    STV as the sequential fast block (u x the tiles for 1/u of the steps).
 
 Magic-state supply uses the same model as the HBMS designs: each source delivers one state
 per (1 + ceil(R/d)) steps. Full supply is ceil(u * (1 + ceil(R/d)) / steps_per_rotation)
@@ -32,9 +30,10 @@ sources, so the block never waits; --source-fracs also tries fewer sources (the 
 waits for states, like the D3 k sweep). Cultivation grades come from Tour de gross (arXiv:
 2506.03094) App. A.6, Table 5; the factory option is Litinski 2019 Table 1, (15-to-1)_{17,7,7}.
 
-The same error model and target as analyze.py pick the code distance. PPM gets the benefit of
-the doubt: no error is charged for the ancilla region's merges (only data idling and T
-states), and no tiles are charged for connecting the sources to the block.
+Code distance: every row is at a given d (--d, default 13, the d the HBMS runs use), as in
+analyze.py. A row is infeasible when its T states alone exceed the error target. Its program
+error at that d (data idling + T states; the ancilla region's merges are not charged) is
+reported as logical_error. No tiles are charged for connecting the sources to the block.
 
 Output: rows in analyze.py's CSV schema (family "PPM"), so compare.py can read them
 alongside the HBMS runs. compare.py keeps the best PPM row per benchmark and setting.
@@ -145,37 +144,27 @@ def rows_for(path, args):
         tiles = units * BLOCKS[block][0](n)
         for rounds, src_err, src_qubits in supplies:
             e_src = n_t * src_err
-            base = dict(
-                bench=bench, file=path, family="PPM", spec=spec, knob=spec[len("PPM-"):],
-                source=args.source, placement="plane", recharge_rounds=rounds, **cs,
-                t_parallelism=n_t / cs["t_depth"] if cs["t_depth"] else math.nan,
-                t_fraction=n_t / max(1, n_t + cs["n_cx"]),
-                t_density=n_t / (n * cs["ideal_depth"]) if cs["ideal_depth"] else 0,
-                units=units, source_frac=frac, lower_tiles=tiles, top_tiles=0,
-                status="ok", e_source=e_src, rerun_needed=False,
-            )
-            found = None
-            if e_src <= args.target:
-                for d in range(3, args.dmax + 1, 2):
-                    n_src, steps = plan(d, cs, block, units, frac, rounds)
-                    err = n * steps * d * eps(d, args.p, args.A, args.p_th) + e_src
-                    if err <= args.target:
-                        found = (d, n_src, steps, err)
-                        break
-            for mult in args.pprime:  # PPM has no vertical links: same numbers for every p'
-                if found is None:
-                    out.append(dict(base, pprime_mult=mult, feasible=False, d_req=None, Q=None,
-                                    rounds=None, STV=None, error=None))
-                    continue
-                d, n_src, steps, err = found
-                q = tiles * 2 * d * d + n_src * src_qubits
-                out.append(dict(
-                    base, pprime_mult=mult, feasible=True, d_req=d, d_sim=d,
-                    recharge_steps=math.ceil(rounds / d), n_sources=n_src,
+            for d in args.d:
+                n_src, steps = plan(d, cs, block, units, frac, rounds)
+                err = n * steps * d * eps(d, args.p, args.A, args.p_th) + e_src
+                row = dict(
+                    bench=bench, file=path, family="PPM", spec=spec, knob=spec[len("PPM-"):],
+                    source=args.source, placement="plane", recharge_rounds=rounds, d_sim=d,
+                    recharge_steps=math.ceil(rounds / d), **cs,
+                    t_parallelism=n_t / cs["t_depth"] if cs["t_depth"] else math.nan,
+                    t_fraction=n_t / max(1, n_t + cs["n_cx"]),
+                    t_density=n_t / (n * cs["ideal_depth"]) if cs["ideal_depth"] else 0,
+                    units=units, source_frac=frac, lower_tiles=tiles, top_tiles=0,
+                    status="ok", e_source=e_src, logical_error=err,
+                    meets_target=err <= args.target, n_sources=n_src,
                     n_patches=n_src if args.source == "cultivation" else 0,
-                    n_factories=n_src if args.source == "factory" else 0,
-                    steps=steps, cost_ratio=steps / cs["ideal_depth"] if cs["ideal_depth"] else math.nan,
-                    Q=q, rounds=steps * d, STV=q * steps * d, error=err))
+                    n_factories=n_src if args.source == "factory" else 0, steps=steps,
+                    cost_ratio=steps / cs["ideal_depth"] if cs["ideal_depth"] else math.nan)
+                if e_src > args.target:  # the T states alone break the target
+                    out.append(dict(row, feasible=False, Q=None, rounds=None, STV=None))
+                    continue
+                q = tiles * 2 * d * d + n_src * src_qubits
+                out.append(dict(row, feasible=True, Q=q, rounds=steps * d, STV=q * steps * d))
     return out
 
 
@@ -195,13 +184,12 @@ def main():
                     help="fractions of the full-supply source count to try")
     ap.add_argument("--units", type=int, nargs="+", default=[1, 2, 4],
                     help="GoSC Sec. 5 units for the fast block (1 = sequential)")
+    ap.add_argument("--d", type=int, nargs="+", default=[13],
+                    help="code distances to evaluate (the HBMS runs' HBM_D)")
     ap.add_argument("--p", type=float, default=1e-3)
-    ap.add_argument("--pprime", type=float, nargs="+", default=[1, 5, 10],
-                    help="copied to every row so compare.py can pair PPM with each p'")
     ap.add_argument("--target", type=float, default=0.01)
     ap.add_argument("--A", type=float, default=0.1)
     ap.add_argument("--p-th", dest="p_th", type=float, default=0.01)
-    ap.add_argument("--dmax", type=int, default=61)
     args = ap.parse_args()
 
     files = []
@@ -219,7 +207,7 @@ def main():
     # lambda = T per ideal step: PPM's cost ratio with the fast block (1 step per T gate).
     print(f"{'circuit':22s} {'N':>4s} {'T':>7s} {'depth':>7s} {'lambda':>7s} {'T-par':>7s}")
     for r in rows:
-        if r["spec"] == "PPM-fast" and r["pprime_mult"] == args.pprime[0] \
+        if r["spec"] == "PPM-fast" and r["d_sim"] == args.d[0] \
                 and r["recharge_rounds"] == rows[0]["recharge_rounds"]:
             lam = r["n_t"] / r["ideal_depth"] if r["ideal_depth"] else float("nan")
             print(f"{r['bench']:22s} {r['N']:4d} {r['n_t']:7d} {r['ideal_depth']:7d} "

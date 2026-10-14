@@ -1,13 +1,18 @@
-"""Turn HBM_DESIGN run outputs into physical cost numbers (one CSV row per run x p').
+"""Turn HBM_DESIGN run outputs into physical cost numbers (one CSV row per run).
 
 For each wisq output JSON (written with HBM_DESIGN set) this computes:
   - circuit stats from the JSON itself: logical qubits N, T count, CNOT count, ideal depth
     (DAG depth over cx/t/tdg), T density = T / (N * ideal depth);
   - routing stats: timesteps, cost ratio, stalls (waiting for magic vs blocked path),
     direct vs routed T gates, path tiles, vertical merges;
-  - the smallest odd code distance d_req that keeps the whole program's logical error
-    below --target, using the model below;
-  - physical qubits Q(d_req), runtime in rounds, space-time volume STV = Q * rounds.
+  - physical qubits Q, runtime in rounds and space-time volume STV = Q * rounds, all at the
+    code distance d the run was simulated at (HBM_D, 13 in the sweep), so every design is
+    compared at the same d (as in the HBMS paper);
+  - the program's logical error at that d (logical_error, meets_target), using the model
+    below with p' = p;
+  - for the p' sensitivity note only: d_need_<m>p, the smallest odd d that would keep the
+    program under --target if the vertical links had error p' = m * p (estimated with the
+    simulated step count). It does not enter STV.
 
 Error model (per program; eps(d, p, p_th) = A * (p / p_th) ** ((d + 1) / 2) per tile-round):
   data idling      N * steps * d * eps(d, p, p_th)
@@ -18,7 +23,7 @@ A vertical merge with coupling error p' = mult * p uses the lower threshold p_th
 measured for that merge in Stim (HBMS paper, Fig. 11: ~1e-2 at 1p, ~4e-3 at 5p, ~2e-3 at
 10p; override with --seam-pth). Only the coupler qubits along the seam see p'.
 A run whose T-state error alone exceeds the target is infeasible for that circuit (the
-cultivation fidelity floor).
+cultivation fidelity floor): it has no STV.
 
 Cultivation grades (--cult-grades, rounds:error:qubits; Tour de gross arXiv:2506.03094
 App. A.6, Table 5, p = 1e-3, at 6 gate layers per round): 60 rounds -> 3e-6 with 454
@@ -28,13 +33,9 @@ its HBM_CULT_ROUNDS. Factory output error: Litinski 2019 Table 1, (15-to-1)_{17,
 Physical qubits: tiles * 2 d^2 + n_patches * patch_qubits + n_factories * factory_qubits,
 where tiles counts every lower- and top-layer tile except factory and patch tiles.
 
-The simulation used a fixed d (HBM_D) to turn recharge rounds into steps and to size
-factories in tiles. If d_req changes either of those, the row is flagged rerun_needed:
-rerun that design with HBM_D=d_req for exact numbers.
-
 Usage:
   python analyze.py OUT_DIR [OUT_DIR ...] --csv results.csv
-  python analyze.py outs_rev --pprime 1 5 10 --p 1e-3 --target 0.01 --csv rev.csv
+  python analyze.py outs_rev --p 1e-3 --target 0.01 --csv rev.csv
 """
 
 import argparse
@@ -86,11 +87,12 @@ def circuit_stats(gates):
     return dict(n_used=len(qubits), n_t=n_t, n_cx=n_cx, ideal_depth=depth)
 
 
-def program_error(d, args, des, st, steps, mult):
+def program_error(d, args, des, st, steps, mult=1.0):
     e = eps(d, args.p, args.A, args.p_th)
     total = des["n_logical"] * steps * d * e
     total += (st.get("t_path_tiles", 0) + st.get("cx_path_tiles", 0)) * d * e
-    total += st.get("vertical_merges", 0) * d * eps(d, args.p, args.A, args.seam_pth[mult])
+    total += st.get("vertical_merges", 0) * d * eps(d, args.p, args.A,
+                                                    args.seam_pth.get(mult, args.p_th))
     return total
 
 
@@ -114,11 +116,6 @@ def qubits(d, des, args):
     patch_q = cult_grade(des, args)[1] if n_patches else 0
     return (tiles * 2 * d * d + n_patches * patch_q
             + des["n_factories"] * des["factory_qubits"])
-
-
-def factory_tiles_at(d, des):
-    w, h = des["factory_sites"]
-    return math.ceil(w / d) * math.ceil(h / d)
 
 
 def analyze_file(path, args):
@@ -158,32 +155,21 @@ def analyze_file(path, args):
         empty_steps=st.get("empty_steps", 0), sources_used=st.get("sources_used", 0),
     )
 
-    rows = []
     e_src = cs["n_t"] * source_error(des, args)
+    d = des["d"]
+    err = program_error(d, args, des, st, n_steps) + e_src
+    need = {}
     for mult in args.pprime:
-        row = dict(common, pprime_mult=mult, e_source=e_src)
-        if e_src > args.target:
-            rows.append(dict(row, feasible=False, d_req=None, Q=None, rounds=None, STV=None,
-                             error=None, rerun_needed=False))
-            continue
-        d_req = None
-        for d in range(3, args.dmax + 1, 2):
-            if program_error(d, args, des, st, n_steps, mult) + e_src <= args.target:
-                d_req = d
-                break
-        if d_req is None:
-            rows.append(dict(row, feasible=False, d_req=None, Q=None, rounds=None, STV=None,
-                             error=None, rerun_needed=False))
-            continue
-        q = qubits(d_req, des, args)
-        rounds = n_steps * d_req
-        rerun = (math.ceil(des["recharge_rounds"] / d_req) != des["recharge_steps"]
-                 or (des["family"] in ("D1", "D5")
-                     and factory_tiles_at(d_req, des) != des["factory_tiles"]))
-        rows.append(dict(row, feasible=True, d_req=d_req, Q=q, rounds=rounds, STV=q * rounds,
-                         error=program_error(d_req, args, des, st, n_steps, mult) + e_src,
-                         rerun_needed=rerun))
-    return rows
+        need[f"d_need_{mult:g}p"] = next(
+            (dd for dd in range(3, args.dmax + 1, 2)
+             if program_error(dd, args, des, st, n_steps, mult) + e_src <= args.target), None)
+    row = dict(common, e_source=e_src, logical_error=err, meets_target=err <= args.target,
+               **need)
+    if e_src > args.target:
+        return [dict(row, feasible=False, Q=None, rounds=None, STV=None)]
+    q = qubits(d, des, args)
+    rounds = n_steps * d
+    return [dict(row, feasible=True, Q=q, rounds=rounds, STV=q * rounds)]
 
 
 def main():
@@ -192,7 +178,7 @@ def main():
     ap.add_argument("--csv", default="revision_results.csv")
     ap.add_argument("--p", type=float, default=1e-3, help="physical error rate")
     ap.add_argument("--pprime", type=float, nargs="+", default=[1, 5, 10],
-                    help="vertical-coupling error as multiples of p")
+                    help="vertical-link error multiples for the d_need_<m>p columns")
     ap.add_argument("--target", type=float, default=0.01, help="allowed program error")
     ap.add_argument("--A", type=float, default=0.1)
     ap.add_argument("--p-th", dest="p_th", type=float, default=0.01)
@@ -238,9 +224,10 @@ def main():
     ok = [r for r in rows if r["status"] == "ok"]
     print(f"{len(files)} files -> {len(rows)} rows ({len(ok)} finished, "
           f"{sum(r['status'] == 'timeout' for r in rows)} timeouts) -> {args.csv}")
-    rerun = sorted({(r["spec"], r["d_req"]) for r in ok if r.get("rerun_needed")})
-    if rerun:
-        print("rows needing a rerun at d_req (spec, d_req):", rerun)
+    late = sorted({r["d_sim"] for r in ok if r.get("meets_target") is False})
+    if late:
+        print(f"note: some runs exceed the {args.target:g} error target at d = {late} "
+              f"(logical_error column)")
 
 
 if __name__ == "__main__":

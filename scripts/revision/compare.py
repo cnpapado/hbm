@@ -6,7 +6,9 @@ Three pairs, all with HBM = D3 (cultivation patches on the top layer):
   P2  DASCOT + factories   (D0, factories around the data block)  vs HBM
   P3  Litinski PPM (ppm_baseline.py, cultivation patches)          vs HBM
 
-ratio = STV(baseline) / STV(HBM): > 1 means HBM wins. STV is the only metric.
+ratio = STV(baseline) / STV(HBM): > 1 means HBM wins. STV is the only metric. Both sides
+of a pair are at the same code distance d (the d the runs were simulated at, 13), as in the
+HBMS paper; the vertical-link error p' does not enter STV.
 
 Knobs. Each family is reported at its best knob (lowest STV among feasible, finished runs):
 D2 layout (wide/tight), D3 k, D0 factory count, PPM block. The cultivation recharge time R
@@ -46,14 +48,13 @@ def load(path):
     with open(path) as f:
         rows = list(csv.DictReader(f))
     for r in rows:
-        for k in ("STV", "t_density", "pprime_mult", "recharge_rounds", "steps", "n_t",
-                  "ideal_depth"):
+        for k in ("STV", "t_density", "recharge_rounds", "steps", "n_t", "ideal_depth"):
             try:
                 r[k] = float(r[k])
             except (KeyError, TypeError, ValueError):
                 r[k] = math.nan
+        r["d"] = int(float(r["d_sim"])) if r.get("d_sim") else None
         r["feasible"] = r.get("feasible") == "True"
-        r["rerun_needed"] = r.get("rerun_needed") == "True"
     return rows
 
 
@@ -64,19 +65,14 @@ def slots(r):
 
 
 def best_by_family(rows):
-    """(bench, pprime, family, R slot) -> best feasible row.
-
-    Rows simulated at their own d_req are preferred; a row whose simulation d differs from
-    its d_req (rerun_needed) is used only when no consistent row exists for that key.
-    """
+    """(bench, d, family, R slot) -> lowest-STV feasible row."""
     best = {}
     for r in rows:
         if r.get("status") != "ok" or not r["feasible"] or math.isnan(r["STV"]):
             continue
-        rank = (r["rerun_needed"], r["STV"])
         for slot in slots(r):
-            key = (r["bench"], r["pprime_mult"], r["family"], slot)
-            if key not in best or rank < (best[key]["rerun_needed"], best[key]["STV"]):
+            key = (r["bench"], r["d"], r["family"], slot)
+            if key not in best or r["STV"] < best[key]["STV"]:
                 best[key] = r
     return best
 
@@ -93,17 +89,16 @@ def pair_rows(rows):
     best = best_by_family(rows)
     ok = [r for r in rows if r.get("status") == "ok"]
     factory = {r["family"] for r in ok if r["source"] == "factory"}
-    ran = {(r["bench"], r["pprime_mult"], r["family"], s) for r in ok for s in slots(r)
-           if s != BEST}
+    ran = {(r["bench"], r["d"], r["family"], s) for r in ok for s in slots(r) if s != BEST}
     benches = sorted({r["bench"] for r in ok})
-    pps = sorted({r["pprime_mult"] for r in ok})
+    ds = sorted({r["d"] for r in ok})
     sweep = sorted({r["recharge_rounds"] for r in ok if r["source"] == "cultivation"})
     out = []
     for name, base_fams, hbm_fams, _ in PAIRS:
         for bench in benches:
-            for pp in pps:
+            for d in ds:
                 for R in sweep + [BEST]:
-                    key = lambda f, R: (bench, pp, f, None if f in factory else R)  # noqa: E731
+                    key = lambda f, R: (bench, d, f, None if f in factory else R)  # noqa: E731
                     keys = lambda fams: [key(f, R) for f in fams]  # noqa: E731
                     # A side counts as run at R = best only if it finished at every R of the
                     # sweep: the best of a partial sweep is not known.
@@ -121,21 +116,18 @@ def pair_rows(rows):
                     ref = p or b
                     side = lambda r, k: r[k] if r else ""  # noqa: E731
                     out.append(dict(
-                        pair=name, bench=bench, pprime_mult=pp, recharge_rounds=r_label(R),
+                        pair=name, bench=bench, d=d, recharge_rounds=r_label(R),
                         N=ref["N"], t_density=ref["t_density"],
                         t_per_step=(ref["n_t"] / ref["ideal_depth"] if ref["ideal_depth"] > 0
                                     else math.nan),
                         baseline=b["spec"] if b else "infeasible",
                         baseline_source=side(b, "source"),
-                        baseline_R=side(b, "recharge_rounds"), baseline_d=side(b, "d_req"),
-                        baseline_steps=side(b, "steps"),
+                        baseline_R=side(b, "recharge_rounds"), baseline_steps=side(b, "steps"),
                         baseline_STV=b["STV"] if b else math.nan,
                         hbm=p["spec"] if p else "infeasible",
-                        hbm_R=side(p, "recharge_rounds"), hbm_d=side(p, "d_req"),
-                        hbm_steps=side(p, "steps"),
+                        hbm_R=side(p, "recharge_rounds"), hbm_steps=side(p, "steps"),
                         hbm_STV=p["STV"] if p else math.nan,
                         ratio=(b["STV"] / p["STV"]) if b and p else (math.inf if p else 0.0),
-                        provisional=any(x is not None and x["rerun_needed"] for x in (b, p)),
                     ))
     return out
 
@@ -146,10 +138,10 @@ def regimes(pairs, n_bins=3):
     xkey = {name: x for name, _, _, x in PAIRS}
     by = defaultdict(list)
     for r in pairs:
-        by[(r["pair"], r["pprime_mult"], r["recharge_rounds"])].append(r)
-    for (pair, pp, R) in sorted(by, key=lambda k: (k[0], k[1], r_order(k[2]))):
+        by[(r["pair"], r["d"], r["recharge_rounds"])].append(r)
+    for (pair, d, R) in sorted(by, key=lambda k: (k[0], k[1], r_order(k[2]))):
         x = xkey[pair]
-        rs = [r for r in by[(pair, pp, R)] if not math.isnan(r[x])]
+        rs = [r for r in by[(pair, d, R)] if not math.isnan(r[x])]
         if not rs:
             continue
         dens = sorted(r[x] for r in rs)
@@ -162,7 +154,7 @@ def regimes(pairs, n_bins=3):
                 continue
             wins = sum(r["ratio"] > 1 for r in sel)
             ratios = sorted(r["ratio"] for r in sel if math.isfinite(r["ratio"]) and r["ratio"] > 0)
-            out.append(dict(pair=pair, pprime_mult=pp, recharge_rounds=R, x=x,
+            out.append(dict(pair=pair, d=d, recharge_rounds=R, x=x,
                             x_bin=["low", "mid", "high"][i] if n_bins == 3 else i,
                             n=len(sel), hbm_wins=wins, win_fraction=wins / len(sel),
                             median_ratio=ratios[len(ratios) // 2] if ratios else math.nan))
@@ -179,7 +171,7 @@ def write_csv(path, rows):
         w.writerows(rows)
 
 
-COLORS = {1.0: "#2a78d6", 5.0: "#eb6834", 10.0: "#1baf7a"}  # fixed categorical order
+COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#6d6d6d"]  # one per code distance, in order
 
 
 def plot(pairs, path, R):
@@ -191,11 +183,11 @@ def plot(pairs, path, R):
     for ax, (name, _, _, x) in zip(axes[0], shown):
         sel = [r for r in pairs if r["pair"] == name and r["recharge_rounds"] == R
                and math.isfinite(r["ratio"]) and r["ratio"] > 0]
-        for pp in sorted({r["pprime_mult"] for r in sel}):
-            pts = [r for r in sel if r["pprime_mult"] == pp]
+        for i, d in enumerate(sorted({r["d"] for r in sel})):
+            pts = [r for r in sel if r["d"] == d]
             ax.scatter([r[x] for r in pts], [r["ratio"] for r in pts], s=30,
-                       color=COLORS.get(pp, "#6d6d6d"), edgecolor="white", linewidth=1,
-                       label=f"p' = {pp:g}p", zorder=3)
+                       color=COLORS[min(i, len(COLORS) - 1)], edgecolor="white", linewidth=1,
+                       label=f"d = {d}", zorder=3)
         ax.axhline(1, color="#52514e", lw=1, ls="--", zorder=2)
         ax.set_xscale("log")
         ax.set_yscale("log")
@@ -231,24 +223,21 @@ def main():
     print(f"{len(pairs)} pair rows -> {args.prefix}_pairs.csv, {args.prefix}_regimes.csv, "
           f"{args.prefix}_pairs.png")
     for r in reg:
-        print(f"{r['pair'][:2]} p'={r['pprime_mult']:g}p R={r['recharge_rounds']:>4s} "
+        print(f"{r['pair'][:2]} d={r['d']} R={r['recharge_rounds']:>4s} "
               f"{r['x']} {r['x_bin']:>4}: HBM wins {r['hbm_wins']}/{r['n']} "
               f"(median STV ratio {r['median_ratio']:.2f})")
     if args.rows:
-        def side(spec, R, d, steps):
+        def side(spec, R, steps):
             tag = f"{spec}@R{R:g}" if isinstance(R, float) and spec.startswith(("D2", "D3", "PPM")) \
                 else spec
             steps = f"{steps:.0f}" if isinstance(steps, float) else ""
-            return f"{tag:>22s} {d:>3s} {steps:>6s}"
-        print(f"\n{'':2s} {'bench':16s} {'p_':>3s} {'R':>4s} {'baseline':>22s} {'d':>3s} "
-              f"{'steps':>6s} {'HBM':>22s} {'d':>3s} {'steps':>6s} {'STV':>6s}"
-              f"  (STV ratio baseline/HBM; * = provisional)")
+            return f"{tag:>22s} {steps:>6s}"
+        print(f"\n{'':2s} {'bench':16s} {'d':>3s} {'R':>4s} {'baseline':>22s} {'steps':>6s} "
+              f"{'HBM':>22s} {'steps':>6s} {'ratio':>6s}  (STV baseline / STV HBM)")
         for r in pairs:
-            print(f"{r['pair'][:2]} {r['bench']:16s} {r['pprime_mult']:3g} "
-                  f"{r['recharge_rounds']:>4s} "
-                  f"{side(r['baseline'], r['baseline_R'], r['baseline_d'], r['baseline_steps'])} "
-                  f"{side(r['hbm'], r['hbm_R'], r['hbm_d'], r['hbm_steps'])} "
-                  f"{r['ratio']:6.2f}{' *' if r['provisional'] else ''}")
+            print(f"{r['pair'][:2]} {r['bench']:16s} {r['d']:3d} {r['recharge_rounds']:>4s} "
+                  f"{side(r['baseline'], r['baseline_R'], r['baseline_steps'])} "
+                  f"{side(r['hbm'], r['hbm_R'], r['hbm_steps'])} {r['ratio']:6.2f}")
 
 
 if __name__ == "__main__":
