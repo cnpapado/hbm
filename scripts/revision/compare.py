@@ -13,9 +13,14 @@ HBMS paper; the vertical-link error p' does not enter STV.
 Knobs. Each family is reported at its best knob (lowest STV among feasible, finished runs):
 D2 layout (wide/tight), D3 k, D0 factory count, PPM block. The cultivation recharge time R
 is a knob too: every pair is reported at each R that was run (both sides at the same R,
-D0 at its own factory period) and at R = "best", where each side picks its best R (only
-where it finished at every R). "best" matters when the low-fidelity grade (R = 60, 3e-6) is
-infeasible for a circuit's T count.
+D0 at its own factory period) and at R = "best", where each side picks its best R. "best"
+matters when the low-fidelity grade (R = 60, 3e-6) is infeasible for a circuit's T count.
+
+Runs that cannot matter are not queued (submit_revision.sh): an R whose grade alone breaks
+the target (T count x T error > --target) is infeasible without running it, and counts here
+as run and infeasible wherever the family ran on that circuit. For R = best a side needs only
+the R values that can win: the feasible grades not beaten by a feasible grade with shorter
+recharge and no more qubits (with the default grades, the shortest feasible R).
 
 P1 and P2 are plotted against T density (T per qubit per ideal step); P3 against T gates
 per ideal step (lambda = T count / ideal depth), because PPM runs one T gate per step and
@@ -33,6 +38,8 @@ import argparse
 import csv
 import math
 from collections import defaultdict
+
+from analyze import parse_grades
 
 PAIRS = [  # (name, baseline families, HBM families, x variable)
     ("P1 DASCOT + cultivation vs HBM", ("D2",), ("D3",), "t_density"),
@@ -85,7 +92,7 @@ def r_order(label):
     return (1, 0) if label == BEST else (0, float(label))
 
 
-def pair_rows(rows):
+def pair_rows(rows, grades, target):
     best = best_by_family(rows)
     ok = [r for r in rows if r.get("status") == "ok"]
     factory = {r["family"] for r in ok if r["source"] == "factory"}
@@ -93,6 +100,22 @@ def pair_rows(rows):
     benches = sorted({r["bench"] for r in ok})
     ds = sorted({r["d"] for r in ok})
     sweep = sorted({r["recharge_rounds"] for r in ok if r["source"] == "cultivation"})
+    n_t = {r["bench"]: r["n_t"] for r in ok if not math.isnan(r["n_t"])}
+
+    def feasible(bench, R):  # the grade alone meets the target (unknown grade: assume so)
+        R = int(R)
+        return R not in grades or bench not in n_t or n_t[bench] * grades[R][0] <= target
+
+    for (bench, d, fam, _) in list(ran):  # infeasible R values count as run, see docstring
+        if fam not in factory:
+            ran |= {(bench, d, fam, R) for R in sweep if not feasible(bench, R)}
+
+    def best_needs(bench):  # the R values that can give a side its lowest STV
+        feas = [R for R in sweep if feasible(bench, R)]
+        qubits = lambda R: grades[int(R)][1] if int(R) in grades else math.inf  # noqa: E731
+        need = [R for R in feas if not any(R2 < R and qubits(R2) <= qubits(R) for R2 in feas)]
+        return need or sweep
+
     out = []
     for name, base_fams, hbm_fams, _ in PAIRS:
         for bench in benches:
@@ -100,11 +123,10 @@ def pair_rows(rows):
                 for R in sweep + [BEST]:
                     key = lambda f, R: (bench, d, f, None if f in factory else R)  # noqa: E731
                     keys = lambda fams: [key(f, R) for f in fams]  # noqa: E731
-                    # A side counts as run at R = best only if it finished at every R of the
-                    # sweep: the best of a partial sweep is not known.
+                    # At R = best a side must have run every R that can be its best.
+                    needs = best_needs(bench) if R == BEST else [R]
                     was_run = lambda fams: any(  # noqa: E731
-                        all(key(f, R2) in ran for R2 in (sweep if R == BEST else [R]))
-                        for f in fams)
+                        all(key(f, R2) in ran for R2 in needs) for f in fams)
                     if not was_run(base_fams) or not was_run(hbm_fams):
                         continue  # one side was not run here: no pair (unlike "infeasible")
                     pick = lambda fams: min(  # noqa: E731
@@ -211,10 +233,14 @@ def main():
     ap.add_argument("--R", default=BEST,
                     help='cultivation recharge rounds to plot, or "best" (default)')
     ap.add_argument("--rows", action="store_true", help="also print every pair row")
+    ap.add_argument("--target", type=float, default=0.01, help="as in analyze.py")
+    ap.add_argument("--cult-grades", type=parse_grades, default="60:3e-6:454,360:2e-9:463",
+                    help="as in analyze.py")
     args = ap.parse_args()
     plot_R = args.R if args.R == BEST else r_label(float(args.R))
 
-    pairs = pair_rows([r for path in args.csv for r in load(path)])
+    pairs = pair_rows([r for path in args.csv for r in load(path)], args.cult_grades,
+                      args.target)
     write_csv(f"{args.prefix}_pairs.csv", pairs)
     reg = regimes(pairs)
     write_csv(f"{args.prefix}_regimes.csv", reg)

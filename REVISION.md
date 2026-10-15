@@ -81,14 +81,22 @@ Upper-First it does not fit at d=13, rule 5 below).
 
 ## How to run (on the server)
 
-Every phase submits D0 (4 factory counts) and D2, D3 (2 layouts, 4 k's) at R = 60 and 360.
+Every phase submits D0 (4 factory counts) and D2, D3 (2 layouts, 4 k's). Cultivation runs
+are queued only where they can change the results:
+- An R whose grade alone breaks the 1% target is never run (it is infeasible for any
+  design): R = 60 for the p90 circuits (9,900 T gates × 3×10⁻⁶ = 3%). `compare.py` counts
+  it as run and infeasible.
+- `ROUNDS=best` (default) runs each circuit only at its shortest feasible R. That grade also
+  has the fewest qubits (454 vs 463), so it gives the lowest STV, and R = best needs only it.
+  `ROUNDS="60 360"` adds the slower R for the per-R comparison (the recharge-time knob).
+
 Each sbatch line covers only the runs not finished yet in any `outs_rev/` suite, so the
 phases overlap and each only adds what is missing (timed-out runs are retried). Cancel your
 pending jobs (`scancel -u $USER -t PENDING`) before resubmitting, or their runs queue twice.
 Add `--dry-run` to print the sbatch lines first.
 
-The Slurm request is set by `PART`, `TIME` (HH:MM:SS) and `MEM` (defaults: `short`, 4 h for
-mini; `normal`, 48 h for the others; 8G). wisq's timeout is `TIME` minus 30 min, so a run
+The Slurm request is set by `PART`, `TIME` (HH:MM:SS), `MEM` and `ACCOUNT` (defaults:
+`short`, 4 h for mini; `normal`, 48 h for the others; 8G; p33086). wisq's timeout is `TIME` minus 30 min, so a run
 that needs longer leaves a timeout file and the next submission retries it. Shorter requests
 start sooner (Slurm backfill), so a cheap order is: everything at `PART=short TIME=04:00:00`,
 then the same phase again at the defaults, which submits only what timed out.
