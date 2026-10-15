@@ -12,14 +12,17 @@
 # One revision run per array task: one benchmark x one design spec.
 # Submitted by submit_revision.sh, which passes these through --export:
 #   DESIGN      design spec, e.g. D3-k1 (see wisq/src/wisq/designs.py)
-#   BENCH_LIST  file with one .qasm path per line (relative to test/)
+#   BENCH_LIST  file with one .qasm path per line (relative to test/): the runs still to do
+#   SUITE       output folder under outs_rev/ (default: BENCH_LIST's name)
 #   HBM_D, HBM_CULT_ROUNDS, HBM_FACTORY_ROUNDS, HBM_FACTORY_QUBITS  (optional)
 #   TMR         wisq -tmr in seconds (default 171000 = 47.5 h: wisq must write its timeout
-#               file before Slurm kills the job at 48 h, or the run leaves no trace)
+#               file before Slurm kills the job at 48 h, or the run leaves no trace;
+#               submit_revision.sh sets it to the job's time limit minus 30 min)
 
 module load python/3.12.10
 source ~/hbm/.venv/bin/activate
 cd ~/hbm/test || exit 1
+source revision/common.sh
 command -v wisq >/dev/null || { echo "ERROR: wisq not on PATH" >&2; exit 1; }
 
 : "${DESIGN:?DESIGN not set}"
@@ -40,26 +43,16 @@ fi
 current_file="${FILES[$SLURM_ARRAY_TASK_ID]}"
 base="$(basename "$current_file" .qasm)"
 
-# Tag: design + the parameters that change its timing. Cultivation designs depend on the
-# recharge rounds; factory designs on the factory period and size.
-case "$DESIGN" in
-    D2*|D3*|D4*) SRC="R${HBM_CULT_ROUNDS}" ;;
-    *)           SRC="F${HBM_FACTORY_ROUNDS}q${HBM_FACTORY_QUBITS}" ;;
-esac
-TAG="${DESIGN}__d${HBM_D}_${SRC}"
-SUITE="$(basename "$BENCH_LIST" .txt)"
+TAG="$(run_tag "$DESIGN" "$HBM_CULT_ROUNDS" "$HBM_D")"
+SUITE="${SUITE:-$(basename "$BENCH_LIST" .txt)}"
 mkdir -p "outs_rev/$SUITE" "results_rev/$SUITE"
 output_file="outs_rev/$SUITE/${base}__${TAG}.out"
 
-# Skip runs that already finished in any suite (the phases overlap); retry timeouts.
-for f in outs_rev/*/"${base}__${TAG}.out"; do
-    if [ -f "$f" ] && python3 -c 'import json, sys
-sys.exit(0 if isinstance(json.load(open(sys.argv[1])).get("steps"), list) else 1)' "$f" \
-            2>/dev/null; then
-        echo "Skip $base | $TAG: finished run in $f"
-        exit 0
-    fi
-done
+# submit_revision.sh leaves out finished runs; check again in case one finished since.
+if f="$(finished_run "$base" "$TAG")"; then
+    echo "Skip $base | $TAG: finished run in $f"
+    exit 0
+fi
 
 echo "Task $SLURM_ARRAY_TASK_ID | $TAG | $current_file"
 wisq "$current_file" -op "$output_file" --mode scmr -tmr "$TMR"

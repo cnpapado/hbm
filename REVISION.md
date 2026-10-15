@@ -82,9 +82,16 @@ Upper-First it does not fit at d=13, rule 5 below).
 ## How to run (on the server)
 
 Every phase submits D0 (4 factory counts) and D2, D3 (2 layouts, 4 k's) at R = 60 and 360.
-`run_design.sh` skips a task whose run already finished in any `outs_rev/` suite, so the
-phases overlap safely and each only adds what is missing (timed-out runs are retried).
+Each sbatch line covers only the runs not finished yet in any `outs_rev/` suite, so the
+phases overlap and each only adds what is missing (timed-out runs are retried). Cancel your
+pending jobs (`scancel -u $USER -t PENDING`) before resubmitting, or their runs queue twice.
 Add `--dry-run` to print the sbatch lines first.
+
+The Slurm request is set by `PART`, `TIME` (HH:MM:SS) and `MEM` (defaults: `short`, 4 h for
+mini; `normal`, 48 h for the others; 8G). wisq's timeout is `TIME` minus 30 min, so a run
+that needs longer leaves a timeout file and the next submission retries it. Shorter requests
+start sooner (Slurm backfill), so a cheap order is: everything at `PART=short TIME=04:00:00`,
+then the same phase again at the defaults, which submits only what timed out.
 
 1. **Mini** (short partition, < 4 h): `bash test/revision/submit_revision.sh mini`, on `bench_n16_p10` and `bench_n16_p50`.
 2. **Pilot** (normal partition, 48 h): `submit_revision.sh pilot`, the 12 circuits with N = 16, 25, 49, 64 (adds `bench_n16_p90`).
