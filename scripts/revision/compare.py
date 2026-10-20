@@ -1,24 +1,24 @@
 """Compare the baselines against HBM by space-time volume.
 
-Three pairs; each uses the same magic-state source on both sides:
+Three pairs, each against HBM (D3F: the HBMS paper's Dedicated, D3-k1-fact, or Shared-S,
+D3-s2-fact .. D3-s16-fact, with factories on the top layer; no cultivation on top):
 
-  P1  2D-Cult   (D2, cultivation patches in the data plane)     vs HBM-Cult (D3)
-  P2  Planar-2D (D0, factory ports on DASCOT's perimeter)       vs HBM-Fact (D3F: D3 -fact)
-  P3  Litinski PPM (ppm_baseline.py, cultivation patches)       vs HBM-Cult (D3)
+  P1  2D-Cult   (D2, cultivation patches in the data plane)     vs HBM
+  P2  Planar-2D (D0, factory ports on DASCOT's perimeter)       vs HBM
+  P3  Litinski PPM (ppm_baseline.py, factories by default)      vs HBM
 
-HBM is the HBMS paper's Dedicated (D3-k1) or Shared-S (D3-s2 .. D3-s16), cultivation patches
-or (-fact) factories on the top layer. Factories are always ready, so the factory pair has
-one setting, reported under R = "best".
+Factories are always ready, so a factory-only pair (P2, P3) has one setting, reported under
+R = "best". In P1 the cultivation side is reported at each R it ran and at its best R; the
+HBM side is the same always-ready run at every R.
 
 ratio = STV(baseline) / STV(HBM): > 1 means HBM wins. STV is the only metric. Both sides
 of a pair are at the same code distance d (the d the runs were simulated at, 13), as in the
 HBMS paper; the vertical-link error p' does not enter STV.
 
 Knobs. Each family is reported at its best knob (lowest STV among feasible, finished runs):
-D2 layout (wide/tight), HBM sharing ratio, D0 factory count, PPM block. The cultivation
-recharge time R is a knob too: every cultivation pair is reported at each R that was run (both
-sides at the same R) and at R = "best", where each side picks its best R. "best"
-matters when the low-fidelity grade (R = 60, 3e-6) is infeasible for a circuit's T count.
+D2 layout (wide/tight), HBM sharing ratio, PPM block. The cultivation recharge time R is a
+knob too (2D-Cult only): R = "best" picks its best R, which matters when the low-fidelity
+grade (R = 60, 3e-6) is infeasible for a circuit's T count.
 
 Runs that cannot matter are not queued (submit_revision.sh): an R whose grade alone breaks
 the target (T count x T error > --target) is infeasible without running it, and counts here
@@ -48,9 +48,9 @@ from collections import defaultdict
 from analyze import parse_grades
 
 PAIRS = [  # (name, baseline families, HBM families, x variable)
-    ("P1 2D-Cult vs HBM-Cult", ("D2",), ("D3",), "t_density"),
-    ("P2 Planar-2D vs HBM-Fact", ("D0",), ("D3F",), "t_density"),
-    ("P3 PPM vs HBM-Cult", ("PPM",), ("D3",), "t_per_step"),
+    ("P1 2D-Cult vs HBM", ("D2",), ("D3F",), "t_density"),
+    ("P2 Planar-2D vs HBM", ("D0",), ("D3F",), "t_density"),
+    ("P3 PPM vs HBM", ("PPM",), ("D3F",), "t_per_step"),
 ]
 X_LABEL = {"t_density": "T density (T per qubit per ideal step)",
            "t_per_step": "T gates per ideal step (T count / ideal depth)"}

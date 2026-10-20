@@ -28,8 +28,8 @@ Magic-state supply uses the same model as the HBMS designs: each source delivers
 per (1 + ceil(R/d)) steps. Full supply is ceil(u * (1 + ceil(R/d)) / steps_per_rotation)
 sources, so the block never waits; --source-fracs also tries fewer sources (the block then
 waits for states, like the D3 k sweep). Cultivation grades come from Tour de gross (arXiv:
-2506.03094) App. A.6, Table 5. The factory option (--source factory) matches the D0 runs:
-always ready, 22 d^2 qubits and 35 p^3 error (GoSC 15-to-1 block, Secs. 3.3 and 4.1).
+2506.03094) App. A.6, Table 5. Factories (--source factory, the default) match the D0 and
+HBM runs: always ready, 22 d^2 qubits and 35 p^3 error (GoSC 15-to-1 block, Secs. 3.3, 4.1).
 
 Code distance: every row is at a given d (--d, default 13, the d the HBMS runs use), as in
 analyze.py. A row is infeasible when its T states alone exceed the error target. Its program
@@ -174,7 +174,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("inputs", nargs="+", help=".qasm files or directories of them")
     ap.add_argument("--csv", default="ppm_results.csv")
-    ap.add_argument("--source", choices=["cultivation", "factory"], default="cultivation")
+    ap.add_argument("--source", choices=["cultivation", "factory"], default="factory")
     ap.add_argument("--rounds", type=int, nargs="+", default=[60, 360],
                     help="cultivation grades to evaluate (keys of --cult-grades)")
     ap.add_argument("--cult-grades", type=parse_grades, default="60:3e-6:454,360:2e-9:463",

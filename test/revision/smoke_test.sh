@@ -11,7 +11,7 @@
 # (4) runs the analysis on the outputs, and (5) adds the Litinski PPM baseline (pair P3).
 # Check the figures and the printed table.
 #
-# Overrides (environment): SMOKE_SPECS="D3-k1 D3-kquarter" picks designs, SMOKE_BENCH picks
+# Overrides (environment): SMOKE_SPECS="D3-k1-fact D3-s4-fact" picks designs, SMOKE_BENCH picks
 # the circuit, HBM_D the simulation distance (default 13, as in the sweep).
 
 set -uo pipefail
@@ -27,8 +27,9 @@ unset HBM_CONFIG
 echo "== 1. unit tests"
 python -m pytest -q wisq/tests/test_designs.py || echo "!! unit tests failed"
 
-# The designs in the study: D0 (factories), D2 (cultivation in the plane), D3 (HBM, Upper-First).
-SPECS=(D0-X1 D2-wide D2-tight D2-wide-borrow D3-k1 D3-khalf D3-k2 D3-kquarter D3-k1-route)
+# The designs in the study: D0 (factories), D2 (cultivation in the plane), D3 (HBM, factories
+# on top, Upper-First).
+SPECS=(D0-alt D2-wide D2-tight D2-wide-borrow D3-k1-fact D3-s2-fact D3-s4-fact D3-s8-fact D3-s16-fact)
 [ -n "${SMOKE_SPECS:-}" ] && read -r -a SPECS <<< "$SMOKE_SPECS"
 
 echo "== 2. drawings"

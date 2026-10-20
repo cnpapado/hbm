@@ -14,31 +14,31 @@ with them in the data plane? **Metric: space-time volume (STV) only.**
 | 2D-Cult-k1 | `D2-wide` | DASCOT with a cultivation patch beside each qubit (own patch, grid grows) | baseline |
 | 2D-Cult-k½ | `D2-tight` | DASCOT with 1 patch per 2 qubits, in existing routing tiles | baseline |
 | Planar-2D | `D0-alt` | DASCOT's original perimeter: every other tile of the ring around the data block is a magic-state port fed by a factory, the tiles between are free ancillas (4√N + 4 ports) | baseline |
-| HBM-Cult-Dedicated, -Shared-2/4/8/16 | `D3-k1`, `D3-s2`, `D3-s4`, `D3-s8`, `D3-s16` | The HBMS paper's configurations, cultivation patches on the top layer: one per data qubit (Dedicated) or one per S data qubits (Shared-S, positions from `architecture.py`, full top routing layer) | proposed |
-| HBM-Fact-Dedicated, -Shared-2/4/8/16 | `D3-k1-fact` … `D3-s16-fact` | The same layouts with a factory as each top magic-state qubit (drawn on one top tile, charged 22d²) | proposed |
-| PPM | `PPM-<block>` (`ppm_baseline.py`) | Litinski Pauli-product measurements: one data block, cultivation patches at its ancilla region, T gates one at a time (see below) | baseline |
+| HBM-Dedicated, -Shared-2/4/8/16 | `D3-k1-fact`, `D3-s2-fact`, `D3-s4-fact`, `D3-s8-fact`, `D3-s16-fact` | The HBMS paper's configurations, factories on the top layer: one per data qubit (Dedicated) or one per S data qubits (Shared-S, positions from `architecture.py`, full top routing layer). Each factory is drawn on one top tile and charged 22d². No cultivation on top. | proposed |
+| PPM | `PPM-<block>` (`ppm_baseline.py`) | Litinski Pauli-product measurements: one data block, factories at its ancilla region, T gates one at a time (see below) | baseline |
 
 Factories are always ready (one state per port per step), cost 22d² qubits and have error
 35p³ (the 15-to-1 block of *A Game of Surface Codes*). Cultivation keeps its recharge time.
 
 Not run (the code still builds them and `test_designs.py` still tests them): D0 `X<m>` and
-`Xmax` factory counts, D3 `khalf`, `k2`, `kquarter`, D1 (factories inside the data plane),
+`Xmax` factory counts, D3 with cultivation on top (`D3-k1`, `-s2` … `-s16`, `khalf`, `k2`,
+`kquarter`), D1 (factories inside the data plane),
 D4 (compact plane + cultivation on top), D5 (factories on top with their full footprint; with
 Upper-First it does not fit at d=13, rule 5 below).
 
 **Knobs.** Each family is reported at its best knob:
 - 2D-Cult: layout (wide, tight). HBM: sharing ratio (Dedicated, Shared-2/4/8/16). Planar-2D: none. PPM: data block, units, source count.
-- **Recharge time R (cultivation: 2D-Cult, HBM-Cult, PPM):** 60 and 360 rounds, the two published cultivation grades (table below). Each pair is reported at each R (both sides at the same R) and at R = best (each side at its own best R). R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
+- **Recharge time R (cultivation, so 2D-Cult only):** 60 and 360 rounds, the two published cultivation grades (table below). P1 is reported at each R 2D-Cult ran and at R = best (its best R); HBM is always ready. R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
 - D0 `X<m>` counts (optional, `FACT_SPECS`): `ceil(m·F*)` factories with F\* = ⌈λ⌉, λ = T count / ideal depth (*A Game of Surface Codes* Sec. 4.4). Ports must fit on the ring (36 tiles at N=16 to 164 at N=400); `plan_d0.py` queues only counts that fit, plus `Xmax` (every ring tile) where X2 does not.
 
-**Flags** (`full` phase only): `-borrow` (D2): route in-plane to another qubit's ready patch. `-route` (D3): add a full routing top layer, counted in qubits.
+**Flags** (`full` phase only): `-borrow` (D2): route in-plane to another qubit's ready patch.
 
 **Routing on the top layer is Upper-First everywhere** (the paper's ARCH_C). A routed T gate goes up above the qubit or above one of its vertical neighbours, then along the top layer to a source. CNOTs stay in the data plane. General 3D routing (`-3d`) is not run.
 
-**The three comparisons** (`scripts/revision/compare.py`), ratio = STV(baseline) / STV(HBM), > 1: HBM wins. Each pair uses the same source on both sides, so only the placement changes:
-- **P1:** 2D-Cult (D2) vs HBM-Cult (D3).
-- **P2:** Planar-2D (D0-alt) vs HBM-Fact (D3 `-fact`, family `D3F` in `rev.csv`). The HBMS paper's original comparison, with factories always ready on both sides.
-- **P3:** PPM vs HBM-Cult (D3). Whether a different compilation model (PPM) makes the top layer unnecessary.
+**The three comparisons** (`scripts/revision/compare.py`), ratio = STV(baseline) / STV(HBM), > 1: HBM wins. HBM is always the factory runs (`-fact`, family `D3F` in `rev.csv`):
+- **P1:** 2D-Cult (D2) vs HBM. Whether cultivation in the plane, which needs no delivery, makes the top layer unnecessary.
+- **P2:** Planar-2D (D0-alt) vs HBM. The HBMS paper's original comparison, with factories always ready on both sides.
+- **P3:** PPM vs HBM. Whether a different compilation model (PPM) makes the top layer unnecessary. Factories on both sides.
 
 ## Parameters and their sources (p = 10⁻³)
 
@@ -87,13 +87,14 @@ Upper-First it does not fit at d=13, rule 5 below).
 
 ## How to run (on the server)
 
-Outputs of configurations no longer in the sweep (D0 `X<m>`/`Xmax`, D3 `khalf`, `k2`,
-`kquarter`) would compete as a family's best knob in `analyze.py`/`compare.py`: move them out
-of `outs_rev/` first (`mkdir -p test/outs_rev_old && mv test/outs_rev/*/*__D0-X*.out
-test/outs_rev/*/*__D3-k{half,2,quarter}__*.out test/outs_rev_old/`).
+Outputs of configurations no longer in the sweep (D0 `X<m>`/`Xmax`, every D3 run with
+cultivation on top) would compete as a family's best knob in `analyze.py`/`compare.py`: move
+them out of `outs_rev/` first (`mkdir -p test/outs_rev_old && mv test/outs_rev/*/*__D0-X*.out
+test/outs_rev/*/*__D3-*_R*.out test/outs_rev_old/`; D3 cultivation tags end in `_R<rounds>`,
+factory tags in `_F0q22d2`).
 
-Every phase submits D0 (4 factory counts) and D2, D3 (2 layouts, 4 k's). Cultivation runs
-are queued only where they can change the results:
+Every phase submits 2D-Cult (2 layouts), Planar-2D and HBM (5 layouts with factories): 8 runs
+per circuit, 264 for `core`. Cultivation runs are queued only where they can change the results:
 - An R whose grade alone breaks the 1% target is never run (it is infeasible for any
   design): R = 60 for the p90 circuits (9,900 T gates × 3×10⁻⁶ = 3%). `compare.py` counts
   it as run and infeasible.
@@ -117,7 +118,7 @@ then the same phase again at the defaults, which submits only what timed out.
 1. **Mini** (short partition, < 4 h): `bash test/revision/submit_revision.sh mini`, on `bench_n16_p10` and `bench_n16_p50`.
 2. **Pilot** (normal partition, 48 h): `submit_revision.sh pilot`, the 12 circuits with N = 16, 25, 49, 64 (adds `bench_n16_p90`).
 3. **Core:** `submit_revision.sh core`, all 33 synthetic circuits.
-4. **Full:** `submit_revision.sh full` adds the JKU suite and the `-borrow` / `-route` variants.
+4. **Full:** `submit_revision.sh full` adds the JKU suite and the D2 `-borrow` variants.
 5. **After each phase:** `python scripts/revision/analyze.py test/outs_rev --csv rev.csv`, then `python scripts/revision/ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv` (seconds), then `python scripts/revision/compare.py rev.csv ppm.csv --prefix rev --rows`.
 
 `smoke_test.sh` (interactive node) is an optional pre-flight check of the same designs on one circuit.
@@ -142,8 +143,8 @@ then the same phase again at the defaults, which submits only what timed out.
 | intermediate | 2n + 4 (Fig. 13 caption: 2.5n + 4) | ≤ 5 |
 | fast | 2n + ⌈√(8n)⌉ + 1 | 1 |
 
-**Sources.** The same cultivation grades and recharge rule as D2 and D3: one state per 1 + ⌈R/d⌉ steps per patch.
-- Full supply = ⌈(1 + ⌈R/d⌉) / steps per T⌉ patches, so the block never waits.
+**Sources.** Factories, as in D0 and HBM (always ready, 22d², 35p³); `--source cultivation` uses the D2 grades and recharge rule instead (one state per 1 + ⌈R/d⌉ steps per patch).
+- Full supply = ⌈(1 + ⌈R/d⌉) / steps per T⌉ sources (1 for always-ready factories and the fast block), so the block never waits.
 - `--source-fracs` also tries ½ and ¼ of that. The block then waits, which mirrors the D3 k sweep.
 
 **Units (GoSC Sec. 5).** Parallel T layers are modelled only as a lower bound on the fast block: u copies, steps = max(T depth, ⌈T/u⌉), u = 1, 2, 4.
@@ -159,8 +160,8 @@ then the same phase again at the defaults, which submits only what timed out.
 
 **What to expect (back-of-envelope, d = 13, 2d² = 338 qubits per tile).**
 - *Time.* PPM takes T count steps. HBMS takes c × ideal depth steps (c = cost ratio). So runtime ratio PPM/HBMS ≈ λ / c, with λ = T count / ideal depth = T gates per ideal step.
-- *Space.* D3-k1 uses ≈ (2√n+1)² tiles + n patches. PPM-fast uses ≈ 2n + √(8n) + 1 tiles + a few patches. Ratio ≈ 2 (n = 16) to 2.4 (n = 100).
-- *Result.* The top layer should win STV when λ ≳ 2–2.5·c, and PPM when λ is lower. P3's x-axis is λ for this reason. These are predictions; the runs decide.
+- *Space* (tiles, a factory = 11). n = 16: HBM-Dedicated 81 + 16·11 = 257, HBM-Shared-16 81 + 80 + 11 = 172, PPM-fast 45 + 11 = 56. Ratio ≈ 3–4.6.
+- *Result.* The top layer should win STV when λ ≳ 3–4.6·c, and PPM when λ is lower. P3's x-axis is λ for this reason. These are predictions; the runs decide.
 
 **Paper text (draft, Sec. on baselines + discussion).**
 
@@ -168,7 +169,7 @@ then the same phase again at the defaults, which submits only what timed out.
 >
 > The vertical layer targets the opposite regime. Lattice-surgery execution keeps the circuit's parallelism and consumes up to λ = T count / depth magic states per step, which a 2D perimeter cannot supply when λ ≫ 1.
 >
-> We compare both on the same circuits, sources (cultivation, same grades and recharge) and code distance. PPM uses its best data block (compact, intermediate or fast). Its source wiring is free. Fig. X shows the space-time volume ratio against λ:
+> We compare both on the same circuits, sources (15-to-1 factories, always ready) and code distance. PPM uses its best data block (compact, intermediate or fast). Its source wiring is free. Fig. X shows the space-time volume ratio against λ:
 > - PPM wins for circuits with λ ≲ [measured];
 > - the vertical layer wins above it, by up to [measured]×.
 >
