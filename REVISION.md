@@ -87,9 +87,10 @@ Upper-First it does not fit at d=13, rule 5 below).
 
 ## How to run (on the server)
 
-D0 runs made before factories became always ready (file names ending `_F43q4620.out`) are
-stale: move them out of `outs_rev/` (`mkdir -p test/outs_rev_old && mv
-test/outs_rev/*/*_F43q4620.out test/outs_rev_old/`) so `analyze.py` does not mix them in.
+Outputs of configurations no longer in the sweep (D0 `X<m>`/`Xmax`, D3 `khalf`, `k2`,
+`kquarter`) would compete as a family's best knob in `analyze.py`/`compare.py`: move them out
+of `outs_rev/` first (`mkdir -p test/outs_rev_old && mv test/outs_rev/*/*__D0-X*.out
+test/outs_rev/*/*__D3-k{half,2,quarter}__*.out test/outs_rev_old/`).
 
 Every phase submits D0 (4 factory counts) and D2, D3 (2 layouts, 4 k's). Cultivation runs
 are queued only where they can change the results:
