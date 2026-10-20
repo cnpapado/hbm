@@ -92,9 +92,11 @@ are queued only where they can change the results:
   has the fewest qubits (454 vs 463), so it gives the lowest STV, and R = best needs only it.
   `ROUNDS="60 360"` adds the slower R for the per-R comparison (the recharge-time knob).
 
-Each sbatch line covers only the runs not finished yet in any `outs_rev/` suite, so the
-phases overlap and each only adds what is missing (timed-out runs are retried). Cancel your
-pending jobs (`scancel -u $USER -t PENDING`) before resubmitting, or their runs queue twice.
+Each sbatch line covers only the runs not finished yet in any `outs_rev/` suite and not
+running now (found through their logs), so the phases overlap and each only adds what is
+missing (timed-out and cancelled runs are retried: a killed run leaves no output). The script
+refuses to submit while revision tasks are pending, since they would queue twice; cancel them
+with `squeue -u $USER -h -r -t PENDING -o '%i %j' | awk '$2 ~ /^rev-/ {print $1}' | xargs -r scancel`.
 Add `--dry-run` to print the sbatch lines first.
 
 The Slurm request is set by `PART`, `TIME` (HH:MM:SS), `MEM` and `ACCOUNT` (defaults:

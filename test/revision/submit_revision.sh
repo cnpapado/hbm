@@ -10,9 +10,9 @@
 #   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + the -borrow/-route variants
 #
 # --dry-run prints the sbatch commands without submitting. Each sbatch line covers only the
-# runs not finished yet (in any outs_rev/ suite), so the phases overlap and each adds what
-# is missing; timed-out runs are retried. Cancel your pending jobs before resubmitting a
-# phase, or the runs they hold are queued twice.
+# runs not finished yet (in any outs_rev/ suite) and not running now, so the phases overlap
+# and each adds what is missing; timed-out and cancelled runs are retried. It refuses to
+# submit while revision tasks are pending (they would be queued twice): cancel them first.
 #
 # Recharge times R (ROUNDS, default "best"). A cultivation run is queued only where its grade
 # can meet the 1% target on its own (T count x T error <= 0.01): the p90 circuits (9,900 T
@@ -65,6 +65,13 @@ STAMP="$(date +%Y%m%d-%H%M%S)"  # each submission gets its own to-do lists
 mkdir -p logs_rev revision/lists/todo
 command -v python3 >/dev/null ||
     echo "warning: no python3 here, so finished runs are not left out (run_design.sh skips them)" >&2
+PENDING="$(squeue -u "$USER" -h -r -t PENDING -o "%j" 2>/dev/null | grep -c '^rev-' || true)"
+if [ "${PENDING:-0}" -gt 0 ] && [ "$DRY" != "--dry-run" ]; then
+    echo "${PENDING} revision tasks are pending and would be queued twice. Cancel them first:" >&2
+    echo "  squeue -u \$USER -h -r -t PENDING -o '%i %j' | awk '\$2 ~ /^rev-/ {print \$1}' | xargs -r scancel" >&2
+    exit 1
+fi
+RUNNING="$(running_runs || true)"  # "<bench> <tag>" lines, left out below
 
 # mini skips p90 (9,900 T gates): pilot runs it on the normal partition (48 h), not 4 h.
 ls benchmarks_bursty_cx/bench_n16_p{10,50}.qasm > revision/lists/synth_n16.txt
@@ -99,7 +106,7 @@ wanted() {  # wanted <qasm> <design> <R>: whether the run can change the results
 
 submit() {  # submit <bench_list> <design> [cultivation_rounds]: the wanted runs not finished
     local list="$1" design="$2" rounds="${3:-60}"
-    local suite tag todo b n fin=0 skip=0
+    local suite tag todo b n fin=0 run=0 skip=0
     suite="$(basename "$list" .txt)"
     tag="$(run_tag "$design" "$rounds" "$SIM_D")"
     todo="revision/lists/todo/${suite}__${tag}__${STAMP}.txt"
@@ -107,11 +114,12 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]: the wanted runs
     while read -r b; do
         if ! wanted "$b" "$design" "$rounds"; then skip=$((skip + 1))
         elif finished_run "$(basename "$b" .qasm)" "$tag" >/dev/null; then fin=$((fin + 1))
+        elif grep -qxF "$(basename "$b" .qasm) $tag" <<< "$RUNNING"; then run=$((run + 1))
         else echo "$b" >> "$todo"
         fi
     done < "$list"
     n=$(wc -l < "$todo" | tr -d ' ')
-    echo "# ${suite} ${tag}: ${n} to run (${fin} finished, ${skip} not needed)"
+    echo "# ${suite} ${tag}: ${n} to run (${fin} finished, ${run} running, ${skip} not needed)"
     if [ "$n" -eq 0 ]; then
         rm -f "$todo"
         return
