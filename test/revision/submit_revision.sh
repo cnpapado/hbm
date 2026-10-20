@@ -1,8 +1,12 @@
 #!/bin/bash
 #
 # Submit the revision sweep as Slurm array jobs. See REVISION.md.
-# Designs: D0 (DASCOT + factories around the data block), D2 (DASCOT + cultivation in the
-# plane), D3 (HBM: cultivation on top).
+# Designs (CULT_SPECS / FACT_SPECS below):
+#   2D-Cult     D2-wide, D2-tight        DASCOT + cultivation patches in the plane
+#   Planar-2D   D0-alt                   DASCOT's perimeter: every other ring tile a factory
+#                                        port, 4 sqrt(N) + 4 factories (always ready, 22 d^2)
+#   HBM-Cult    D3-k1, D3-s2 .. D3-s16   HBMS paper's Dedicated / Shared-S, cultivation on top
+#   HBM-Fact    D3-k1-fact .. s16-fact   the same layouts with factories on top
 #
 #   ./submit_revision.sh mini  [--dry-run]   quick: N=16 p10 and p50, short partition (< 4 h)
 #   ./submit_revision.sh pilot [--dry-run]   N = 16, 25, 49, 64 (12 circuits)
@@ -32,11 +36,11 @@
 # Parameter choices (see wisq/src/wisq/designs.py for the citations):
 #   cultivation recharge  60 rounds (d1=3, T error 3e-6) and 360 rounds (d1=5, 2e-9):
 #                         Tour de gross App. A.6, Table 5.
-#   factory count         X<m> = m x F*, the break-even count for the circuit's T demand
-#                         (Litinski, A Game of Surface Codes, Sec. 4.4); m in {1/4,1/2,1,2}
-#                         brackets the space-time optimum; each design is reported at its best.
-#                         Only counts whose ports fit on the ring are queued (plan_d0.py), and
-#                         Xmax (a port on every ring tile) where X2 does not fit.
+#   factories             always ready, 22 d^2 qubits, error 35 p^3: the 15-to-1 block of
+#                         Litinski, A Game of Surface Codes, Secs. 3.3 and 4.1.
+#   D0 X<m> counts        (FACT_SPECS="D0-X1 ..."): m x F*, the break-even count for the
+#                         circuit's T demand (GoSC Sec. 4.4). Only counts whose ports fit on
+#                         the ring are queued (plan_d0.py), and Xmax where X2 does not fit.
 SIM_D="${HBM_D:-13}"
 
 set -euo pipefail
@@ -92,6 +96,7 @@ feasible() {  # feasible <qasm> <R>: the circuit's T states alone meet the targe
 wanted() {  # wanted <qasm> <design> <R>: whether the run can change the results
     case "$2" in
         D0*) [ -z "$PLAN" ] || grep -qxF "$1 $2" "$PLAN"; return ;;  # fits on the ring
+        *-fact) return 0 ;;  # factories on top: no recharge grade to check
         D2*|D3*|D4*) ;;
         *) return 0 ;;
     esac
@@ -132,8 +137,10 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]: the wanted runs
 }
 
 # Override with CULT_SPECS / FACT_SPECS (space-separated) to leave knob values out.
-read -r -a CULT <<< "${CULT_SPECS:-D2-wide D2-tight D3-k1 D3-khalf D3-k2 D3-kquarter}"
-read -r -a FACT <<< "${FACT_SPECS:-D0-X0.25 D0-X0.5 D0-X1 D0-X2 D0-Xmax}"
+# HBM (D3): the HBMS paper's Dedicated (k1) and Shared-2/4/8/16 (s2..s16), once with
+# cultivation patches (vs 2D-Cult, D2) and once with factories (-fact, vs Planar-2D, D0-alt).
+read -r -a CULT <<< "${CULT_SPECS:-D2-wide D2-tight D3-k1 D3-s2 D3-s4 D3-s8 D3-s16}"
+read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact D3-s4-fact D3-s8-fact D3-s16-fact}"
 EXTRA=(D2-wide-borrow D2-tight-borrow D3-k1-route)
 
 run_set() {  # run_set <bench_list>: every design; cultivation at the R that ROUNDS selects

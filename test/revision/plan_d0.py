@@ -3,7 +3,9 @@
 Prints "<qasm> <spec>" for each D0 spec worth running on each circuit of LIST:
   X<m>  when its ceil(m * F*) ports fit on the ring around the data block (D0 rejects more);
   Xmax  (a port on every ring tile) when X2 does not fit, so the sweep has the most supply
-        DASCOT's perimeter allows.
+        DASCOT's perimeter allows;
+  alt   (DASCOT's perimeter, every other ring tile) always: it fits by construction.
+Specs that are not D0 are ignored.
 Gates and N are read as wisq reads them (dascot.extract_gates_from_file). Only the standard
 library is needed: designs.py is loaded without the rest of the wisq package.
 
@@ -48,7 +50,7 @@ def main():
     ap.add_argument("--specs", nargs="+", required=True)
     args = ap.parse_args()
     D = load_designs()
-    designs = {s: D.parse_design(s, d=args.d) for s in args.specs}
+    designs = {s: D.parse_design(s, d=args.d) for s in args.specs if s.startswith("D0-")}
     with open(args.list) as f:
         paths = [line.strip() for line in f if line.strip()]
     for path in paths:
@@ -59,7 +61,8 @@ def main():
         x2_fits = all(c is not None and c <= cap for s, c in counts.items()
                       if designs[s].count_mode == "X")
         for s, c in counts.items():
-            if (c is None and not x2_fits) or (c is not None and c <= cap):
+            mode = designs[s].count_mode
+            if mode == "alt" or (mode == "max" and not x2_fits) or (c is not None and c <= cap):
                 print(path, s)
 
 

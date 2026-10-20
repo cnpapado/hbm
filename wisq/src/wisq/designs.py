@@ -15,6 +15,8 @@ Spec grammar ("-"-separated tokens):
            consumption), applied to the circuit's demand.
     Xmax   D0 only: a port on every ring tile (d0_ring_capacity), the most supply the ring
            takes. For T-heavy circuits ceil(m * F*) ports do not fit on the ring.
+    alt    D0 only: DASCOT's original perimeter (Planar-2D): every other ring tile is a
+           magic-state port and the tiles between stay free ancillas, 4 sqrt(N) + 4 ports.
 
   D0-<count>         Edge (baseline; Litinski, A Game of Surface Codes, Sec. 4; "peripheral
                      placement" in Holmes et al. 2019). Square sparse plane plus a ring of
@@ -33,11 +35,17 @@ Spec grammar ("-"-separated tokens):
                      directly above every data qubit, one extra row per data row; tight: patches
                      replace the routing tiles between pairs of data rows (1 per 2 qubits).
                      -borrow: a T gate may route in-plane to another qubit's ready patch.
-  D3-k1 | D3-khalf | D3-k2 | D3-kquarter[-route]   Cultivation on top (proposed).
-                     k1: patch above each data qubit; khalf: above the routing tiles between
-                     pairs of data rows; k2: above every data qubit and every routing tile on a
-                     data qubit's vertical side; kquarter: one per 2x2 data block, reached by a
-                     full top routing layer. -route: add that routing layer to k1/k2/khalf.
+  D3-k1 | D3-khalf | D3-k2 | D3-kquarter | D3-s2 | D3-s4 | D3-s8 | D3-s16 [-route] [-fact]
+                     Cultivation on top (proposed).
+                     k1: patch above each data qubit (the HBMS paper's Dedicated); khalf: above
+                     the routing tiles between pairs of data rows; k2: above every data qubit
+                     and every routing tile on a data qubit's vertical side; kquarter: one per
+                     2x2 data block, reached by a full top routing layer. s<S>: the HBMS
+                     paper's Shared-S, one per S data qubits at architecture.py's
+                     hbm_shared_<S>_positions, with a full top routing layer (s4 = kquarter).
+                     -route: add that routing layer to k1/k2/khalf. -fact: each top source is
+                     a factory instead of a cultivation patch (HBM_FACTORY_*; drawn on one top
+                     tile, charged HBM_FACTORY_QUBITS).
   D4-k1 | D4-k1p5[-route]                Compact plane + cultivation on top (proposed).
 
 Physical parameters (env vars; defaults are for p = 1e-3):
@@ -78,10 +86,14 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 
-from .architecture import hbm_shared_4_positions
+from .architecture import (hbm_shared_2_positions, hbm_shared_4_positions,
+                           hbm_shared_8_positions, hbm_shared_16_positions)
 
 FAMILIES = ("D0", "D1", "D2", "D3", "D4", "D5")
 FACTORY_FAMILIES = ("D0", "D1", "D5")
+SHARED = {"s2": hbm_shared_2_positions, "s4": hbm_shared_4_positions,
+          "s8": hbm_shared_8_positions, "s16": hbm_shared_16_positions}  # HBMS paper's Shared-S
+SHARED_KNOBS = tuple(SHARED)
 
 
 @dataclass(frozen=True)
@@ -102,7 +114,7 @@ class Design:
     factory_rounds: int
     factory_qubits: int
     factory_sites: tuple  # (width, height) in lattice sites
-    count_mode: str = ""  # "S" | "X" | "max" for factory designs
+    count_mode: str = ""  # "S" | "X" | "max" | "alt" for factory designs
     count_value: float = 0.0
     variant: str = ""  # "band" | "mesh" for D1
 
@@ -161,16 +173,17 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
     )
 
     if family in FACTORY_FAMILIES:
-        counts = [t for t in rest if re.fullmatch(r"S[1-9]\d*|X\d+(\.\d+)?|Xmax", t)]
+        counts = [t for t in rest if re.fullmatch(r"S[1-9]\d*|X\d+(\.\d+)?|Xmax|alt", t)]
         if len(counts) != 1 or (counts[0][0] == "X" and counts[0] != "Xmax"
                                 and float(counts[0][1:]) <= 0):
             raise ValueError(f"{family} needs exactly one count token S<k> or X<m> (m > 0), "
                              f"got {spec!r}")
         count = counts[0]
-        if count == "Xmax" and family != "D0":
-            raise ValueError(f"Xmax (a port on every ring tile) is for D0 only, got {spec!r}")
+        if count in ("Xmax", "alt") and family != "D0":
+            raise ValueError(f"{count} (ports on the ring) is for D0 only, got {spec!r}")
         others = [t for t in rest if t != count]
         count_kw = (dict(count_mode="max") if count == "Xmax"
+                    else dict(count_mode="alt") if count == "alt"
                     else dict(count_mode=count[0], count_value=float(count[1:])))
         if family == "D0":
             if others:
@@ -207,9 +220,10 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
                       "PLANE", allow_direct=True, allow_route="borrow" in flags,
                       top_routing_layer=False, **params)
     if family == "D3":
-        check(("k1", "k2", "khalf", "kquarter"), ("route",))
-        routed = knob == "kquarter" or "route" in flags
-        return Design(spec, family, knob, flags, "square_sparse", "top", "cultivation", "TOP",
+        check(("k1", "k2", "khalf", "kquarter") + SHARED_KNOBS, ("route", "fact"))
+        routed = knob in ("kquarter",) + SHARED_KNOBS or "route" in flags
+        source = "factory" if "fact" in flags else "cultivation"
+        return Design(spec, family, knob, flags, "square_sparse", "top", source, "TOP",
                       allow_direct=True, allow_route=routed, top_routing_layer=routed, **params)
     # D4
     check(("k1", "k1p5"), ("route",))
@@ -250,18 +264,18 @@ def circuit_demand(gates):
 
 
 def factory_count(design, n, gates):
-    """Number of factories (None for Xmax: the builder fills the ring), plus (lambda, F*)
-    when the circuit is given."""
+    """Number of factories (None for Xmax and alt: the builder places them on the ring), plus
+    (lambda, F*) when the circuit is given."""
     if design.count_mode == "S":
         return math.ceil(n / design.count_value), None, None
     if gates is None:
-        if design.count_mode == "max":
+        if design.count_mode in ("max", "alt"):
             return None, None, None
         raise ValueError(f"{design.spec}: X<m> factory counts need the circuit's gates")
     n_t, depth = circuit_demand(gates)
     lam = n_t / depth if depth else 0.0
     f_star = max(1, math.ceil(lam * (1 + design.recharge_steps)))
-    if design.count_mode == "max":
+    if design.count_mode in ("max", "alt"):
         return None, lam, f_star
     return max(1, math.ceil(design.count_value * f_star)), lam, f_star
 
@@ -424,9 +438,14 @@ def d0_ring_capacity(n):
 
 
 def _d0_edge(design, n, n_fact):
-    """Ports evenly spaced on the ring, starting mid-top (n_fact None: every ring tile)."""
+    """Ports evenly spaced on the ring, starting mid-top (n_fact None: every ring tile; alt:
+    every other tile of the whole ring, as DASCOT's all_sides, never a corner)."""
     arch, slots = _d0_ring(n)
     width = arch["width"]
+    if design.count_mode == "alt":
+        ports = sorted(_perimeter_slots(width, arch["height"])[1::2])
+        arch.update(magic_states=ports, blocked=[], blocked_top=[])
+        return arch, _factory_acct(design, len(ports))
     if n_fact is None:
         n_fact = len(slots)
     if n_fact > len(slots):
@@ -549,7 +568,9 @@ def _d2_cultivation_plane(design, n):
     return arch, _cult_acct(len(patches))
 
 
-def _d3_cultivation_top(design, n):
+def _d3_top(design, n):
+    """Sources on the top layer: cultivation patches, or factories with -fact (each drawn on
+    one top tile and charged factory_qubits)."""
     arch = _square_sparse(n)
     width, height = arch["width"], arch["height"]
     data = arch["alg_qubits"]
@@ -560,10 +581,15 @@ def _d3_cultivation_top(design, n):
     elif design.knob == "k2":
         side = {v for q in data for v in _vertical_neighbors(q, width, height)}
         patches = sorted(set(data) | side)
-    else:  # kquarter
+    elif design.knob == "kquarter":
         patches = hbm_shared_4_positions(arch)
-    arch.update(magic_states=sorted(patches), blocked=[], blocked_top=[])
+    else:  # s2, s4, s8, s16
+        patches = SHARED[design.knob](arch)
+    patches = sorted(set(patches))
+    arch.update(magic_states=patches, blocked=[], blocked_top=[])
     top_tiles = width * height if design.top_routing_layer else len(patches)
+    if design.source == "factory":
+        return arch, _factory_acct(design, len(patches), top=len(patches), top_tiles=top_tiles)
     return arch, _cult_acct(len(patches), top_tiles)
 
 
@@ -692,15 +718,16 @@ def build_arch(design, n_qubits, gates=None):
     blocked_top (top tiles occupied by factories), design (parameters and accounting).
     """
     lam = f_star = None
-    if design.source == "factory":
+    if design.family == "D3":  # cultivation or (-fact) factories at fixed top positions
+        arch, acct = _d3_top(design, n_qubits)
+    elif design.source == "factory":
         n_fact, lam, f_star = factory_count(design, n_qubits, gates)
         builder = {"D0": _d0_edge, "D5": _d5_factories_top}.get(design.family)
         if design.family == "D1":
             builder = _d1_mesh if design.variant == "mesh" else _d1_band
         arch, acct = builder(design, n_qubits, n_fact)
     else:
-        builder = {"D2": _d2_cultivation_plane, "D3": _d3_cultivation_top,
-                   "D4": _d4_compact_top}[design.family]
+        builder = {"D2": _d2_cultivation_plane, "D4": _d4_compact_top}[design.family]
         arch, acct = builder(design, n_qubits)
     if not arch["magic_states"]:
         raise ValueError(f"{design.spec}: no magic-state sources for N={n_qubits}")

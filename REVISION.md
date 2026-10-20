@@ -6,35 +6,39 @@ before** (`HBM_CONFIG`, ARCH_A/C/D, all old scripts), so old results stay reprod
 
 ## The question
 
-Is it worth putting cultivation patches on a second layer (HBM) instead of running DASCOT
-with magic states in the data plane? **Metric: space-time volume (STV) only.**
+Is it worth putting magic-state sources on a second layer (HBM) instead of running DASCOT
+with them in the data plane? **Metric: space-time volume (STV) only.**
 
-| Design | Spec | What | Role |
+| Name | Spec | What | Role |
 |---|---|---|---|
-| #0 | `D0-X<m>` | DASCOT with factories: factories beside the data block, feeding ports on a ring around it (Litinski, *A Game of Surface Codes* Sec. 4; "peripheral placement" in Holmes et al. 2019) | baseline |
-| #2 | `D2-wide`, `D2-tight` | DASCOT with cultivation: a patch beside each qubit (wide: own patch, grid grows; tight: 1 per 2 qubits in existing routing tiles) | baseline |
-| #3 | `D3-k1`, `D3-khalf`, `D3-k2`, `D3-kquarter` | HBM: cultivation patches on top of square sparse (k = patches per qubit) | proposed |
+| 2D-Cult-k1 | `D2-wide` | DASCOT with a cultivation patch beside each qubit (own patch, grid grows) | baseline |
+| 2D-Cult-k½ | `D2-tight` | DASCOT with 1 patch per 2 qubits, in existing routing tiles | baseline |
+| Planar-2D | `D0-alt` | DASCOT's original perimeter: every other tile of the ring around the data block is a magic-state port fed by a factory, the tiles between are free ancillas (4√N + 4 ports) | baseline |
+| HBM-Cult-Dedicated, -Shared-2/4/8/16 | `D3-k1`, `D3-s2`, `D3-s4`, `D3-s8`, `D3-s16` | The HBMS paper's configurations, cultivation patches on the top layer: one per data qubit (Dedicated) or one per S data qubits (Shared-S, positions from `architecture.py`, full top routing layer) | proposed |
+| HBM-Fact-Dedicated, -Shared-2/4/8/16 | `D3-k1-fact` … `D3-s16-fact` | The same layouts with a factory as each top magic-state qubit (drawn on one top tile, charged 22d²) | proposed |
 | PPM | `PPM-<block>` (`ppm_baseline.py`) | Litinski Pauli-product measurements: one data block, cultivation patches at its ancilla region, T gates one at a time (see below) | baseline |
 
-Not run (the code still builds them and `test_designs.py` still tests them): D1 (factories
-inside the data plane), D4 (compact plane + cultivation on top), D5 (factories on top; with
+Factories are always ready (one state per port per step), cost 22d² qubits and have error
+35p³ (the 15-to-1 block of *A Game of Surface Codes*). Cultivation keeps its recharge time.
+
+Not run (the code still builds them and `test_designs.py` still tests them): D0 `X<m>` and
+`Xmax` factory counts, D3 `khalf`, `k2`, `kquarter`, D1 (factories inside the data plane),
+D4 (compact plane + cultivation on top), D5 (factories on top with their full footprint; with
 Upper-First it does not fit at d=13, rule 5 below).
 
-**Knobs.** Each design is reported at its best knob:
-- D0: factory count `X<m>` = `ceil(m·F*)` factories, m ∈ {¼, ½, 1, 2}. F\* = ⌈λ·(1 + ⌈R_f/d⌉)⌉ = ⌈λ⌉ (factories are always ready, R_f = 0), with λ = T count / ideal depth: Litinski's sizing rule (*A Game of Surface Codes* Sec. 4.4: add distillation blocks until supply matches consumption), applied to the circuit's demand. (`S<k>`, a fixed `ceil(N/k)` factories, is kept for tests.)
-  - **Ring limit.** Each D0 factory needs its own port on the ring around the data block, and the ring has only 36 (N=16) to 164 (N=400) tiles. F\* is 10 for `bench_n16_p90` and 163 for `bench_n400_p90`, so X1 fits everywhere but X2 does not fit for p90 at N ≥ 100. The builder rejects counts that do not fit, so `submit_revision.sh` queues only the X<m> that fit (`plan_d0.py`). Where X2 does not fit it adds `D0-Xmax`, a port on every ring tile: the most supply DASCOT's perimeter allows. On the 33 synthetic circuits that is 132 D0 runs: X¼, X½, X1 on all, X2 on 26, Xmax on 7.
-  - Xmax is generous to DASCOT: it assumes every ring tile can be fed by its own factory, although an 11-tile factory is wider than one ring tile.
-- D2: layout (wide, tight). D3: k. PPM: data block, units, source count.
-- **Recharge time R (D2, D3, PPM):** 60 and 360 rounds, the two published cultivation grades (table below). Each pair is reported at each R (both sides at the same R) and at R = best (each side at its own best R). R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
+**Knobs.** Each family is reported at its best knob:
+- 2D-Cult: layout (wide, tight). HBM: sharing ratio (Dedicated, Shared-2/4/8/16). Planar-2D: none. PPM: data block, units, source count.
+- **Recharge time R (cultivation: 2D-Cult, HBM-Cult, PPM):** 60 and 360 rounds, the two published cultivation grades (table below). Each pair is reported at each R (both sides at the same R) and at R = best (each side at its own best R). R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
+- D0 `X<m>` counts (optional, `FACT_SPECS`): `ceil(m·F*)` factories with F\* = ⌈λ⌉, λ = T count / ideal depth (*A Game of Surface Codes* Sec. 4.4). Ports must fit on the ring (36 tiles at N=16 to 164 at N=400); `plan_d0.py` queues only counts that fit, plus `Xmax` (every ring tile) where X2 does not.
 
 **Flags** (`full` phase only): `-borrow` (D2): route in-plane to another qubit's ready patch. `-route` (D3): add a full routing top layer, counted in qubits.
 
 **Routing on the top layer is Upper-First everywhere** (the paper's ARCH_C). A routed T gate goes up above the qubit or above one of its vertical neighbours, then along the top layer to a source. CNOTs stay in the data plane. General 3D routing (`-3d`) is not run.
 
-**The three comparisons** (`scripts/revision/compare.py`), ratio = STV(baseline) / STV(HBM), > 1: HBM wins:
-- **P1:** DASCOT + cultivation (D2) vs HBM (D3). Same source; only its place changes.
-- **P2:** DASCOT + factories (D0) vs HBM (D3). DASCOT's setup with distillation.
-- **P3:** PPM vs HBM (D3). Whether a different compilation model (PPM) makes the top layer unnecessary.
+**The three comparisons** (`scripts/revision/compare.py`), ratio = STV(baseline) / STV(HBM), > 1: HBM wins. Each pair uses the same source on both sides, so only the placement changes:
+- **P1:** 2D-Cult (D2) vs HBM-Cult (D3).
+- **P2:** Planar-2D (D0-alt) vs HBM-Fact (D3 `-fact`, family `D3F` in `rev.csv`). The HBMS paper's original comparison, with factories always ready on both sides.
+- **P3:** PPM vs HBM-Cult (D3). Whether a different compilation model (PPM) makes the top layer unnecessary.
 
 ## Parameters and their sources (p = 10⁻³)
 

@@ -128,7 +128,9 @@ def analyze_file(path, args):
     if des is None:
         return []  # legacy (HBM_CONFIG) output
     bench = os.path.basename(path).split("__")[0]
-    base = dict(bench=bench, file=os.path.basename(path), family=des["family"],
+    # D3 with factories on top (-fact) is its own family: compare.py pairs it with D0.
+    family = "D3F" if des["family"] == "D3" and des["source"] == "factory" else des["family"]
+    base = dict(bench=bench, file=os.path.basename(path), family=family,
                 spec=des["spec"], knob=des["knob"], source=des["source"],
                 placement=des["placement"], d_sim=des["d"],
                 recharge_rounds=des["recharge_rounds"], recharge_steps=des["recharge_steps"],

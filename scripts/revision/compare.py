@@ -1,19 +1,23 @@
-"""Compare the baselines against HBM (cultivation on top) by space-time volume.
+"""Compare the baselines against HBM by space-time volume.
 
-Three pairs, all with HBM = D3 (cultivation patches on the top layer):
+Three pairs; each uses the same magic-state source on both sides:
 
-  P1  DASCOT + cultivation (D2, patches in the data plane)        vs HBM
-  P2  DASCOT + factories   (D0, factories around the data block)  vs HBM
-  P3  Litinski PPM (ppm_baseline.py, cultivation patches)          vs HBM
+  P1  2D-Cult   (D2, cultivation patches in the data plane)     vs HBM-Cult (D3)
+  P2  Planar-2D (D0, factory ports on DASCOT's perimeter)       vs HBM-Fact (D3F: D3 -fact)
+  P3  Litinski PPM (ppm_baseline.py, cultivation patches)       vs HBM-Cult (D3)
+
+HBM is the HBMS paper's Dedicated (D3-k1) or Shared-S (D3-s2 .. D3-s16), cultivation patches
+or (-fact) factories on the top layer. Factories are always ready, so the factory pair has
+one setting, reported under R = "best".
 
 ratio = STV(baseline) / STV(HBM): > 1 means HBM wins. STV is the only metric. Both sides
 of a pair are at the same code distance d (the d the runs were simulated at, 13), as in the
 HBMS paper; the vertical-link error p' does not enter STV.
 
 Knobs. Each family is reported at its best knob (lowest STV among feasible, finished runs):
-D2 layout (wide/tight), D3 k, D0 factory count, PPM block. The cultivation recharge time R
-is a knob too: every pair is reported at each R that was run (both sides at the same R,
-D0 at its own factory period) and at R = "best", where each side picks its best R. "best"
+D2 layout (wide/tight), HBM sharing ratio, D0 factory count, PPM block. The cultivation
+recharge time R is a knob too: every cultivation pair is reported at each R that was run (both
+sides at the same R) and at R = "best", where each side picks its best R. "best"
 matters when the low-fidelity grade (R = 60, 3e-6) is infeasible for a circuit's T count.
 
 Runs that cannot matter are not queued (submit_revision.sh): an R whose grade alone breaks
@@ -44,9 +48,9 @@ from collections import defaultdict
 from analyze import parse_grades
 
 PAIRS = [  # (name, baseline families, HBM families, x variable)
-    ("P1 DASCOT + cultivation vs HBM", ("D2",), ("D3",), "t_density"),
-    ("P2 DASCOT + factories vs HBM", ("D0",), ("D3",), "t_density"),
-    ("P3 PPM vs HBM", ("PPM",), ("D3",), "t_per_step"),
+    ("P1 2D-Cult vs HBM-Cult", ("D2",), ("D3",), "t_density"),
+    ("P2 Planar-2D vs HBM-Fact", ("D0",), ("D3F",), "t_density"),
+    ("P3 PPM vs HBM-Cult", ("PPM",), ("D3",), "t_per_step"),
 ]
 X_LABEL = {"t_density": "T density (T per qubit per ideal step)",
            "t_per_step": "T gates per ideal step (T count / ideal depth)"}
@@ -120,13 +124,14 @@ def pair_rows(rows, grades, target):
 
     out = []
     for name, base_fams, hbm_fams, _ in PAIRS:
+        only_factories = set(base_fams + hbm_fams) <= factory  # one setting: R = best
         for bench in benches:
             for d in ds:
-                for R in sweep + [BEST]:
+                for R in [BEST] if only_factories else sweep + [BEST]:
                     key = lambda f, R: (bench, d, f, None if f in factory else R)  # noqa: E731
                     keys = lambda fams: [key(f, R) for f in fams]  # noqa: E731
                     # At R = best a side must have run every R that can be its best.
-                    needs = best_needs(bench) if R == BEST else [R]
+                    needs = (best_needs(bench) if R == BEST else [R]) or [R]
                     was_run = lambda fams: any(  # noqa: E731
                         all(key(f, R2) in ran for R2 in needs) for f in fams)
                     if not was_run(base_fams) or not was_run(hbm_fams):
@@ -241,7 +246,7 @@ def plot(pairs, path, R):
     axes[0][0].set_ylabel("STV(baseline) / STV(HBM)\n> 1: HBM wins")
     axes[0][0].legend(frameon=False, fontsize=9)
     what = "each side at its best R" if R == BEST else f"R = {R} rounds"
-    fig.suptitle(f"Cultivation recharge: {what} (D0 uses the factory period)",
+    fig.suptitle(f"Cultivation recharge: {what} (factories: always ready)",
                  fontsize=10, x=0.01, ha="left")
     fig.tight_layout()
     fig.savefig(path, dpi=170)
@@ -278,8 +283,8 @@ def main():
               f"(median STV ratio {r['median_ratio']:.2f})")
     if args.rows:
         def side(spec, R, steps):
-            tag = f"{spec}@R{R:g}" if isinstance(R, float) and spec.startswith(("D2", "D3", "PPM")) \
-                else spec
+            tag = (f"{spec}@R{R:g}" if isinstance(R, float) and spec.startswith(("D2", "D3", "PPM"))
+                   and not spec.endswith("-fact") else spec)
             steps = f"{steps:.0f}" if isinstance(steps, float) else ""
             return f"{tag:>22s} {steps:>6s}"
         print(f"\n{'':2s} {'bench':16s} {'d':>3s} {'R':>4s} {'baseline':>22s} {'steps':>6s} "

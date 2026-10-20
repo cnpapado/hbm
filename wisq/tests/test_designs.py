@@ -7,12 +7,13 @@ import math
 
 import pytest
 
-from wisq.designs import (build_arch, d0_ring_capacity, direct_sources, factory_count,
+from wisq.designs import (SHARED, build_arch, d0_ring_capacity, direct_sources, factory_count,
                           parse_design)
 
 SPECS = ["D0-S4", "D0-S8", "D1-band-S4", "D1-band-S8", "D1-mesh-S4", "D1-mesh-S8",
          "D2-wide", "D2-tight", "D2-wide-borrow", "D3-k1", "D3-khalf", "D3-k2", "D3-kquarter",
-         "D3-k1-route", "D4-k1", "D4-k1p5", "D5-S4", "D5-S8", "D5-S16", "D5-S8-3d"]
+         "D3-k1-route", "D4-k1", "D4-k1p5", "D5-S4", "D5-S8", "D5-S16", "D5-S8-3d",
+         "D0-alt", "D3-s2", "D3-s4", "D3-s8", "D3-s16", "D3-k1-fact", "D3-s4-fact"]
 SIZES = [16, 25, 49, 100]
 
 
@@ -33,7 +34,8 @@ def neighbors(p, w, h):
 @pytest.mark.parametrize("bad", ["D9-S4", "D0", "D0-k1", "D0-S4-X1", "D1-S4", "D1-grid-S4",
                                  "D1-band-mesh-S4", "D2-medium", "D3-k3", "D5-S0", "D5-X0",
                                  "D2-wide-route", "D3-k1-borrow", "D5-S4-route",
-                                 "D1-band-Xmax", "D5-Xmax", "D0-Xmax-S4"])
+                                 "D1-band-Xmax", "D5-Xmax", "D0-Xmax-S4", "D1-band-alt",
+                                 "D0-alt-X1", "D3-s3", "D2-wide-fact"])
 def test_invalid_specs_rejected(bad):
     with pytest.raises(ValueError):
         design(bad)
@@ -132,7 +134,9 @@ def test_layout_invariants(spec, n):
     if des.source == "cultivation":
         assert acct["n_patches"] == len(sources) and acct["n_factories"] == 0
     else:
-        assert acct["n_factories"] == len(sources) == math.ceil(n / des.count_value)
+        assert acct["n_factories"] == len(sources) and acct["n_patches"] == 0
+        if des.count_mode == "S":
+            assert len(sources) == math.ceil(n / des.count_value)
 
 
 @pytest.mark.parametrize("n", SIZES)
@@ -142,6 +146,42 @@ def test_d0_ports_on_ring(n):
     for p in arch["magic_states"]:
         r, c = divmod(p, w)
         assert r in (0, h - 1) or c in (0, w - 1)
+
+
+@pytest.mark.parametrize("n", SIZES)
+def test_d0_alt_every_other_ring_tile(n):
+    # DASCOT's perimeter (Planar-2D): every other ring tile is a port, 4 sqrt(N) + 4 of them.
+    arch = build_arch(design("D0-alt"), n)
+    w, h = arch["width"], arch["height"]
+    ports = set(arch["magic_states"])
+    assert len(ports) == 4 * math.isqrt(n) + 4
+    corners = {0, w - 1, (h - 1) * w, h * w - 1}
+    assert not ports & corners
+    for p in ports:
+        r, c = divmod(p, w)
+        assert r in (0, h - 1) or c in (0, w - 1)
+        vert, horiz = neighbors(p, w, h)
+        assert not set(vert + horiz) & ports  # a free ancilla tile between any two ports
+
+
+@pytest.mark.parametrize("knob", ["s2", "s4", "s8", "s16"])
+@pytest.mark.parametrize("n", SIZES)
+def test_d3_shared_matches_the_paper(knob, n):
+    # HBMS paper's Shared-S: architecture.py's positions on a full top routing layer.
+    arch = build_arch(design(f"D3-{knob}"), n)
+    want = sorted(set(SHARED[knob]({k: arch[k] for k in ("width", "height", "alg_qubits")})))
+    assert arch["magic_states"] == want
+    acct = arch["design"]
+    assert acct["top_tiles"] == arch["width"] * arch["height"]
+    assert acct["n_patches"] == len(want) and acct["routing"] == "TOP"
+
+
+def test_d3_fact_sources_are_factories():
+    arch = build_arch(design("D3-s4-fact", d=13, factory_qubits=22 * 13 * 13), 16)
+    acct = arch["design"]
+    assert acct["source"] == "factory" and acct["n_factories"] == 4 == acct["top_factory_tiles"]
+    assert acct["n_patches"] == 0 and acct["factory_qubits"] == 3718
+    assert build_arch(design("D3-k1-fact"), 16)["design"]["n_factories"] == 16
 
 
 @pytest.mark.parametrize("variant", ["band", "mesh"])
