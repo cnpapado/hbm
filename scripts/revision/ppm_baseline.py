@@ -28,7 +28,8 @@ Magic-state supply uses the same model as the HBMS designs: each source delivers
 per (1 + ceil(R/d)) steps. Full supply is ceil(u * (1 + ceil(R/d)) / steps_per_rotation)
 sources, so the block never waits; --source-fracs also tries fewer sources (the block then
 waits for states, like the D3 k sweep). Cultivation grades come from Tour de gross (arXiv:
-2506.03094) App. A.6, Table 5; the factory option is Litinski 2019 Table 1, (15-to-1)_{17,7,7}.
+2506.03094) App. A.6, Table 5. The factory option (--source factory) matches the D0 runs:
+always ready, 22 d^2 qubits and 35 p^3 error (GoSC 15-to-1 block, Secs. 3.3 and 4.1).
 
 Code distance: every row is at a given d (--d, default 13, the d the HBMS runs use), as in
 analyze.py. A row is infeasible when its T states alone exceed the error target. Its program
@@ -137,8 +138,9 @@ def rows_for(path, args):
     bench = os.path.basename(path)[:-len(".qasm")]
     if args.source == "cultivation":
         supplies = [(r, *args.cult_grades[r]) for r in args.rounds]  # (rounds, error, qubits)
-    else:
-        supplies = [(args.factory_rounds, args.factory_error, args.factory_qubits)]
+    else:  # factory qubits None: 22 d^2, set per d below
+        err = args.factory_error if args.factory_error is not None else 35 * args.p ** 3
+        supplies = [(args.factory_rounds, err, args.factory_qubits)]
     out = []
     for spec, block, units, frac in variants(args):
         tiles = units * BLOCKS[block][0](n)
@@ -163,7 +165,7 @@ def rows_for(path, args):
                 if e_src > args.target:  # the T states alone break the target
                     out.append(dict(row, feasible=False, Q=None, rounds=None, STV=None))
                     continue
-                q = tiles * 2 * d * d + n_src * src_qubits
+                q = tiles * 2 * d * d + n_src * (src_qubits or 22 * d * d)
                 out.append(dict(row, feasible=True, Q=q, rounds=steps * d, STV=q * steps * d))
     return out
 
@@ -177,9 +179,12 @@ def main():
                     help="cultivation grades to evaluate (keys of --cult-grades)")
     ap.add_argument("--cult-grades", type=parse_grades, default="60:3e-6:454,360:2e-9:463",
                     help="'rounds:T-error:qubits,...' (Tour de gross App. A.6, Table 5)")
-    ap.add_argument("--factory-rounds", type=int, default=43)
-    ap.add_argument("--factory-qubits", type=int, default=4620)
-    ap.add_argument("--factory-error", type=float, default=4.5e-8)
+    ap.add_argument("--factory-rounds", type=int, default=0,
+                    help="rounds between factory outputs (default 0: always ready)")
+    ap.add_argument("--factory-qubits", type=int, default=None,
+                    help="qubits per factory (default 22 d^2: GoSC Sec. 3.3, 11 tiles)")
+    ap.add_argument("--factory-error", type=float, default=None,
+                    help="T-state error per factory output (default 35 p^3, GoSC Sec. 4.1)")
     ap.add_argument("--source-fracs", type=float, nargs="+", default=[1, 0.5, 0.25],
                     help="fractions of the full-supply source count to try")
     ap.add_argument("--units", type=int, nargs="+", default=[1, 2, 4],

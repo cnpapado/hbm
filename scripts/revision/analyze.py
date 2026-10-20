@@ -28,10 +28,12 @@ cultivation fidelity floor): it has no STV.
 Cultivation grades (--cult-grades, rounds:error:qubits; Tour de gross arXiv:2506.03094
 App. A.6, Table 5, p = 1e-3, at 6 gate layers per round): 60 rounds -> 3e-6 with 454
 qubits (d1 = 3), 360 rounds -> 2e-9 with 463 qubits (d1 = 5). A run's grade is looked up by
-its HBM_CULT_ROUNDS. Factory output error: Litinski 2019 Table 1, (15-to-1)_{17,7,7}: 4.5e-8.
+its HBM_CULT_ROUNDS. Factory output error (--factory-error, default 35 p^3 = 3.5e-8 at
+p = 1e-3): the 15-to-1 block of Litinski, A Game of Surface Codes, Sec. 4.1.
 
 Physical qubits: tiles * 2 d^2 + n_patches * patch_qubits + n_factories * factory_qubits,
-where tiles counts every lower- and top-layer tile except factory and patch tiles.
+where tiles counts every lower- and top-layer tile except factory and patch tiles, and
+factory_qubits is what the run used (HBM_FACTORY_QUBITS, default 22 d^2: 11 tiles).
 
 Usage:
   python analyze.py OUT_DIR [OUT_DIR ...] --csv results.csv
@@ -106,7 +108,7 @@ def cult_grade(des, args):
 def source_error(des, args):
     if des["source"] == "cultivation":
         return cult_grade(des, args)[0]
-    return args.factory_error
+    return args.factory_error if args.factory_error is not None else 35 * args.p ** 3
 
 
 def qubits(d, des, args):
@@ -185,8 +187,9 @@ def main():
     ap.add_argument("--cult-grades", type=parse_grades, default="60:3e-6:454,360:2e-9:463",
                     help="cultivation grades 'rounds:T-error:qubits,...' (Tour de gross "
                          "App. A.6, Table 5, p=1e-3)")
-    ap.add_argument("--factory-error", type=float, default=4.5e-8,
-                    help="T-state error from the factory (Litinski 2019 (15-to-1)_{17,7,7})")
+    ap.add_argument("--factory-error", type=float, default=None,
+                    help="T-state error from the factory (default 35 p^3: 15-to-1, Litinski, "
+                         "A Game of Surface Codes, Sec. 4.1)")
     ap.add_argument("--seam-pth", type=parse_seam_pth, default="1:0.01,5:0.004,10:0.002",
                     help="threshold of a vertical merge per p' multiple, 'mult:p_th,...' "
                          "(default from the HBMS paper's Stim results, Fig. 11)")

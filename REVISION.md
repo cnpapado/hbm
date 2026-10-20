@@ -21,9 +21,9 @@ inside the data plane), D4 (compact plane + cultivation on top), D5 (factories o
 Upper-First it does not fit at d=13, rule 5 below).
 
 **Knobs.** Each design is reported at its best knob:
-- D0: factory count `X<m>` = `ceil(m·F*)` factories, m ∈ {¼, ½, 1, 2}. F\* = ⌈λ·(1 + ⌈R_f/d⌉)⌉, with λ = T count / ideal depth: Litinski's sizing rule (*A Game of Surface Codes* Sec. 4.4: add distillation blocks until supply matches consumption), applied to the circuit's demand. (`S<k>`, a fixed `ceil(N/k)` factories, is kept for tests.)
-  - **Ring limit.** Each D0 factory needs its own port on the ring around the data block, and the ring has only 36 (N=16) to 164 (N=400) tiles. T-heavy circuits need more: F\* is 46 for `bench_n16_p90` and 812 for `bench_n400_p90`. The builder rejects counts that do not fit, so `submit_revision.sh` queues only the X<m> that fit (`plan_d0.py`). Where X2 does not fit it adds `D0-Xmax`, a port on every ring tile: the most supply DASCOT's perimeter allows. Every circuit thus gets at least one D0 run; for p90 at N ≥ 225, only Xmax fits.
-  - Xmax is generous to DASCOT: it assumes every ring tile can be fed by its own factory, although a 4×4-tile factory (d=13) is wider than one ring tile.
+- D0: factory count `X<m>` = `ceil(m·F*)` factories, m ∈ {¼, ½, 1, 2}. F\* = ⌈λ·(1 + ⌈R_f/d⌉)⌉ = ⌈λ⌉ (factories are always ready, R_f = 0), with λ = T count / ideal depth: Litinski's sizing rule (*A Game of Surface Codes* Sec. 4.4: add distillation blocks until supply matches consumption), applied to the circuit's demand. (`S<k>`, a fixed `ceil(N/k)` factories, is kept for tests.)
+  - **Ring limit.** Each D0 factory needs its own port on the ring around the data block, and the ring has only 36 (N=16) to 164 (N=400) tiles. F\* is 10 for `bench_n16_p90` and 163 for `bench_n400_p90`, so X1 fits everywhere but X2 does not fit for p90 at N ≥ 100. The builder rejects counts that do not fit, so `submit_revision.sh` queues only the X<m> that fit (`plan_d0.py`). Where X2 does not fit it adds `D0-Xmax`, a port on every ring tile: the most supply DASCOT's perimeter allows. On the 33 synthetic circuits that is 132 D0 runs: X¼, X½, X1 on all, X2 on 26, Xmax on 7.
+  - Xmax is generous to DASCOT: it assumes every ring tile can be fed by its own factory, although an 11-tile factory is wider than one ring tile.
 - D2: layout (wide, tight). D3: k. PPM: data block, units, source count.
 - **Recharge time R (D2, D3, PPM):** 60 and 360 rounds, the two published cultivation grades (table below). Each pair is reported at each R (both sides at the same R) and at R = best (each side at its own best R). R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
 
@@ -42,22 +42,22 @@ Upper-First it does not fit at d=13, rule 5 below).
 |---|---|---|
 | `HBM_D` | 13 | data code distance; converts rounds to steps, sizes factories in tiles |
 | `HBM_CULT_ROUNDS` | 60 (also run 360) | Tour de gross (arXiv:2506.03094) App. A.6, Table 5, at 6 gate layers per round. d₁=3: 351 layers ≈ 60 rounds, T error 3×10⁻⁶, 454 qubits. d₁=5: 2,167 layers ≈ 360 rounds, 2×10⁻⁹, 463 qubits. Cross-check for d₁=3: Gidney 2025 (arXiv:2505.15917) Sec. 3, 30,000 qubit-rounds per T state / ~512 qubits ≈ 59 rounds. |
-| `HBM_FACTORY_ROUNDS` | 43 | Litinski 2019 (arXiv:1905.06903) Table 1: (15-to-1)₁₇,₇,₇, the only single-level factory listed at p=10⁻³. 42.6 cycles per output, output error 4.5×10⁻⁸. |
-| `HBM_FACTORY_QUBITS` | 4620 | same table |
-| `HBM_FACTORY_SITES` | 45x51 | Litinski 2019 Fig. 11: (d_X+4d_Z)×3d_X lattice sites. In tiles: ⌈45/d⌉×⌈51/d⌉, i.e. 4×4 at d=13 and 2×3 at d=25. |
+| `HBM_FACTORY_ROUNDS` | 0 | Factories are always ready: a port delivers one state per step, the most generous supply for the factory baseline. (43 would model Litinski 2019, arXiv:1905.06903, Table 1, (15-to-1)₁₇,₇,₇: 42.6 cycles per output.) |
+| `HBM_FACTORY_QUBITS` | 22d² (3,718 at d=13) | Litinski, *A Game of Surface Codes* (arXiv:1808.02892) Sec. 3.3, p. 14: the 15-to-1 block uses 11 tiles; 2d² qubits per tile (footnote 1, p. 4). Output error 35p³ = 3.5×10⁻⁸ (Sec. 4.1, p. 16; `analyze.py --factory-error`). |
+| `HBM_FACTORY_SITES` | 45x51 | Footprint of factories inside the layout (D1, D5; not run). Litinski 2019 Fig. 11: (d_X+4d_Z)×3d_X lattice sites; 4×4 tiles at d=13, 2×3 at d=25. D0 factories sit outside the layout. |
 
 **d₁ vs d:** d₁ is cultivation's internal fault distance. d₁=7 has no published data at p=10⁻³ (Gidney–Shutty–Jones Sec. 3), so it is not modelled. A circuit that needs T states better than 2×10⁻⁹ is marked infeasible for cultivation; distillation (D0) covers that regime.
 
 ## Rules every design follows (`design_routing.py`)
 
-1. **Finite sources.** Each source tile holds at most one T state and serves at most one T gate per step. Used at step t, it is ready again at t + 1 + ⌈R/d⌉.
+1. **Finite sources.** Each source tile holds at most one T state and serves at most one T gate per step. Used at step t, it is ready again at t + 1 + ⌈R/d⌉: R = 60 or 360 for cultivation, R = 0 for factories (always ready).
 2. **T gates cost one step,** also when they are direct (no routing).
 3. **Direct merges.** A T gate first uses a ready source on its vertical (Z) side or directly above it. Otherwise it routes to any free side of any ready source, if the design allows routing. If no source can serve it, it waits (`magic_wait` stall).
 4. **CNOTs** route as in DASCOT: from a vertical neighbour of the control to a horizontal neighbour of the target. Every design leaves each data qubit a free vertical side and a free horizontal side; `wisq/tests/test_designs.py` checks this.
 5. **Factory layouts.**
    - **D0:** the square sparse data block plus a ring of output ports around it, each fed by its own factory outside the grid.
    - **D5 (not run):** factories on the top layer. With Upper-First, every data qubit needs a free top tile above itself or a vertical neighbour that connects to a port. Data sits on odd rows, so a factory 4+ tiles tall seals some qubit off. At d=13 a factory is 4×4 tiles, so **D5 does not fit at d=13** (it fits at d=25, 2×3 tiles). The builder checks this and fails immediately.
-6. **Qubit accounting.** Tiles at 2d² qubits, factories at 4,620 qubits, cultivation patches at 454 or 463 qubits (depending on their grade).
+6. **Qubit accounting.** Tiles at 2d² qubits, factories at 22d² (11 tiles), cultivation patches at 454 or 463 qubits (depending on their grade).
 
 ## Outputs
 
@@ -82,6 +82,10 @@ Upper-First it does not fit at d=13, rule 5 below).
 - `draw_design.py SPEC N out.png [circuit.qasm]`: draws both layers of a design. `X<m>` counts need the circuit.
 
 ## How to run (on the server)
+
+D0 runs made before factories became always ready (file names ending `_F43q4620.out`) are
+stale: move them out of `outs_rev/` (`mkdir -p test/outs_rev_old && mv
+test/outs_rev/*/*_F43q4620.out test/outs_rev_old/`) so `analyze.py` does not mix them in.
 
 Every phase submits D0 (4 factory counts) and D2, D3 (2 layouts, 4 k's). Cultivation runs
 are queued only where they can change the results:

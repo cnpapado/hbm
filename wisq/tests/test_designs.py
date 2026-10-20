@@ -58,6 +58,16 @@ def test_factory_count_from_demand():
     assert factory_count(design("D0-S4"), 16, None)[0] == 4
 
 
+def test_factory_defaults(monkeypatch):
+    # Factories are always ready and cost 22 d^2 (GoSC 15-to-1 block: 11 tiles of 2 d^2).
+    for var in ("HBM_FACTORY_ROUNDS", "HBM_FACTORY_QUBITS"):
+        monkeypatch.delenv(var, raising=False)
+    des = parse_design("D0-X1", d=13)
+    assert des.recharge_steps == 0 and des.factory_qubits == 22 * 13 * 13
+    gates = [(0,)] * 10  # lambda = 1 -> F* = ceil(1 * (1 + 0)) = 1
+    assert factory_count(des, 16, gates) == (1, 1.0, 1)
+
+
 def test_x_count_needs_the_circuit():
     with pytest.raises(ValueError):
         build_arch(design("D0-X1"), 16)

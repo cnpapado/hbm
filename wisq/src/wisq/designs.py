@@ -9,9 +9,10 @@ Spec grammar ("-"-separated tokens):
     S<k>   ceil(N/k) factories (fixed sharing ratio).
     X<m>   ceil(m * F*) factories, where F* = ceil(lambda * (1 + ceil(R_f / d))) is the
            break-even count: lambda = T count / ideal depth (the circuit's T demand per step)
-           and one factory delivers a state every 1 + ceil(R_f / d) steps. This is
-           Litinski's sizing rule (A Game of Surface Codes, Sec. 4.4: add distillation blocks
-           until supply matches consumption), applied to the circuit's demand.
+           and one factory delivers a state every 1 + ceil(R_f / d) steps (every step with
+           the default R_f = 0, so F* = ceil(lambda)). This is Litinski's sizing rule (A Game
+           of Surface Codes, Sec. 4.4: add distillation blocks until supply matches
+           consumption), applied to the circuit's demand.
     Xmax   D0 only: a port on every ring tile (d0_ring_capacity), the most supply the ring
            takes. For T-heavy circuits ceil(m * F*) ports do not fit on the ring.
 
@@ -49,12 +50,16 @@ Physical parameters (env vars; defaults are for p = 1e-3):
                       (Sec. 3) -> ~60 and ~360 rounds. Cross-check for d1 = 3: Gidney 2025
                       (arXiv:2505.15917) Sec. 3, 30,000 qubit-rounds per T state at 1e-7
                       / ~512 qubits ~= 59 rounds.
-  HBM_FACTORY_ROUNDS  rounds between factory outputs (default 43). Litinski 2019
-                      (arXiv:1905.06903) Table 1: (15-to-1)_{17,7,7}, the only single-level
-                      factory listed at p = 1e-3, 42.6 code cycles, output error 4.5e-8.
-  HBM_FACTORY_QUBITS  physical qubits per factory (default 4620, same table).
-  HBM_FACTORY_SITES   factory footprint in lattice sites, "WxH" (default 45x51): Litinski
-                      2019 Fig. 11, (dX + 4dZ) x 3dX for (15-to-1)_{dX,dZ,dm}. In tiles:
+  HBM_FACTORY_ROUNDS  rounds a factory needs between outputs (default 0: factories are
+                      always ready, so a factory port delivers one state per step, the most
+                      generous supply for the factory baseline). 43 models Litinski 2019
+                      (arXiv:1905.06903) Table 1, (15-to-1)_{17,7,7}: 42.6 code cycles.
+  HBM_FACTORY_QUBITS  physical qubits per factory (default 22 d^2). Litinski, A Game of
+                      Surface Codes (arXiv:1808.02892), Sec. 3.3: the 15-to-1 block uses 11
+                      tiles, at 2 d^2 qubits per tile (footnote 1).
+  HBM_FACTORY_SITES   factory footprint in lattice sites, "WxH", for factories inside the
+                      layout (D1, D5; D0 factories sit outside it). Default 45x51: Litinski
+                      2019 Fig. 11, (dX + 4dZ) x 3dX for (15-to-1)_{17,7,7}. In tiles:
                       ceil(45/d) x ceil(51/d), i.e. 4x4 at d = 13 and 2x3 at d = 25.
 
 One step is one lattice-surgery step of d rounds. A source used at step t is ready again at
@@ -143,13 +148,14 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
     family, rest = tokens[0], tokens[1:]
     if family not in FAMILIES:
         raise ValueError(f"unknown design family {family!r} in {spec!r}")
+    d = d if d is not None else _env("HBM_D", 13)
     params = dict(
-        d=d if d is not None else _env("HBM_D", 13),
+        d=d,
         cult_rounds=cult_rounds if cult_rounds is not None else _env("HBM_CULT_ROUNDS", 60),
         factory_rounds=(factory_rounds if factory_rounds is not None
-                        else _env("HBM_FACTORY_ROUNDS", 43)),
+                        else _env("HBM_FACTORY_ROUNDS", 0)),
         factory_qubits=(factory_qubits if factory_qubits is not None
-                        else _env("HBM_FACTORY_QUBITS", 4620)),
+                        else _env("HBM_FACTORY_QUBITS", 22 * d * d)),
         factory_sites=(factory_sites if factory_sites is not None
                        else _env("HBM_FACTORY_SITES", (45, 51), _sites)),
     )

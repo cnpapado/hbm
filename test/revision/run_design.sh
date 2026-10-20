@@ -31,8 +31,8 @@ TMR="${TMR:-171000}"
 export HBM_DESIGN="$DESIGN"
 export HBM_D="${HBM_D:-13}"
 export HBM_CULT_ROUNDS="${HBM_CULT_ROUNDS:-60}"
-export HBM_FACTORY_ROUNDS="${HBM_FACTORY_ROUNDS:-43}"
-export HBM_FACTORY_QUBITS="${HBM_FACTORY_QUBITS:-4620}"
+export HBM_FACTORY_ROUNDS="${HBM_FACTORY_ROUNDS:-0}"  # factories always ready
+# HBM_FACTORY_QUBITS, when unset, is 22 d^2 (designs.py)
 unset HBM_CONFIG
 
 mapfile -t FILES < "$BENCH_LIST"

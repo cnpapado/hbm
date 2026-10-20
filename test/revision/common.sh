@@ -5,7 +5,7 @@ run_tag() {  # run_tag <design> <cultivation_rounds> <d>: the run's tag in its o
     # period and size.
     case "$1" in
         D2*|D3*|D4*) echo "${1}__d${3}_R${2}" ;;
-        *)           echo "${1}__d${3}_F${HBM_FACTORY_ROUNDS:-43}q${HBM_FACTORY_QUBITS:-4620}" ;;
+        *)           echo "${1}__d${3}_F${HBM_FACTORY_ROUNDS:-0}q${HBM_FACTORY_QUBITS:-22d2}" ;;
     esac
 }
 
