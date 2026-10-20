@@ -32,11 +32,13 @@ Usage:
   python compare.py rev.csv ppm.csv --prefix rev            # plot at R = best
   python compare.py rev.csv ppm.csv --prefix rev --R 60     # plot at R = 60
   python compare.py rev.csv ppm.csv --prefix rev --rows     # also print every pair row
+  python compare.py rev.csv --knobs                         # how often each layout/count wins
 """
 
 import argparse
 import csv
 import math
+import statistics
 from collections import defaultdict
 
 from analyze import parse_grades
@@ -183,6 +185,26 @@ def regimes(pairs, n_bins=3):
     return out
 
 
+def knob_table(rows):
+    """Per spec: on how many (bench, d, R) it is its family's lowest STV, and its STV over the
+    family's lowest (median, worst). Shows which knob values never matter."""
+    ok = [r for r in rows if r.get("status") == "ok" and r["feasible"]
+          and not math.isnan(r["STV"])]
+    key = lambda r: (r["bench"], r["d"], r["family"], r["recharge_rounds"])  # noqa: E731
+    low = {}
+    for r in ok:
+        low[key(r)] = min(low.get(key(r), math.inf), r["STV"])
+    by = defaultdict(list)
+    for r in ok:
+        by[(r["family"], r["spec"])].append(r["STV"] / low[key(r)])
+    print(f"\n{'spec':16s} {'lowest':>8s} {'median':>7s} {'worst':>7s}  (STV / family's lowest, "
+          f"same circuit and R)")
+    for fam, spec in sorted(by):
+        v = sorted(by[(fam, spec)])
+        print(f"{spec:16s} {sum(x == 1 for x in v):3d}/{len(v):<4d} {statistics.median(v):6.2f}x "
+              f"{v[-1]:6.2f}x")
+
+
 def write_csv(path, rows):
     if not rows:
         return
@@ -233,14 +255,16 @@ def main():
     ap.add_argument("--R", default=BEST,
                     help='cultivation recharge rounds to plot, or "best" (default)')
     ap.add_argument("--rows", action="store_true", help="also print every pair row")
+    ap.add_argument("--knobs", action="store_true",
+                    help="also print how often each layout / factory count is its family's best")
     ap.add_argument("--target", type=float, default=0.01, help="as in analyze.py")
     ap.add_argument("--cult-grades", type=parse_grades, default="60:3e-6:454,360:2e-9:463",
                     help="as in analyze.py")
     args = ap.parse_args()
     plot_R = args.R if args.R == BEST else r_label(float(args.R))
 
-    pairs = pair_rows([r for path in args.csv for r in load(path)], args.cult_grades,
-                      args.target)
+    rows = [r for path in args.csv for r in load(path)]
+    pairs = pair_rows(rows, args.cult_grades, args.target)
     write_csv(f"{args.prefix}_pairs.csv", pairs)
     reg = regimes(pairs)
     write_csv(f"{args.prefix}_regimes.csv", reg)
@@ -264,6 +288,8 @@ def main():
             print(f"{r['pair'][:2]} {r['bench']:16s} {r['d']:3d} {r['recharge_rounds']:>4s} "
                   f"{side(r['baseline'], r['baseline_R'], r['baseline_steps'])} "
                   f"{side(r['hbm'], r['hbm_R'], r['hbm_steps'])} {r['ratio']:6.2f}")
+    if args.knobs:
+        knob_table(rows)
 
 
 if __name__ == "__main__":

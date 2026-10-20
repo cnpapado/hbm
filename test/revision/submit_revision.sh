@@ -123,8 +123,9 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]: the wanted runs
     if [ "$DRY" = "--dry-run" ]; then echo "${cmd[*]}"; else "${cmd[@]}"; fi
 }
 
-CULT=(D2-wide D2-tight D3-k1 D3-khalf D3-k2 D3-kquarter)
-FACT=(D0-X0.25 D0-X0.5 D0-X1 D0-X2 D0-Xmax)
+# Override with CULT_SPECS / FACT_SPECS (space-separated) to leave knob values out.
+read -r -a CULT <<< "${CULT_SPECS:-D2-wide D2-tight D3-k1 D3-khalf D3-k2 D3-kquarter}"
+read -r -a FACT <<< "${FACT_SPECS:-D0-X0.25 D0-X0.5 D0-X1 D0-X2 D0-Xmax}"
 EXTRA=(D2-wide-borrow D2-tight-borrow D3-k1-route)
 
 run_set() {  # run_set <bench_list>: every design; cultivation at the R that ROUNDS selects
