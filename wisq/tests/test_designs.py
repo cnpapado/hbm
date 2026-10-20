@@ -7,7 +7,8 @@ import math
 
 import pytest
 
-from wisq.designs import build_arch, direct_sources, factory_count, parse_design
+from wisq.designs import (build_arch, d0_ring_capacity, direct_sources, factory_count,
+                          parse_design)
 
 SPECS = ["D0-S4", "D0-S8", "D1-band-S4", "D1-band-S8", "D1-mesh-S4", "D1-mesh-S8",
          "D2-wide", "D2-tight", "D2-wide-borrow", "D3-k1", "D3-khalf", "D3-k2", "D3-kquarter",
@@ -31,7 +32,8 @@ def neighbors(p, w, h):
 
 @pytest.mark.parametrize("bad", ["D9-S4", "D0", "D0-k1", "D0-S4-X1", "D1-S4", "D1-grid-S4",
                                  "D1-band-mesh-S4", "D2-medium", "D3-k3", "D5-S0", "D5-X0",
-                                 "D2-wide-route", "D3-k1-borrow", "D5-S4-route"])
+                                 "D2-wide-route", "D3-k1-borrow", "D5-S4-route",
+                                 "D1-band-Xmax", "D5-Xmax", "D0-Xmax-S4"])
 def test_invalid_specs_rejected(bad):
     with pytest.raises(ValueError):
         design(bad)
@@ -59,6 +61,19 @@ def test_factory_count_from_demand():
 def test_x_count_needs_the_circuit():
     with pytest.raises(ValueError):
         build_arch(design("D0-X1"), 16)
+
+
+def test_d0_ring_capacity_and_xmax():
+    # N=16: square sparse 9x9 plus a ring -> 11x11, 40 ring tiles minus 4 corners.
+    assert d0_ring_capacity(16) == 36
+    assert build_arch(design("D0-Xmax"), 16)["design"]["n_factories"] == 36
+    gates = [(0,)] * 100  # lambda = 1 at one qubit; F* = 3 at d = 25
+    arch = build_arch(design("D0-Xmax"), 16, gates=gates)
+    assert arch["design"]["n_factories"] == 36 and arch["design"]["f_star"] == 3
+    heavy = [(q,) for q in range(16)] * 13  # lambda = 208 / 13 = 16 -> F* = 48 > 36 ports
+    with pytest.raises(ValueError):
+        build_arch(design("D0-X1"), 16, gates=heavy)
+    assert build_arch(design("D0-Xmax"), 16, gates=heavy)["design"]["n_factories"] == 36
 
 
 @pytest.mark.parametrize("spec", SPECS)

@@ -22,6 +22,8 @@ Upper-First it does not fit at d=13, rule 5 below).
 
 **Knobs.** Each design is reported at its best knob:
 - D0: factory count `X<m>` = `ceil(m·F*)` factories, m ∈ {¼, ½, 1, 2}. F\* = ⌈λ·(1 + ⌈R_f/d⌉)⌉, with λ = T count / ideal depth: Litinski's sizing rule (*A Game of Surface Codes* Sec. 4.4: add distillation blocks until supply matches consumption), applied to the circuit's demand. (`S<k>`, a fixed `ceil(N/k)` factories, is kept for tests.)
+  - **Ring limit.** Each D0 factory needs its own port on the ring around the data block, and the ring has only 36 (N=16) to 164 (N=400) tiles. T-heavy circuits need more: F\* is 46 for `bench_n16_p90` and 812 for `bench_n400_p90`. The builder rejects counts that do not fit, so `submit_revision.sh` queues only the X<m> that fit (`plan_d0.py`). Where X2 does not fit it adds `D0-Xmax`, a port on every ring tile: the most supply DASCOT's perimeter allows. Every circuit thus gets at least one D0 run; for p90 at N ≥ 225, only Xmax fits.
+  - Xmax is generous to DASCOT: it assumes every ring tile can be fed by its own factory, although a 4×4-tile factory (d=13) is wider than one ring tile.
 - D2: layout (wide, tight). D3: k. PPM: data block, units, source count.
 - **Recharge time R (D2, D3, PPM):** 60 and 360 rounds, the two published cultivation grades (table below). Each pair is reported at each R (both sides at the same R) and at R = best (each side at its own best R). R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
 

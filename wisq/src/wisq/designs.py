@@ -5,13 +5,15 @@ this module is used and the legacy HBM_CONFIG behaviour is unchanged.
 
 Spec grammar ("-"-separated tokens):
 
-  Factory designs need a count token, S<k> or X<m>:
+  Factory designs need a count token, S<k>, X<m> or (D0 only) Xmax:
     S<k>   ceil(N/k) factories (fixed sharing ratio).
     X<m>   ceil(m * F*) factories, where F* = ceil(lambda * (1 + ceil(R_f / d))) is the
            break-even count: lambda = T count / ideal depth (the circuit's T demand per step)
            and one factory delivers a state every 1 + ceil(R_f / d) steps. This is
            Litinski's sizing rule (A Game of Surface Codes, Sec. 4.4: add distillation blocks
            until supply matches consumption), applied to the circuit's demand.
+    Xmax   D0 only: a port on every ring tile (d0_ring_capacity), the most supply the ring
+           takes. For T-heavy circuits ceil(m * F*) ports do not fit on the ring.
 
   D0-<count>         Edge (baseline; Litinski, A Game of Surface Codes, Sec. 4; "peripheral
                      placement" in Holmes et al. 2019). Square sparse plane plus a ring of
@@ -95,7 +97,7 @@ class Design:
     factory_rounds: int
     factory_qubits: int
     factory_sites: tuple  # (width, height) in lattice sites
-    count_mode: str = ""  # "S" | "X" for factory designs
+    count_mode: str = ""  # "S" | "X" | "max" for factory designs
     count_value: float = 0.0
     variant: str = ""  # "band" | "mesh" for D1
 
@@ -153,13 +155,17 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
     )
 
     if family in FACTORY_FAMILIES:
-        counts = [t for t in rest if re.fullmatch(r"S[1-9]\d*|X\d+(\.\d+)?", t)]
-        if len(counts) != 1 or (counts[0][0] == "X" and float(counts[0][1:]) <= 0):
+        counts = [t for t in rest if re.fullmatch(r"S[1-9]\d*|X\d+(\.\d+)?|Xmax", t)]
+        if len(counts) != 1 or (counts[0][0] == "X" and counts[0] != "Xmax"
+                                and float(counts[0][1:]) <= 0):
             raise ValueError(f"{family} needs exactly one count token S<k> or X<m> (m > 0), "
                              f"got {spec!r}")
         count = counts[0]
+        if count == "Xmax" and family != "D0":
+            raise ValueError(f"Xmax (a port on every ring tile) is for D0 only, got {spec!r}")
         others = [t for t in rest if t != count]
-        count_kw = dict(count_mode=count[0], count_value=float(count[1:]))
+        count_kw = (dict(count_mode="max") if count == "Xmax"
+                    else dict(count_mode=count[0], count_value=float(count[1:])))
         if family == "D0":
             if others:
                 raise ValueError(f"unexpected tokens {others} in {spec!r}")
@@ -238,14 +244,19 @@ def circuit_demand(gates):
 
 
 def factory_count(design, n, gates):
-    """Number of factories, plus (lambda, F*) for X<m> counts."""
+    """Number of factories (None for Xmax: the builder fills the ring), plus (lambda, F*)
+    when the circuit is given."""
     if design.count_mode == "S":
         return math.ceil(n / design.count_value), None, None
     if gates is None:
+        if design.count_mode == "max":
+            return None, None, None
         raise ValueError(f"{design.spec}: X<m> factory counts need the circuit's gates")
     n_t, depth = circuit_demand(gates)
     lam = n_t / depth if depth else 0.0
     f_star = max(1, math.ceil(lam * (1 + design.recharge_steps)))
+    if design.count_mode == "max":
+        return None, lam, f_star
     return max(1, math.ceil(design.count_value * f_star)), lam, f_star
 
 
@@ -391,14 +402,27 @@ def _cult_acct(n_patches, top_tiles=0):
                 top_factory_tiles=0, outside_factory_tiles=0)
 
 
-def _d0_edge(design, n, n_fact):
-    """Ports evenly spaced on the ring, starting mid-top. Corner tiles are left out: they
-    have only two neighbours and are farthest from the data."""
+def _d0_ring(n):
+    """D0's grid (square sparse plus a ring) and the ring tiles that can be ports. Corner
+    tiles are left out: they have only two neighbours and are farthest from the data."""
     arch = _add_ring(_square_sparse(n))
     width, height = arch["width"], arch["height"]
     corners = {_pos(0, 0, width), _pos(0, width - 1, width), _pos(height - 1, 0, width),
                _pos(height - 1, width - 1, width)}
-    slots = [p for p in _perimeter_slots(width, height) if p not in corners]
+    return arch, [p for p in _perimeter_slots(width, height) if p not in corners]
+
+
+def d0_ring_capacity(n):
+    """Most D0 ports (factories) for N data qubits: one per ring tile."""
+    return len(_d0_ring(n)[1])
+
+
+def _d0_edge(design, n, n_fact):
+    """Ports evenly spaced on the ring, starting mid-top (n_fact None: every ring tile)."""
+    arch, slots = _d0_ring(n)
+    width = arch["width"]
+    if n_fact is None:
+        n_fact = len(slots)
     if n_fact > len(slots):
         raise ValueError(f"{design.spec}: {n_fact} ports do not fit on a ring of "
                          f"{len(slots)} tiles (N={n})")
