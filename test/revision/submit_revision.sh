@@ -13,8 +13,12 @@
 #   ./submit_revision.sh core  [--dry-run]   all 33 synthetic circuits
 #   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + the D2 -borrow variants
 #
+# REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
+# to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
+# new name starts from zero. Unset: the original outs_rev/, results_rev/, logs_rev/.
+#
 # --dry-run prints the sbatch commands without submitting. Each sbatch line covers only the
-# runs not finished yet (in any outs_rev/ suite) and not running now, so the phases overlap
+# runs not finished yet (in any suite of this campaign) and not running now, so the phases overlap
 # and each adds what is missing; timed-out and cancelled runs are retried. It refuses to
 # submit while revision tasks are pending (they would be queued twice): cancel them first.
 #
@@ -66,7 +70,8 @@ IFS=: read -r H M S <<< "$TIME"
 TMR=$(( 10#$H * 3600 + 10#$M * 60 + 10#$S - 1800 ))
 [ "$TMR" -gt 0 ] || { echo "TIME must be HH:MM:SS and over 30 min" >&2; exit 1; }
 STAMP="$(date +%Y%m%d-%H%M%S)"  # each submission gets its own to-do lists
-mkdir -p logs_rev revision/lists/todo
+mkdir -p "$LOGS" "$TODO" revision/lists
+echo "# campaign: test/${REV_DIR:-outs_rev (REV_DIR unset)}"
 command -v python3 >/dev/null ||
     echo "warning: no python3 here, so finished runs are not left out (run_design.sh skips them)" >&2
 PENDING="$(squeue -u "$USER" -h -r -t PENDING -o "%j" 2>/dev/null | grep -c '^rev-' || true)"
@@ -114,7 +119,7 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]: the wanted runs
     local suite tag todo b n fin=0 run=0 skip=0
     suite="$(basename "$list" .txt)"
     tag="$(run_tag "$design" "$rounds" "$SIM_D")"
-    todo="revision/lists/todo/${suite}__${tag}__${STAMP}.txt"
+    todo="$TODO/${suite}__${tag}__${STAMP}.txt"
     : > "$todo"
     while read -r b; do
         if ! wanted "$b" "$design" "$rounds"; then skip=$((skip + 1))
@@ -130,8 +135,8 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]: the wanted runs
         return
     fi
     local cmd=(sbatch -A "$ACCOUNT" -p "$PART" -t "$TIME" --mem="$MEM" --array="0-$((n - 1))"
-               --job-name="rev-${design}-R${rounds}"
-               --export="ALL,DESIGN=${design},BENCH_LIST=${todo},SUITE=${suite},HBM_CULT_ROUNDS=${rounds},HBM_D=${SIM_D},TMR=${TMR}"
+               --job-name="rev-${design}-R${rounds}" --output="$LOGS/%x_%A_%a.out"
+               --export="ALL,REV_DIR=${REV_DIR:-},DESIGN=${design},BENCH_LIST=${todo},SUITE=${suite},HBM_CULT_ROUNDS=${rounds},HBM_D=${SIM_D},TMR=${TMR}"
                revision/run_design.sh)
     if [ "$DRY" = "--dry-run" ]; then echo "${cmd[*]}"; else "${cmd[@]}"; fi
 }
@@ -144,7 +149,7 @@ read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact D3-s4-fact D3-s8
 EXTRA=(D2-wide-borrow D2-tight-borrow)
 
 run_set() {  # run_set <bench_list>: every design; cultivation at the R that ROUNDS selects
-    PLAN="revision/lists/todo/plan_d0__$(basename "$1" .txt)__${STAMP}.txt"
+    PLAN="$TODO/plan_d0__$(basename "$1" .txt)__${STAMP}.txt"
     python3 revision/plan_d0.py "$1" --d "$SIM_D" --specs "${FACT[@]}" > "$PLAN" || {
         echo "warning: plan_d0.py failed; queuing every D0 count (misfits fail at start)" >&2
         PLAN=""

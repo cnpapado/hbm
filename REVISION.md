@@ -87,6 +87,12 @@ Upper-First it does not fit at d=13, rule 5 below).
 
 ## How to run (on the server)
 
+**One folder per campaign.** Set `REV_DIR=runs/<name>` (relative to `test/`): outputs, results,
+Slurm logs and to-do lists then go to `test/runs/<name>/{outs,results,logs,lists}`, and
+finished runs are looked up only there, so a new name starts from zero and touches nothing
+else. Analyze with `analyze.py test/runs/<name>/outs`. Without `REV_DIR` the scripts use the
+original `outs_rev/`, `results_rev/`, `logs_rev/`, and the note below applies.
+
 Outputs of configurations no longer in the sweep (D0 `X<m>`/`Xmax`, every D3 run with
 cultivation on top) would compete as a family's best knob in `analyze.py`/`compare.py`: move
 them out of `outs_rev/` first (`mkdir -p test/outs_rev_old && mv test/outs_rev/*/*__D0-X*.out

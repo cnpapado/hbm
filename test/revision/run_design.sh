@@ -13,7 +13,8 @@
 # Submitted by submit_revision.sh, which passes these through --export:
 #   DESIGN      design spec, e.g. D3-k1 (see wisq/src/wisq/designs.py)
 #   BENCH_LIST  file with one .qasm path per line (relative to test/): the runs still to do
-#   SUITE       output folder under outs_rev/ (default: BENCH_LIST's name)
+#   SUITE       output folder under $OUTS (default: BENCH_LIST's name)
+#   REV_DIR     campaign folder (common.sh); unset: outs_rev/, results_rev/, logs_rev/
 #   HBM_D, HBM_CULT_ROUNDS, HBM_FACTORY_ROUNDS, HBM_FACTORY_QUBITS  (optional)
 #   TMR         wisq -tmr in seconds (default 171000 = 47.5 h: wisq must write its timeout
 #               file before Slurm kills the job at 48 h, or the run leaves no trace;
@@ -45,8 +46,8 @@ base="$(basename "$current_file" .qasm)"
 
 TAG="$(run_tag "$DESIGN" "$HBM_CULT_ROUNDS" "$HBM_D")"
 SUITE="${SUITE:-$(basename "$BENCH_LIST" .txt)}"
-mkdir -p "outs_rev/$SUITE" "results_rev/$SUITE"
-output_file="outs_rev/$SUITE/${base}__${TAG}.out"
+mkdir -p "$OUTS/$SUITE" "$RESULTS/$SUITE"
+output_file="$OUTS/$SUITE/${base}__${TAG}.out"
 
 # submit_revision.sh leaves out finished runs; check again in case one finished since.
 if f="$(finished_run "$base" "$TAG")"; then
@@ -59,5 +60,5 @@ wisq "$current_file" -op "$output_file" --mode scmr -tmr "$TMR"
 
 TIME_RESULT=$(python3 print_timesteps.py "$output_file" --summary)
 [ -z "$TIME_RESULT" ] && TIME_RESULT="ERROR"
-echo "$base | $TAG | $TIME_RESULT" > "results_rev/$SUITE/${base}__${TAG}.res"
+echo "$base | $TAG | $TIME_RESULT" > "$RESULTS/$SUITE/${base}__${TAG}.res"
 echo "Completed $base | $TAG | $TIME_RESULT"
