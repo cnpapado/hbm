@@ -15,7 +15,8 @@
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
-# new name starts from zero. Unset: the original outs_rev/, results_rev/, logs_rev/.
+# new name starts from zero. Required: without it the script stops (REV_DIR=. uses the
+# original outs_rev/, results_rev/, logs_rev/).
 #
 # --dry-run prints the sbatch commands without submitting. Each sbatch line covers only the
 # runs not finished yet (in any suite of this campaign) and not running now, so the phases overlap
@@ -49,6 +50,12 @@ SIM_D="${HBM_D:-13}"
 
 set -euo pipefail
 cd "$(dirname "$0")/.."  # -> test/
+[ -n "${REV_DIR:-}" ] || {
+    echo "REV_DIR is not set. Export the campaign folder first, e.g.:" >&2
+    echo "  export REV_DIR=runs/2026-10-20-fact" >&2
+    exit 1
+}
+[ "$REV_DIR" = . ] && REV_DIR=""  # the original folders
 source revision/common.sh
 PHASE="${1:-pilot}"
 DRY="${2:-}"
@@ -71,7 +78,7 @@ TMR=$(( 10#$H * 3600 + 10#$M * 60 + 10#$S - 1800 ))
 [ "$TMR" -gt 0 ] || { echo "TIME must be HH:MM:SS and over 30 min" >&2; exit 1; }
 STAMP="$(date +%Y%m%d-%H%M%S)"  # each submission gets its own to-do lists
 mkdir -p "$LOGS" "$TODO" revision/lists
-echo "# campaign: test/${REV_DIR:-outs_rev (REV_DIR unset)}"
+echo "# campaign: test/${REV_DIR:-outs_rev (original folders)}"
 command -v python3 >/dev/null ||
     echo "warning: no python3 here, so finished runs are not left out (run_design.sh skips them)" >&2
 PENDING="$(squeue -u "$USER" -h -r -t PENDING -o "%j" 2>/dev/null | grep -c '^rev-' || true)"
