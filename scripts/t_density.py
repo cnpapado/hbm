@@ -20,7 +20,7 @@ every other gate is free and does not take a timestep. So:
 Circuits that are not yet Clifford+T are handled as follows:
 
   * rotations (rz, rx, ry, u1, p, and the Euler angles of u2/u3/u):
-      angle a multiple of pi/2 (or ~0)  -> Clifford, free
+      angle within eps of a multiple of pi/2 -> Clifford, free
       odd multiple of pi/4              -> 1 T
       anything else                     -> K sequential T on that qubit,
     where K = --t-per-rotation, or ceil(3*log2(1/eps)) for --eps (gridsynth-style T count:
@@ -63,15 +63,19 @@ def _angle(expr):
         return None
 
 
-def rotation_cost(expr, k):
-    """T gates needed for one rotation by `expr` (k = T per generic rotation, None = ignore)."""
+def rotation_cost(expr, k, eps=None):
+    """T gates needed for one rotation by `expr` (k = T per generic rotation, None = ignore).
+
+    A rotation within eps of a Clifford (|sin(delta/2)| <= eps, delta = distance to the
+    nearest multiple of pi/2) is synthesized as that Clifford and is free."""
     v = _angle(expr)
     if v is None:
         return k or 0
     quarter = v / (math.pi / 4)
     if abs(quarter - round(quarter)) < 1e-9:
         return 0 if round(quarter) % 2 == 0 else 1
-    if abs(math.remainder(v, 2 * math.pi)) < 1e-12:
+    delta = abs(math.remainder(v, math.pi / 2))
+    if abs(math.sin(delta / 2)) <= (eps or 1e-12):
         return 0
     return k or 0
 
@@ -97,7 +101,7 @@ def toffoli_tdepth3(a, b, c):
 TOFFOLI = {"textbook": toffoli_textbook, "tdepth3": toffoli_tdepth3}
 
 
-def analyze(path, rz_as_t=False, t_per_rotation=None, toffoli="textbook"):
+def analyze(path, rz_as_t=False, t_per_rotation=None, toffoli="textbook", eps=None):
     k = 1 if rz_as_t else t_per_rotation
     offsets, q_named = {}, True
     clock = defaultdict(int)
@@ -155,13 +159,13 @@ def analyze(path, rz_as_t=False, t_per_rotation=None, toffoli="textbook"):
                 for op in TOFFOLI[toffoli](*qs):
                     cx(op[1], op[2]) if op[0] == "cx" else t(op[1])
             elif name in ROT_Z or name in ROT_XY:
-                cost = rotation_cost(params, k)
+                cost = rotation_cost(params, k, eps)
                 n_rot += cost > 1
                 t(qs[0], cost) if cost else None
             elif name in ("u3", "u", "u2"):
                 angles = params.split(",")
                 for expr in angles:  # Euler angles: each non-Clifford one is a rotation
-                    cost = rotation_cost(expr, k)
+                    cost = rotation_cost(expr, k, eps)
                     n_rot += cost > 1
                     t(qs[0], cost) if cost else None
             elif len(qs) > 1 and name not in ("barrier",):
@@ -213,7 +217,7 @@ def main():
     rows = []
     for p in args.files:
         try:
-            rows.append(analyze(p, args.rz_as_t, k, args.toffoli))
+            rows.append(analyze(p, args.rz_as_t, k, args.toffoli, args.eps))
         except ValueError as e:
             print(f"skipped: {e}", file=sys.stderr)
     widths = [len(fmt.format(0 if c != "name" else "")) for c, fmt in COLUMNS]
