@@ -10,13 +10,17 @@ synthetic `bench_n*_p*` circuits.
 
 | File | QASMBench path |
 |---|---|
+| `original/ising_n10.qasm`  | `small/ising_n10/ising_n10.qasm` |
 | `original/ising_n26.qasm`  | `medium/ising_n26/ising_n26.qasm` |
 | `original/ising_n34.qasm`  | `large/ising_n34/ising_n34.qasm` |
 | `original/ising_n66.qasm`  | `large/ising_n66/ising_n66.qasm` |
+| `original/ising_n98.qasm`  | `large/ising_n98/ising_n98.qasm` |
 
-The files in `original/` are unmodified. QASMBench also has `ising_n98` and
-`ising_n420`. They aren't included here because DASCOT runs on their
-synthesized versions didn't finish in reasonable time locally.
+The files in `original/` are unmodified. `ising_n10` is 5 Trotter steps and names its
+register `reg`, so DASCOT (which only reads `q[...]`) needs the register renamed before
+routing; the others are 1 step on register `q`. `ising_n10` and `ising_n98` have not been
+synthesized yet: DASCOT runs on the synthesized `ising_n98` did not finish in reasonable
+time locally. QASMBench also has `ising_n420`, which is above the 100-qubit limit.
 
 ## License
 
