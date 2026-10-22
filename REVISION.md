@@ -81,6 +81,7 @@ Upper-First it does not fit at d=13, rule 5 below).
   - reports the program's logical error at that d (`logical_error`, `meets_target`);
   - for the p′ note only (not in STV): `d_need_1p`, `d_need_5p`, `d_need_10p`, the d the run would need if the vertical links had error p′ = 1, 5, 10 × p. A vertical merge uses the lower threshold the HBMS Stim runs measured for it (`--seam-pth`, default `1:0.01,5:0.004,10:0.002`, paper Fig. 11).
 - `compare.py rev.csv [ppm.csv] --prefix rev [--R best|60|360] [--rows]`: best knob per design family; the pair STV ratios at each R and at R = best (`rev_pairs.csv`; `rev_pairs.png` at `--R`, default best); the HBM win fraction per tercile of the x-axis (`rev_regimes.csv`). P1 and P2 use T density as the x-axis, P3 T gates per ideal step. Both sides of a pair are at the same d. A pair is skipped where one side was not run (as opposed to run but infeasible). `--rows` prints every pair with each side's spec, R and steps.
+- `stv_table.py rev.csv [--metric STV|Q|steps]`: one row per circuit, one column per configuration, with the P1/P2 STV ratios against the best HBM layout; works on partial results.
 - `ppm_baseline.py BENCH_DIR --csv ppm.csv`: the PPM rows at d = 13 (`--d`; below).
 - `ppm_qre.py FILES --csv ppm_qre.csv`: cross-checks the PPM fast block against the Microsoft resource estimator.
 - `draw_design.py SPEC N out.png [circuit.qasm]`: draws both layers of a design. `X<m>` counts need the circuit.
