@@ -61,6 +61,12 @@ four differences:
 * At the pinned Qualtran commit (fa5a8ec), `SU2CliffordT.to_sequence()` is a
   module-level function, so the script supplies the method that
   `wisq/qualtran_rotation_synthesis.py` expects.
+* Small angles keep a full-length T sequence. At ε = 1e-2, Qualtran replaces any
+  rotation within about ε of a Clifford with that Clifford (0 T), which a realistic
+  precision would not. Such rotations get the sequence of a generic stand-in angle
+  instead (nearest multiple of π/2 ± 0.7 rad): same T count and structure for
+  DASCOT, but not a correct approximation of that rotation. This affects 2, 2 and
+  7 rotations in n26, n34 and n66. `--drop-small-angles` restores Qualtran's output.
 
 The T count per rotation at a given ε is the same for every circuit (≈ 3·log2(1/ε)):
 
@@ -75,7 +81,7 @@ The T count per rotation at a given ε is the same for every circuit (≈ 3·log
 ε=1e-2 was chosen to keep DASCOT runtime manageable, not as a realistic
 simulation precision. Lower ε lengthens each rotation's T chain but doesn't
 change how many qubits need a magic state in each layer. On n26, the T density
-is 0.628 at 1e-2 and 0.649 at 1e-3.
+is 0.643 at 1e-2 (small angles kept) and 0.649 at 1e-3.
 
 ### Synthesized circuits (ε = 1e-2, `--merge`)
 
@@ -85,9 +91,9 @@ T / (N·L), and max_T is the largest number of T gates in one layer.
 
 | Circuit | N | rz (raw → synthesized) | T / rotation | T | cx | L | density | max_T / 4√N |
 |---|---|---|---|---|---|---|---|---|
-| ising_n26 | 26 | 152 → 75  | 20.7 | 1550 | 50  | 95 | 0.628 | 1.27 |
-| ising_n34 | 34 | 200 → 99  | 20.4 | 2018 | 66  | 94 | 0.631 | 1.46 |
-| ising_n66 | 66 | 392 → 195 | 20.1 | 3920 | 130 | 96 | 0.619 | 2.00 |
+| ising_n26 | 26 | 152 → 75  | 21.2 | 1588 | 50  | 95 | 0.643 | 1.27 |
+| ising_n34 | 34 | 200 → 99  | 20.8 | 2056 | 66  | 94 | 0.643 | 1.46 |
+| ising_n66 | 66 | 392 → 195 | 20.8 | 4049 | 130 | 96 | 0.639 | 2.03 |
 
 For comparison, the paper's synthetic `bench_n*_p90` circuits have a density
 of 0.41–0.49 at N ≥ 100, and the `p50` circuits 0.11–0.13.

@@ -20,13 +20,18 @@ every other gate is free and does not take a timestep. So:
 Circuits that are not yet Clifford+T are handled as follows:
 
   * rotations (rz, rx, ry, u1, p, and the Euler angles of u2/u3/u):
-      angle within eps of a multiple of pi/2 -> Clifford, free
-      odd multiple of pi/4              -> 1 T
-      anything else                     -> K sequential T on that qubit,
+      multiple of pi/2 (exactly, up to 1e-12)  -> Clifford, free
+      odd multiple of pi/4                     -> 1 T
+      anything else, however small             -> K sequential T on that qubit,
     where K = --t-per-rotation, or ceil(3*log2(1/eps)) for --eps (gridsynth-style T count:
     ~20 at 1e-2, ~30 at 1e-3, ~80 at 1e-8). Without either option, non-Clifford rotations
     are ignored (use this for circuits that are already Clifford+T).
     --rz-as-t is kept for compatibility: K = 1.
+
+    A coarse eps is a stand-in for a realistic precision (it keeps DASCOT runs short), so
+    small angles are charged in full by default. --drop-small-angles instead treats a
+    rotation within eps of a Clifford (|sin(delta/2)| <= eps) as that Clifford, as a
+    synthesizer run at that eps would.
   * ccx / ccz -> 7 T, as the textbook decomposition (Nielsen & Chuang Fig. 4.9) or, with
     --toffoli tdepth3, a T-depth-3 phase-polynomial form (T layers of 3, 3, 1).
 
@@ -34,7 +39,7 @@ Any register name works (several registers are concatenated). DASCOT itself only
 gates on a register called `q`; files using another name are flagged with `*`.
 
 Usage:
-  python t_density.py file1.qasm [file2.qasm ...] [--eps 1e-2 | --t-per-rotation K]
+  python t_density.py file1.qasm [file2.qasm ...] [--eps 1e-2 [--drop-small-angles] | --t-per-rotation K]
                       [--toffoli textbook|tdepth3] [--csv out.csv]
 """
 
@@ -63,11 +68,12 @@ def _angle(expr):
         return None
 
 
-def rotation_cost(expr, k, eps=None):
+def rotation_cost(expr, k, drop_eps=None):
     """T gates needed for one rotation by `expr` (k = T per generic rotation, None = ignore).
 
-    A rotation within eps of a Clifford (|sin(delta/2)| <= eps, delta = distance to the
-    nearest multiple of pi/2) is synthesized as that Clifford and is free."""
+    Only exact Cliffords are free, unless drop_eps is given: then a rotation within drop_eps
+    of a Clifford (|sin(delta/2)| <= drop_eps, delta = distance to the nearest multiple of
+    pi/2) is treated as that Clifford."""
     v = _angle(expr)
     if v is None:
         return k or 0
@@ -75,7 +81,7 @@ def rotation_cost(expr, k, eps=None):
     if abs(quarter - round(quarter)) < 1e-9:
         return 0 if round(quarter) % 2 == 0 else 1
     delta = abs(math.remainder(v, math.pi / 2))
-    if abs(math.sin(delta / 2)) <= (eps or 1e-12):
+    if abs(math.sin(delta / 2)) <= (drop_eps or 1e-12):
         return 0
     return k or 0
 
@@ -101,7 +107,7 @@ def toffoli_tdepth3(a, b, c):
 TOFFOLI = {"textbook": toffoli_textbook, "tdepth3": toffoli_tdepth3}
 
 
-def analyze(path, rz_as_t=False, t_per_rotation=None, toffoli="textbook", eps=None):
+def analyze(path, rz_as_t=False, t_per_rotation=None, toffoli="textbook", drop_eps=None):
     k = 1 if rz_as_t else t_per_rotation
     offsets, q_named = {}, True
     clock = defaultdict(int)
@@ -159,13 +165,13 @@ def analyze(path, rz_as_t=False, t_per_rotation=None, toffoli="textbook", eps=No
                 for op in TOFFOLI[toffoli](*qs):
                     cx(op[1], op[2]) if op[0] == "cx" else t(op[1])
             elif name in ROT_Z or name in ROT_XY:
-                cost = rotation_cost(params, k, eps)
+                cost = rotation_cost(params, k, drop_eps)
                 n_rot += cost > 1
                 t(qs[0], cost) if cost else None
             elif name in ("u3", "u", "u2"):
                 angles = params.split(",")
                 for expr in angles:  # Euler angles: each non-Clifford one is a rotation
-                    cost = rotation_cost(expr, k, eps)
+                    cost = rotation_cost(expr, k, drop_eps)
                     n_rot += cost > 1
                     t(qs[0], cost) if cost else None
             elif len(qs) > 1 and name not in ("barrier",):
@@ -207,17 +213,22 @@ def main():
     g.add_argument("--eps", type=float, help="per-rotation synthesis precision; K = ceil(3*log2(1/eps))")
     g.add_argument("--t-per-rotation", type=int, help="T gates per non-Clifford rotation")
     g.add_argument("--rz-as-t", action="store_true", help="count each non-Clifford rotation as 1 T")
+    ap.add_argument("--drop-small-angles", action="store_true",
+                    help="with --eps: rotations within eps of a Clifford are free")
     ap.add_argument("--toffoli", choices=sorted(TOFFOLI), default="textbook")
     ap.add_argument("--csv", help="also write the results to this CSV file")
     args = ap.parse_args()
     k = args.t_per_rotation
+    if args.drop_small_angles and not args.eps:
+        ap.error("--drop-small-angles needs --eps")
+    drop_eps = args.eps if args.drop_small_angles else None
     if args.eps:
         k = math.ceil(3 * math.log2(1 / args.eps))
 
     rows = []
     for p in args.files:
         try:
-            rows.append(analyze(p, args.rz_as_t, k, args.toffoli, args.eps))
+            rows.append(analyze(p, args.rz_as_t, k, args.toffoli, drop_eps))
         except ValueError as e:
             print(f"skipped: {e}", file=sys.stderr)
     widths = [len(fmt.format(0 if c != "name" else "")) for c, fmt in COLUMNS]
@@ -225,7 +236,8 @@ def main():
     for r in rows:
         print(" ".join(fmt.format(r[c]) for c, fmt in COLUMNS))
     if k:
-        print(f"(non-Clifford rotations counted as {k} T each)")
+        note = f", except those within {args.eps:g} of a Clifford" if drop_eps else ""
+        print(f"(non-Clifford rotations counted as {k} T each{note})")
     if any(r["name"].endswith("*") for r in rows):
         print("* register is not named q: DASCOT would not see these gates", file=sys.stderr)
     if args.csv:

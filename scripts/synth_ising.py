@@ -14,14 +14,24 @@ Differences from calling `wisq --mode opt -ot 0` directly:
     angles, and Qualtran takes seconds per call at small epsilon),
   * measurements/barriers are dropped (DASCOT ignores them anyway),
   * with --merge, rz(0) is dropped and back-to-back rz on the same qubit are
-    fused before synthesis (a lossless peephole that any optimizer applies).
+    fused before synthesis (a lossless peephole that any optimizer applies),
+  * small angles keep a full-length T sequence (see below).
+
+Small angles. A coarse eps is only a stand-in for a realistic precision, used so that
+DASCOT runs finish. At eps = 1e-2, Qualtran approximates any rotation within ~eps of a
+Clifford by that Clifford (0 T), which a realistic eps would not do. So by default, a
+non-Clifford rotation whose sequence has fewer than half the T gates of a generic rotation
+at this eps is replaced by the sequence for a generic stand-in angle (the nearest multiple
+of pi/2, plus or minus 0.7 rad). The stand-in keeps the T count and structure that DASCOT
+routes, but it is NOT a correct approximation of that rotation; the number of stand-ins is
+reported as "num_small_angle_standins". --drop-small-angles keeps Qualtran's output instead.
 
 The pinned Qualtran (fa5a8ec) exposes `to_sequence(matrix, fmt)` as a module
 function rather than the `SU2CliffordT.to_sequence()` method that
 wisq/qualtran_rotation_synthesis.py calls, so the method is shimmed here.
 
 Usage:
-  python synth_ising.py in.qasm out.qasm --eps 1e-3 [--merge]
+  python synth_ising.py in.qasm out.qasm --eps 1e-3 [--merge] [--drop-small-angles]
 """
 
 import argparse
@@ -45,6 +55,17 @@ from wisq.qualtran_rotation_synthesis import sequence_to_circ
 su2_ct.SU2CliffordT.to_sequence = lambda self: to_sequence(self, "xyz")
 
 TWO_PI = 2 * math.pi
+STANDIN_OFFSET = 0.7  # generic angle (rad) used for small-angle stand-ins
+
+
+def t_count(circ):
+    ops = circ.count_ops()
+    return ops.get("t", 0) + ops.get("tdg", 0)
+
+
+def is_clifford_or_t(angle):
+    quarter = angle / (math.pi / 4)
+    return abs(quarter - round(quarter)) < 1e-9
 
 
 def merge_rz(circ):
@@ -76,6 +97,8 @@ def main():
     ap.add_argument("output")
     ap.add_argument("--eps", type=float, required=True, help="per-rotation approximation epsilon")
     ap.add_argument("--merge", action="store_true")
+    ap.add_argument("--drop-small-angles", action="store_true",
+                    help="keep Qualtran's Clifford approximation of near-Clifford rotations")
     ap.add_argument("--stats", help="write synthesis stats as JSON here")
     args = ap.parse_args()
 
@@ -90,6 +113,17 @@ def main():
     config = mc.with_dps(200)
     eps = mpmath.mpf(args.eps)
     cache = {}
+
+    def synth(angle):
+        if angle not in cache:
+            diag = cts.diagonal_unitary_approx(theta=angle, eps=eps, max_n=400, config=config)
+            if diag is None:
+                sys.exit(f"could not synthesize rz({angle}) at eps={args.eps}")
+            cache[angle] = sequence_to_circ(diag.to_matrix().to_sequence())
+        return cache[angle]
+
+    generic_t = t_count(synth(STANDIN_OFFSET))
+    standins = 0
     t_per_rot = []
     out = QuantumCircuit(*nam.qregs)
     t0 = time.time()
@@ -99,13 +133,13 @@ def main():
             out.append(inst.operation, qs)
             continue
         angle = float(inst.operation.params[0])
-        if angle not in cache:
-            diag = cts.diagonal_unitary_approx(theta=angle, eps=eps, max_n=400, config=config)
-            if diag is None:
-                sys.exit(f"could not synthesize rz({angle}) at eps={args.eps}")
-            cache[angle] = sequence_to_circ(diag.to_matrix().to_sequence())
-        seq = cache[angle]
-        t_per_rot.append(seq.count_ops().get("t", 0) + seq.count_ops().get("tdg", 0))
+        seq = synth(angle)
+        if (not args.drop_small_angles and not is_clifford_or_t(angle)
+                and t_count(seq) < generic_t / 2):
+            base = round(angle / (math.pi / 2)) * (math.pi / 2)
+            seq = synth(base + math.copysign(STANDIN_OFFSET, angle - base))
+            standins += 1
+        t_per_rot.append(t_count(seq))
         for s in seq.data:
             out.append(s.operation, qs)
 
@@ -117,6 +151,9 @@ def main():
         "num_rz_raw": num_rz_raw,
         "num_rz_synthesized": len(t_per_rot),
         "distinct_angles": len(cache),
+        "drop_small_angles": args.drop_small_angles,
+        "generic_t_per_rotation": generic_t,
+        "num_small_angle_standins": standins,
         "t_count": sum(t_per_rot),
         "t_per_rotation_mean": sum(t_per_rot) / len(t_per_rot) if t_per_rot else 0,
         "t_per_rotation_min": min(t_per_rot, default=0),
