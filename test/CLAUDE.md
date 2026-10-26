@@ -73,11 +73,13 @@ lives at `~/hbm` on the cluster and that a venv exists at `~/hbm/.venv`.
 ### Revision sweep (`revision/`)
 
 `revision/run_design.sh` (one benchmark x one `HBM_DESIGN` spec per array task),
-`revision/submit_revision.sh mini|pilot|core|full [--dry-run]` (builds benchmark lists in
+`revision/submit_revision.sh mini|pilot|core|full|ising [--dry-run]` (builds benchmark lists in
 `revision/lists/`, submits only unfinished runs; `PART`/`TIME`/`MEM` set the request),
 `revision/common.sh` (run tag and finished-run check shared by both), `revision/plan_d0.py` (D0 factory counts that fit on the ring, per circuit), and `revision/smoke_test.sh` (non-Slurm end-to-end check), and `revision/run_qre.sh` (PPM cross-check against the Microsoft resource estimator, inside an Apptainer container).
-Outputs go to `outs_rev/<suite>/` and `results_rev/<suite>/`, logs to `logs_rev/`. See
-`../REVISION.md`.
+Each campaign goes to `runs/<name>/{outs,results,logs,lists}` (`REV_DIR=runs/<name>`, required by
+`submit_revision.sh`; `REV_DIR=.` for the old `outs_rev/`, `results_rev/`, `logs_rev/`). The `ising`
+phase runs `benchmarks_real/ising_eps1e-2/` (QASMBench Ising n26/n34/n66, Clifford+T at ε = 10⁻²,
+copied from the `mati` branch). See `../REVISION.md`.
 
 ## Analysis scripts under `test/`
 

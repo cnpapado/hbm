@@ -127,6 +127,9 @@ then the same phase again at the defaults, which submits only what timed out.
 2. **Pilot** (normal partition, 48 h): `submit_revision.sh pilot`, the 12 circuits with N = 16, 25, 49, 64 (adds `bench_n16_p90`).
 3. **Core:** `submit_revision.sh core`, all 33 synthetic circuits.
 4. **Full:** `submit_revision.sh full` adds the JKU suite and the D2 `-borrow` variants.
+   **Ising:** `submit_revision.sh ising` runs the same configurations on QASMBench Ising n26, n34, n66,
+   synthesized to Clifford+T at ε = 10⁻² per rotation (`test/benchmarks_real/ising_eps1e-2/`, copied from
+   the `mati` branch; 24 runs). Use its own campaign folder.
 5. **After each phase:** `python scripts/revision/analyze.py test/outs_rev --csv rev.csv`, then `python scripts/revision/ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv` (seconds), then `python scripts/revision/compare.py rev.csv ppm.csv --prefix rev --rows`.
 
 `smoke_test.sh` (interactive node) is an optional pre-flight check of the same designs on one circuit.

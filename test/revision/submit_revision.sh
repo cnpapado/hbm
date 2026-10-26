@@ -12,6 +12,8 @@
 #   ./submit_revision.sh pilot [--dry-run]   N = 16, 25, 49, 64 (12 circuits)
 #   ./submit_revision.sh core  [--dry-run]   all 33 synthetic circuits
 #   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + the D2 -borrow variants
+#   ./submit_revision.sh ising [--dry-run]   QASMBench Ising n26, n34, n66, Clifford+T at eps 1e-2
+#                                            per rotation (benchmarks_real/ising_eps1e-2/)
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
@@ -94,6 +96,7 @@ ls benchmarks_bursty_cx/bench_n16_p{10,50}.qasm > revision/lists/synth_n16.txt
 ls benchmarks_bursty_cx/bench_n{16,25,49,64}_p*.qasm > revision/lists/synth_small.txt
 ls benchmarks_bursty_cx/*.qasm > revision/lists/synth_all.txt
 ls ../quantum-compiler-benchmark-circuits/jku_suite/*.qasm > revision/lists/jku.txt
+ls benchmarks_real/ising_eps1e-2/*.qasm > revision/lists/real_ising.txt
 
 cult_error() {  # T error per state at R rounds (analyze.py --cult-grades)
     case "$1" in 60) echo 3e-6 ;; 360) echo 2e-9 ;; esac
@@ -177,6 +180,9 @@ case "$PHASE" in
     pilot)
         run_set revision/lists/synth_small.txt
         ;;
+    ising)
+        run_set revision/lists/real_ising.txt
+        ;;
     core|full)
         lists=(revision/lists/synth_all.txt)
         [ "$PHASE" = "full" ] && lists+=(revision/lists/jku.txt)
@@ -188,7 +194,7 @@ case "$PHASE" in
         done
         ;;
     *)
-        echo "usage: $0 mini|pilot|core|full [--dry-run]" >&2
+        echo "usage: $0 mini|pilot|core|full|ising [--dry-run]" >&2
         exit 1
         ;;
 esac
