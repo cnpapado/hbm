@@ -9,7 +9,9 @@ reach it. Rules per timestep (one lattice-surgery step = d rounds):
     routing tiles); if the design allows routing it then routes to any ready source,
     reaching any free side of that source;
   - routed T gates use the design's plane: PLANE in the data plane; TOP is Upper-First (up
-    above the qubit or a vertical neighbour, then along the top layer);
+    above the qubit or a vertical neighbour, then along the top layer); BOTTOM routes in the
+    data plane from the qubit's vertical side to the free tile below a top source, which
+    merges down into it;
   - CNOTs route as in DASCOT: from a vertical neighbour of the control to a horizontal
     neighbour of the target, in-plane. Only the opt-in TOP_3D routing ("-3d" flag, not used
     by the revision scripts) routes T gates and CNOTs on the two-layer graph.
@@ -232,6 +234,13 @@ def _route_t(gid, gate, st):
             st.upper.update(path)
             face = targets[path[-1]]
             path = [p + n for p in path]
+    elif design.routing == "BOTTOM":
+        g, idx = _plane_graph(st.lower)
+        targets = {f: f for f in avail if f not in st.lower}  # the tile below the source
+        path = _best_path(g, idx, CTX.vertical(q), targets)
+        if path is not None:
+            st.lower.update(path)
+            face = targets[path[-1]]
     else:  # TOP_3D (opt-in): in-plane to any free vertical link, then up
         g, idx = _graph_3d(st.lower, st.upper)
         targets = _targets(avail, st.upper, offset=n)
@@ -267,6 +276,8 @@ def try_order(order, executable):
 def _vertical_merges(path, is_t, mode):
     if is_t and mode == "direct":
         return 1 if CTX.design.placement == "top" else 0
+    if is_t and CTX.design.routing == "BOTTOM":
+        return 1  # the seam from the source down to the end of the path
     n = CTX.n_tiles
     merges = sum(1 for a, b in zip(path, path[1:]) if (a >= n) != (b >= n))
     if is_t and path and path[0] >= n:

@@ -13,7 +13,7 @@ run_tag() {  # run_tag <design> <cultivation_rounds> <d>: the run's tag in its o
     # Cultivation designs depend on the recharge rounds; factory designs on the factory
     # period and size.
     case "$1" in
-        *-fact) echo "${1}__d${3}_F${HBM_FACTORY_ROUNDS:-0}q${HBM_FACTORY_QUBITS:-22d2}" ;;
+        *-fact|*-fact-*) echo "${1}__d${3}_F${HBM_FACTORY_ROUNDS:-0}q${HBM_FACTORY_QUBITS:-22d2}" ;;
         D2*|D3*|D4*) echo "${1}__d${3}_R${2}" ;;
         *)           echo "${1}__d${3}_F${HBM_FACTORY_ROUNDS:-0}q${HBM_FACTORY_QUBITS:-22d2}" ;;
     esac
