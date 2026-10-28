@@ -14,6 +14,8 @@
 #   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + the D2 -borrow variants
 #   ./submit_revision.sh ising [--dry-run]   QASMBench Ising n26, n34, n66, Clifford+T at eps 1e-2
 #                                            per rotation (benchmarks_real/ising_eps1e-2/)
+#   ./submit_revision.sh real  [--dry-run]   Ising n10-n66 and QED-C Heisenberg n16-n64 (11 circuits),
+#                                            Clifford+T at eps 1e-2 (benchmarks_real/)
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
@@ -96,7 +98,13 @@ ls benchmarks_bursty_cx/bench_n16_p{10,50}.qasm > revision/lists/synth_n16.txt
 ls benchmarks_bursty_cx/bench_n{16,25,49,64}_p*.qasm > revision/lists/synth_small.txt
 ls benchmarks_bursty_cx/*.qasm > revision/lists/synth_all.txt
 ls ../quantum-compiler-benchmark-circuits/jku_suite/*.qasm > revision/lists/jku.txt
-ls benchmarks_real/ising_eps1e-2/*.qasm > revision/lists/real_ising.txt
+ls benchmarks_real/ising_eps1e-2/ising_n{26,34,66}.qasm > revision/lists/real_ising.txt
+# real: Ising n10/13/16/26/34/66 and QED-C Heisenberg n16-n64, Clifford+T at eps 1e-2
+if [ "$PHASE" = real ]; then
+    ls benchmarks_real/ising_eps1e-2/ising_n{10,13,16,26,34,66}.qasm \
+        benchmarks_real/heisenberg_eps1e-2/heisenberg_qedc_n{16,20,25,49,64}.qasm \
+        > revision/lists/real.txt
+fi
 
 cult_error() {  # T error per state at R rounds (analyze.py --cult-grades)
     case "$1" in 60) echo 3e-6 ;; 360) echo 2e-9 ;; esac
@@ -111,7 +119,7 @@ feasible() {  # feasible <qasm> <R>: the circuit's T states alone meet the targe
 wanted() {  # wanted <qasm> <design> <R>: whether the run can change the results
     case "$2" in
         D0*) [ -z "$PLAN" ] || grep -qxF "$1 $2" "$PLAN"; return ;;  # fits on the ring
-        *-fact) return 0 ;;  # factories on top: no recharge grade to check
+        *-fact|*-fact-*) return 0 ;;  # factories on top: no recharge grade to check
         D2*|D3*|D4*) ;;
         *) return 0 ;;
     esac
@@ -183,6 +191,9 @@ case "$PHASE" in
     ising)
         run_set revision/lists/real_ising.txt
         ;;
+    real)
+        run_set revision/lists/real.txt
+        ;;
     core|full)
         lists=(revision/lists/synth_all.txt)
         [ "$PHASE" = "full" ] && lists+=(revision/lists/jku.txt)
@@ -194,7 +205,7 @@ case "$PHASE" in
         done
         ;;
     *)
-        echo "usage: $0 mini|pilot|core|full|ising [--dry-run]" >&2
+        echo "usage: $0 mini|pilot|core|full|ising|real [--dry-run]" >&2
         exit 1
         ;;
 esac

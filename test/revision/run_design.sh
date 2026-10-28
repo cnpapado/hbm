@@ -20,9 +20,12 @@
 #               file before Slurm kills the job at 48 h, or the run leaves no trace;
 #               submit_revision.sh sets it to the job's time limit minus 30 min)
 
-module load python/3.12.10
-source ~/hbm/.venv/bin/activate
-cd ~/hbm/test || exit 1
+#   HBM_ROOT    repo checkout (default ~/hbm); HBM_VENV its venv (default $HBM_ROOT/.venv)
+
+HBM_ROOT="${HBM_ROOT:-$HOME/hbm}"
+module load python/3.12.10 2>/dev/null || true  # Quest; other clusters use the venv's Python
+source "${HBM_VENV:-$HBM_ROOT/.venv}/bin/activate"
+cd "$HBM_ROOT/test" || exit 1
 source revision/common.sh
 command -v wisq >/dev/null || { echo "ERROR: wisq not on PATH" >&2; exit 1; }
 

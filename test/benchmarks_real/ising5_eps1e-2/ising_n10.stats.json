@@ -1,0 +1,24 @@
+{
+  "input": "/scratch/zt1/project/xiaodiwu-prj/user/mehatamm/hbm/quantum-compiler-benchmark-circuits/qasmbench_ising/original/ising_n10.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 280,
+  "num_rz_synthesized": 185,
+  "distinct_angles": 105,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 0,
+  "t_count": 3882,
+  "t_per_rotation_mean": 20.983783783783785,
+  "t_per_rotation_min": 17,
+  "t_per_rotation_max": 24,
+  "seconds": 48.8,
+  "ops": {
+    "h": 6101,
+    "t": 3882,
+    "s": 2102,
+    "sdg": 1296,
+    "x": 332,
+    "cx": 90
+  }
+}

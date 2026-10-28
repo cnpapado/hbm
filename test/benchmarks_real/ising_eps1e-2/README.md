@@ -5,8 +5,17 @@ from the `mati` branch (commit 73b3202f), unchanged. They are QASMBench's transv
 (one Trotter step), synthesized there with `scripts/synth_ising.py --eps 1e-2 --merge` (Qualtran rotation
 synthesis, wisq's own path). See that branch's `qasmbench_ising/README.md` for details.
 
+`ising_n10` (QASMBench `original/ising_n10.qasm`, register renamed `reg` to `q`) and `ising_n13`,
+`ising_n16` (JKU `jku_suite/ising_model_{13,16}.qasm`) are cut to their first Trotter step by
+`scripts/ising_one_step.py`, so every circuit here is one step, as QASMBench ships n26/n34/n66.
+They were synthesized the same way by `../../runs/real/setup/synth_1step.sh`; `*.stats.json` holds
+their synthesis statistics. The 5-step versions are in `../ising5_eps1e-2/`.
+
 | Circuit | N | T | CNOT |
 |---|---|---|---|
+| ising_n10 | 10 | 982 | 18 |
+| ising_n13 | 13 | 1,303 | 24 |
+| ising_n16 | 16 | 1,618 | 30 |
 | ising_n26 | 26 | 1,550 | 50 |
 | ising_n34 | 34 | 2,018 | 66 |
 | ising_n66 | 66 | 3,920 | 130 |

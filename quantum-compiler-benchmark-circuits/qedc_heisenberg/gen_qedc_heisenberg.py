@@ -21,6 +21,7 @@ For larger N this script cycles them (hx[i % 20]), which is a deviation from QED
 Usage:
     python gen_qedc_heisenberg.py 16 -o heisenberg_n16.qasm
     python gen_qedc_heisenberg.py --batch        # regenerate this directory
+    python gen_qedc_heisenberg.py 16 --steps 1   # only the first of the K steps (tau = t / K)
 """
 import argparse
 import math
@@ -40,7 +41,8 @@ HZ = [0.13788044023849122, -0.8680715448211151, 0.7762213398005142, 0.8593163543
       -0.4883312979088732, -0.5500163526392827, -0.8385986892423059, -0.6319995154933682, 0.44989873651812795]
 
 
-def heisenberg(n, separate_gates=False, k=K, t=T, w=W):
+def heisenberg(n, separate_gates=False, k=K, t=T, w=W, steps=None):
+    """steps: emit only the first `steps` of the k Trotter steps (tau stays t / k)."""
     tau = t / k
     lines = ["OPENQASM 2.0;", 'include "qelib1.inc";', f"qreg q[{n}];"]
     g = lines.append
@@ -71,7 +73,7 @@ def heisenberg(n, separate_gates=False, k=K, t=T, w=W):
     for q in range(0, n, 2):
         g(f"x q[{q}];")
     bonds = [i for j in range(2) for i in range(j % 2, n - 1, 2)]
-    for _ in range(k):
+    for _ in range(k if steps is None else steps):
         for i in range(n):
             g(f"rx({2 * tau * w * hx[i]!r}) q[{i}];")
         for i in range(n):
@@ -93,6 +95,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("n", type=int, nargs="?")
     ap.add_argument("--separate-gates", action="store_true", help="use_XX_YY_ZZ_gates=True in QED-C terms")
+    ap.add_argument("--steps", type=int, help=f"emit only the first STEPS of the K={K} steps")
     ap.add_argument("-o", "--output")
     ap.add_argument("--batch", action="store_true")
     args = ap.parse_args()
@@ -104,7 +107,7 @@ def main():
         return
     if args.n is None:
         ap.error("give a qubit count or --batch")
-    text = heisenberg(args.n, args.separate_gates)
+    text = heisenberg(args.n, args.separate_gates, steps=args.steps)
     if args.output:
         with open(args.output, "w") as f:
             f.write(text)

@@ -1,0 +1,24 @@
+{
+  "input": "/scratch/zt1/project/xiaodiwu-prj/user/mehatamm/hbm/test/runs/real/setup/onestep/heisenberg_qedc_n20.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 211,
+  "num_rz_synthesized": 183,
+  "distinct_angles": 46,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 3,
+  "t_count": 2068,
+  "t_per_rotation_mean": 11.300546448087431,
+  "t_per_rotation_min": 0,
+  "t_per_rotation_max": 23,
+  "seconds": 13.4,
+  "ops": {
+    "h": 3839,
+    "t": 2068,
+    "s": 1708,
+    "sdg": 673,
+    "x": 274,
+    "cx": 57
+  }
+}

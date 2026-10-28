@@ -1,0 +1,24 @@
+{
+  "input": "/scratch/zt1/project/xiaodiwu-prj/user/mehatamm/hbm/test/runs/real/setup/onestep/ising_n13.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 74,
+  "num_rz_synthesized": 62,
+  "distinct_angles": 35,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 0,
+  "t_count": 1303,
+  "t_per_rotation_mean": 21.016129032258064,
+  "t_per_rotation_min": 18,
+  "t_per_rotation_max": 24,
+  "seconds": 15.2,
+  "ops": {
+    "h": 2094,
+    "t": 1303,
+    "s": 734,
+    "sdg": 440,
+    "x": 80,
+    "cx": 24
+  }
+}
