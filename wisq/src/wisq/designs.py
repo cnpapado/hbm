@@ -45,7 +45,10 @@ Spec grammar ("-"-separated tokens):
                      hbm_shared_<S>_positions, with a full top routing layer (s4 = kquarter).
                      -route: add that routing layer to k1/k2/khalf. -fact: each top source is
                      a factory instead of a cultivation patch (HBM_FACTORY_*; drawn on one top
-                     tile, charged HBM_FACTORY_QUBITS).
+                     tile, charged HBM_FACTORY_QUBITS). -bottom (routed layouts only): no top
+                     routing layer; a routed T gate goes from the data qubit's vertical side
+                     through the data plane to the tile below a source, which merges down
+                     into it (one vertical merge). Direct sources are unchanged.
   D4-k1 | D4-k1p5[-route]                Compact plane + cultivation on top (proposed).
 
 Physical parameters (env vars; defaults are for p = 1e-3):
@@ -105,7 +108,8 @@ class Design:
     layout: str  # "square_sparse" | "compact"
     placement: str  # "plane" | "top"
     source: str  # "factory" | "cultivation"
-    routing: str  # "PLANE" | "TOP" (Upper-First) | "TOP_3D" (general 3D, opt-in "-3d" only)
+    routing: str  # "PLANE" | "TOP" (Upper-First) | "BOTTOM" (D3 "-bottom": in-plane, then
+    #               down from the source) | "TOP_3D" (general 3D, opt-in "-3d" only)
     allow_direct: bool
     allow_route: bool
     top_routing_layer: bool
@@ -220,11 +224,16 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
                       "PLANE", allow_direct=True, allow_route="borrow" in flags,
                       top_routing_layer=False, **params)
     if family == "D3":
-        check(("k1", "k2", "khalf", "kquarter") + SHARED_KNOBS, ("route", "fact"))
+        check(("k1", "k2", "khalf", "kquarter") + SHARED_KNOBS, ("route", "fact", "bottom"))
         routed = knob in ("kquarter",) + SHARED_KNOBS or "route" in flags
+        bottom = "bottom" in flags
+        if bottom and not routed:
+            raise ValueError(f"-bottom needs a routed layout (kquarter, s<S> or -route), "
+                             f"got {spec!r}")
         source = "factory" if "fact" in flags else "cultivation"
-        return Design(spec, family, knob, flags, "square_sparse", "top", source, "TOP",
-                      allow_direct=True, allow_route=routed, top_routing_layer=routed, **params)
+        return Design(spec, family, knob, flags, "square_sparse", "top", source,
+                      "BOTTOM" if bottom else "TOP", allow_direct=True, allow_route=routed,
+                      top_routing_layer=routed and not bottom, **params)
     # D4
     check(("k1", "k1p5"), ("route",))
     routed = "route" in flags

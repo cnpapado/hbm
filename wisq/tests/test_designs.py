@@ -13,7 +13,7 @@ from wisq.designs import (SHARED, build_arch, d0_ring_capacity, direct_sources, 
 SPECS = ["D0-S4", "D0-S8", "D1-band-S4", "D1-band-S8", "D1-mesh-S4", "D1-mesh-S8",
          "D2-wide", "D2-tight", "D2-wide-borrow", "D3-k1", "D3-khalf", "D3-k2", "D3-kquarter",
          "D3-k1-route", "D4-k1", "D4-k1p5", "D5-S4", "D5-S8", "D5-S16", "D5-S8-3d",
-         "D0-alt", "D3-s2", "D3-s4", "D3-s8", "D3-s16", "D3-k1-fact", "D3-s4-fact"]
+         "D0-alt", "D3-s2", "D3-s4", "D3-s8", "D3-s16", "D3-k1-fact", "D3-s4-fact", "D3-s4-fact-bottom"]
 SIZES = [16, 25, 49, 100]
 
 
@@ -35,7 +35,8 @@ def neighbors(p, w, h):
                                  "D1-band-mesh-S4", "D2-medium", "D3-k3", "D5-S0", "D5-X0",
                                  "D2-wide-route", "D3-k1-borrow", "D5-S4-route",
                                  "D1-band-Xmax", "D5-Xmax", "D0-Xmax-S4", "D1-band-alt",
-                                 "D0-alt-X1", "D3-s3", "D2-wide-fact"])
+                                 "D0-alt-X1", "D3-s3", "D2-wide-fact",
+                                 "D3-k1-fact-bottom", "D2-wide-bottom"])
 def test_invalid_specs_rejected(bad):
     with pytest.raises(ValueError):
         design(bad)
@@ -182,6 +183,34 @@ def test_d3_fact_sources_are_factories():
     assert acct["source"] == "factory" and acct["n_factories"] == 4 == acct["top_factory_tiles"]
     assert acct["n_patches"] == 0 and acct["factory_qubits"] == 3718
     assert build_arch(design("D3-k1-fact"), 16)["design"]["n_factories"] == 16
+
+
+@pytest.mark.parametrize("knob", ["s2", "s4", "s8", "s16"])
+@pytest.mark.parametrize("n", SIZES)
+def test_d3_bottom_drops_the_top_routing_layer(knob, n):
+    # Same factories as Shared-S, but routed in the data plane: the top layer is factories only.
+    top = build_arch(design(f"D3-{knob}-fact"), n)
+    arch = build_arch(design(f"D3-{knob}-fact-bottom"), n)
+    acct = arch["design"]
+    assert arch["magic_states"] == top["magic_states"]
+    assert acct["routing"] == "BOTTOM" and acct["allow_route"]
+    assert not acct["top_routing_layer"] and acct["top_tiles"] == len(arch["magic_states"])
+
+
+def test_bottom_routes_in_plane_to_the_tile_below_a_factory():
+    from wisq import design_routing as dr
+
+    des = design("D3-s16-fact-bottom", factory_rounds=0)
+    arch = build_arch(des, 16)
+    (f,) = arch["magic_states"]
+    far = max(arch["alg_qubits"], key=lambda q: abs(q - f))
+    dr.begin(des, arch, {0: far})
+    step = dr.try_order([0], {7: (0,)})
+    (_, _, path), = step
+    assert path and path[-1] == f and all(p < arch["width"] * arch["height"] for p in path)
+    dr.commit(step, {7: (0,)})
+    s = dr.stats()
+    assert s["t_routed"] == 1 and s["vertical_merges"] == 1 and s["t_path_tiles"] == len(path)
 
 
 @pytest.mark.parametrize("variant", ["band", "mesh"])

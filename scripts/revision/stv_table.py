@@ -12,6 +12,8 @@ use the R with the lowest STV. The last columns compare STV (> 1: HBM wins):
   P1c  best 2D-Cult / best HBMc (cultivation on both sides, same recharge rule)
   P2   Planar-2D / best HBM (factories on both sides)
 and name the best HBM and HBMc layouts. Columns no run filled are left out.
+Bottom-routed Shared-S columns (HBM-S<S>-bot, D3-s<S>-fact-bottom) appear when the CSV has
+them, and count as HBM (factory) layouts.
 
 Usage:
   python stv_table.py rev.csv [--metric STV|Q|steps] [--csv stv_table.csv]
@@ -29,8 +31,10 @@ COLS = [  # (column, spec)
     ("HBMc-Ded", "D3-k1"), ("HBMc-S2", "D3-s2"), ("HBMc-S4", "D3-s4"), ("HBMc-S8", "D3-s8"),
     ("HBMc-S16", "D3-s16"),
 ]
+BOTTOM_COLS = [(f"HBM-S{k}-bot", f"D3-s{k}-fact-bottom") for k in (2, 4, 8, 16)]  # if run
 CULT = ("D2-wide", "D2-tight")
-HBM = tuple(spec for _, spec in COLS if spec.startswith("D3") and spec.endswith("-fact"))
+HBM = tuple(spec for _, spec in COLS + BOTTOM_COLS
+            if spec.startswith("D3") and "-fact" in spec)
 HBMC = tuple(spec for _, spec in COLS if spec.startswith("D3") and not spec.endswith("-fact"))
 
 
@@ -74,8 +78,8 @@ def main():
                      key=lambda b: tuple(int(x) for x in re.findall(r"\d+", b)[::-1]))
 
     specs = {r["spec"] for r in rows}
-    cols = [(c, s) for c, s in COLS if s in specs]
-    name = dict((s, c) for c, s in COLS)
+    cols = [(c, s) for c, s in COLS + BOTTOM_COLS if s in specs]
+    name = dict((s, c) for c, s in COLS + BOTTOM_COLS)
     head = ["circuit"] + [c for c, _ in cols] + ["P1", "P1c", "P2", "best HBM", "best HBMc"]
     table = []
     for b in benches:
