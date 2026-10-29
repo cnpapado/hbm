@@ -1,0 +1,24 @@
+{
+  "input": "quantum-compiler-benchmark-circuits/qedc_heisenberg/gen_qedc_heisenberg.py 64 --steps 1",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 695,
+  "num_rz_synthesized": 601,
+  "distinct_angles": 46,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 10,
+  "t_count": 6759,
+  "t_per_rotation_mean": 11.246256239600665,
+  "t_per_rotation_min": 0,
+  "t_per_rotation_max": 23,
+  "seconds": 13.8,
+  "ops": {
+    "h": 12562,
+    "t": 6759,
+    "s": 5589,
+    "sdg": 2195,
+    "x": 904,
+    "cx": 189
+  }
+}
