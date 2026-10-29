@@ -6,14 +6,19 @@
 #   Planar-2D   D0-alt                   DASCOT's perimeter: every other ring tile a factory
 #                                        port, 4 sqrt(N) + 4 factories (always ready, 22 d^2)
 #   HBM         D3-k1-fact .. s16-fact   HBMS paper's Dedicated / Shared-S, factories on top
-#                                        (no cultivation on top)
+#                                        (always ready)
+#   HBM-Cult    D3-k1 .. D3-s16          the same layouts with cultivation patches on top,
+#                                        which pay the recharge time like 2D-Cult
 #
 #   ./submit_revision.sh mini  [--dry-run]   quick: N=16 p10 and p50, short partition (< 4 h)
 #   ./submit_revision.sh pilot [--dry-run]   N = 16, 25, 49, 64 (12 circuits)
 #   ./submit_revision.sh core  [--dry-run]   all 33 synthetic circuits
 #   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + the D2 -borrow variants
-#   ./submit_revision.sh ising [--dry-run]   QASMBench Ising n26, n34, n66, Clifford+T at eps 1e-2
-#                                            per rotation (benchmarks_real/ising_eps1e-2/)
+#   ./submit_revision.sh ising [--dry-run]   the Ising circuits of benchmarks_real/ising_eps1e-2/
+#                                            (n10, n13, n16, n26, n34, n66), Clifford+T at eps 1e-2
+#                                            per rotation
+#   ./submit_revision.sh real  [--dry-run]   ising + QED-C Heisenberg n16..n64
+#                                            (benchmarks_real/heisenberg_eps1e-2/): 11 circuits
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
@@ -97,6 +102,7 @@ ls benchmarks_bursty_cx/bench_n{16,25,49,64}_p*.qasm > revision/lists/synth_smal
 ls benchmarks_bursty_cx/*.qasm > revision/lists/synth_all.txt
 ls ../quantum-compiler-benchmark-circuits/jku_suite/*.qasm > revision/lists/jku.txt
 ls benchmarks_real/ising_eps1e-2/*.qasm > revision/lists/real_ising.txt
+ls benchmarks_real/{ising,heisenberg}_eps1e-2/*.qasm > revision/lists/real.txt
 
 cult_error() {  # T error per state at R rounds (analyze.py --cult-grades)
     case "$1" in 60) echo 3e-6 ;; 360) echo 2e-9 ;; esac
@@ -153,8 +159,9 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]: the wanted runs
 
 # Override with CULT_SPECS / FACT_SPECS (space-separated) to leave knob values out.
 # HBM (D3 -fact): the HBMS paper's Dedicated (k1) and Shared-2/4/8/16 (s2..s16) with
-# factories on top, compared with both 2D-Cult (D2) and Planar-2D (D0-alt).
-read -r -a CULT <<< "${CULT_SPECS:-D2-wide D2-tight}"
+# factories on top, compared with both 2D-Cult (D2) and Planar-2D (D0-alt). HBM-Cult (D3
+# without -fact): the same layouts with cultivation patches on top, compared with 2D-Cult.
+read -r -a CULT <<< "${CULT_SPECS:-D2-wide D2-tight D3-k1 D3-s2 D3-s4 D3-s8 D3-s16}"
 read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact D3-s4-fact D3-s8-fact D3-s16-fact}"
 EXTRA=(D2-wide-borrow D2-tight-borrow)
 
@@ -183,6 +190,9 @@ case "$PHASE" in
     ising)
         run_set revision/lists/real_ising.txt
         ;;
+    real)
+        run_set revision/lists/real.txt
+        ;;
     core|full)
         lists=(revision/lists/synth_all.txt)
         [ "$PHASE" = "full" ] && lists+=(revision/lists/jku.txt)
@@ -194,7 +204,7 @@ case "$PHASE" in
         done
         ;;
     *)
-        echo "usage: $0 mini|pilot|core|full|ising [--dry-run]" >&2
+        echo "usage: $0 mini|pilot|core|full|ising|real [--dry-run]" >&2
         exit 1
         ;;
 esac

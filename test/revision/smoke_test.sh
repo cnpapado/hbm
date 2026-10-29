@@ -28,8 +28,9 @@ echo "== 1. unit tests"
 python -m pytest -q wisq/tests/test_designs.py || echo "!! unit tests failed"
 
 # The designs in the study: D0 (factories), D2 (cultivation in the plane), D3 (HBM, factories
-# on top, Upper-First).
-SPECS=(D0-alt D2-wide D2-tight D2-wide-borrow D3-k1-fact D3-s2-fact D3-s4-fact D3-s8-fact D3-s16-fact)
+# on top with -fact, cultivation on top without; Upper-First).
+SPECS=(D0-alt D2-wide D2-tight D2-wide-borrow D3-k1-fact D3-s2-fact D3-s4-fact D3-s8-fact D3-s16-fact
+       D3-k1 D3-s2 D3-s4 D3-s8 D3-s16)
 [ -n "${SMOKE_SPECS:-}" ] && read -r -a SPECS <<< "$SMOKE_SPECS"
 
 echo "== 2. drawings"

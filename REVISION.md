@@ -14,29 +14,31 @@ with them in the data plane? **Metric: space-time volume (STV) only.**
 | 2D-Cult-k1 | `D2-wide` | DASCOT with a cultivation patch beside each qubit (own patch, grid grows) | baseline |
 | 2D-Cult-k½ | `D2-tight` | DASCOT with 1 patch per 2 qubits, in existing routing tiles | baseline |
 | Planar-2D | `D0-alt` | DASCOT's original perimeter: every other tile of the ring around the data block is a magic-state port fed by a factory, the tiles between are free ancillas (4√N + 4 ports) | baseline |
-| HBM-Dedicated, -Shared-2/4/8/16 | `D3-k1-fact`, `D3-s2-fact`, `D3-s4-fact`, `D3-s8-fact`, `D3-s16-fact` | The HBMS paper's configurations, factories on the top layer: one per data qubit (Dedicated) or one per S data qubits (Shared-S, positions from `architecture.py`, full top routing layer). Each factory is drawn on one top tile and charged 22d². No cultivation on top. | proposed |
+| HBM-Dedicated, -Shared-2/4/8/16 | `D3-k1-fact`, `D3-s2-fact`, `D3-s4-fact`, `D3-s8-fact`, `D3-s16-fact` | The HBMS paper's configurations, factories on the top layer: one per data qubit (Dedicated) or one per S data qubits (Shared-S, positions from `architecture.py`, full top routing layer). Each factory is drawn on one top tile and charged 22d². | proposed |
+| HBM-Cult-Dedicated, -Shared-2/4/8/16 | `D3-k1`, `D3-s2`, `D3-s4`, `D3-s8`, `D3-s16` | The same layouts with a cultivation patch in place of each factory (454/463 qubits), paying the same recharge time as 2D-Cult. | proposed |
 | PPM | `PPM-<block>` (`ppm_baseline.py`) | Litinski Pauli-product measurements: one data block, factories at its ancilla region, T gates one at a time (see below) | baseline |
 
 Factories are always ready (one state per port per step), cost 22d² qubits and have error
 35p³ (the 15-to-1 block of *A Game of Surface Codes*). Cultivation keeps its recharge time.
 
 Not run (the code still builds them and `test_designs.py` still tests them): D0 `X<m>` and
-`Xmax` factory counts, D3 with cultivation on top (`D3-k1`, `-s2` … `-s16`, `khalf`, `k2`,
-`kquarter`), D1 (factories inside the data plane),
+`Xmax` factory counts, the other D3 cultivation layouts (`khalf`, `k2`, `kquarter`), D1
+(factories inside the data plane),
 D4 (compact plane + cultivation on top), D5 (factories on top with their full footprint; with
 Upper-First it does not fit at d=13, rule 5 below).
 
 **Knobs.** Each family is reported at its best knob:
 - 2D-Cult: layout (wide, tight). HBM: sharing ratio (Dedicated, Shared-2/4/8/16). Planar-2D: none. PPM: data block, units, source count.
-- **Recharge time R (cultivation, so 2D-Cult only):** 60 and 360 rounds, the two published cultivation grades (table below). P1 is reported at each R 2D-Cult ran and at R = best (its best R); HBM is always ready. R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
+- **Recharge time R (cultivation: 2D-Cult and HBM-Cult):** 60 and 360 rounds, the two published cultivation grades (table below). P1 is reported at each R 2D-Cult ran and at R = best (its best R); HBM is always ready. R = best matters for T-heavy circuits, where the 60-round grade (3×10⁻⁶ per T state) breaks the 1% target by itself.
 - D0 `X<m>` counts (optional, `FACT_SPECS`): `ceil(m·F*)` factories with F\* = ⌈λ⌉, λ = T count / ideal depth (*A Game of Surface Codes* Sec. 4.4). Ports must fit on the ring (36 tiles at N=16 to 164 at N=400); `plan_d0.py` queues only counts that fit, plus `Xmax` (every ring tile) where X2 does not.
 
 **Flags** (`full` phase only): `-borrow` (D2): route in-plane to another qubit's ready patch.
 
 **Routing on the top layer is Upper-First everywhere** (the paper's ARCH_C). A routed T gate goes up above the qubit or above one of its vertical neighbours, then along the top layer to a source. CNOTs stay in the data plane. General 3D routing (`-3d`) is not run.
 
-**The three comparisons** (`scripts/revision/compare.py`), ratio = STV(baseline) / STV(HBM), > 1: HBM wins. HBM is always the factory runs (`-fact`, family `D3F` in `rev.csv`):
+**The comparisons** (`scripts/revision/compare.py`), ratio = STV(baseline) / STV(HBM), > 1: HBM wins. HBM is the factory runs (`-fact`, family `D3F` in `rev.csv`), except in P1c (family `D3`):
 - **P1:** 2D-Cult (D2) vs HBM. Whether cultivation in the plane, which needs no delivery, makes the top layer unnecessary.
+- **P1c:** 2D-Cult vs HBM-Cult. The same question with the same sources on both sides: cultivation patches with the same recharge rule, in the plane or on top.
 - **P2:** Planar-2D (D0-alt) vs HBM. The HBMS paper's original comparison, with factories always ready on both sides.
 - **P3:** PPM vs HBM. Whether a different compilation model (PPM) makes the top layer unnecessary. Factories on both sides.
 
@@ -101,8 +103,8 @@ them out of `outs_rev/` first (`mkdir -p test/outs_rev_old && mv test/outs_rev/*
 test/outs_rev/*/*__D3-*_R*.out test/outs_rev_old/`; D3 cultivation tags end in `_R<rounds>`,
 factory tags in `_F0q22d2`).
 
-Every phase submits 2D-Cult (2 layouts), Planar-2D and HBM (5 layouts with factories): 8 runs
-per circuit, 264 for `core`. Cultivation runs are queued only where they can change the results:
+Every phase submits 2D-Cult (2 layouts), Planar-2D, HBM (5 layouts with factories) and HBM-Cult
+(the same 5 layouts with cultivation): 13 runs per circuit, 429 for `core`, 143 for `real`. Cultivation runs are queued only where they can change the results:
 - An R whose grade alone breaks the 1% target is never run (it is infeasible for any
   design): R = 60 for the p90 circuits (9,900 T gates × 3×10⁻⁶ = 3%). `compare.py` counts
   it as run and infeasible.
@@ -127,9 +129,10 @@ then the same phase again at the defaults, which submits only what timed out.
 2. **Pilot** (normal partition, 48 h): `submit_revision.sh pilot`, the 12 circuits with N = 16, 25, 49, 64 (adds `bench_n16_p90`).
 3. **Core:** `submit_revision.sh core`, all 33 synthetic circuits.
 4. **Full:** `submit_revision.sh full` adds the JKU suite and the D2 `-borrow` variants.
-   **Ising:** `submit_revision.sh ising` runs the same configurations on QASMBench Ising n26, n34, n66,
-   synthesized to Clifford+T at ε = 10⁻² per rotation (`test/benchmarks_real/ising_eps1e-2/`, copied from
-   the `mati` branch; 24 runs). Use its own campaign folder.
+   **Real:** `submit_revision.sh real` runs the same configurations on the 11 circuits of
+   `test/benchmarks_real/` (one Trotter step, Clifford+T at ε = 10⁻² per rotation): Ising n10, n13, n16,
+   n26, n34, n66 (`ising_eps1e-2/`) and QED-C Heisenberg n16, n20, n25, n49, n64 (`heisenberg_eps1e-2/`).
+   `submit_revision.sh ising` runs only the Ising ones. Use its own campaign folder.
 5. **After each phase:** `python scripts/revision/analyze.py test/outs_rev --csv rev.csv`, then `python scripts/revision/ppm_baseline.py test/benchmarks_bursty_cx --csv ppm.csv` (seconds), then `python scripts/revision/compare.py rev.csv ppm.csv --prefix rev --rows`.
 
 `smoke_test.sh` (interactive node) is an optional pre-flight check of the same designs on one circuit.

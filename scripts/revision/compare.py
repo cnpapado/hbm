@@ -1,15 +1,17 @@
 """Compare the baselines against HBM by space-time volume.
 
-Three pairs, each against HBM (D3F: the HBMS paper's Dedicated, D3-k1-fact, or Shared-S,
-D3-s2-fact .. D3-s16-fact, with factories on the top layer; no cultivation on top):
+HBM is the HBMS paper's Dedicated (D3-k1) or Shared-S (D3-s2 .. D3-s16) layouts with sources
+on the top layer: factories (-fact, family D3F) or cultivation patches (family D3). Pairs:
 
-  P1  2D-Cult   (D2, cultivation patches in the data plane)     vs HBM
-  P2  Planar-2D (D0, factory ports on DASCOT's perimeter)       vs HBM
-  P3  Litinski PPM (ppm_baseline.py, factories by default)      vs HBM
+  P1   2D-Cult   (D2, cultivation patches in the data plane)     vs HBM, factories (D3F)
+  P1c  2D-Cult                                                    vs HBM, cultivation (D3)
+  P2   Planar-2D (D0, factory ports on DASCOT's perimeter)       vs HBM, factories
+  P3   Litinski PPM (ppm_baseline.py, factories by default)      vs HBM, factories
 
 Factories are always ready, so a factory-only pair (P2, P3) has one setting, reported under
 R = "best". In P1 the cultivation side is reported at each R it ran and at its best R; the
-HBM side is the same always-ready run at every R.
+HBM side is the same always-ready run at every R. In P1c both sides are cultivation, with the
+same recharge rule, and are compared at each R and at each side's best R.
 
 ratio = STV(baseline) / STV(HBM): > 1 means HBM wins. STV is the only metric. Both sides
 of a pair are at the same code distance d (the d the runs were simulated at, 13), as in the
@@ -49,6 +51,7 @@ from analyze import parse_grades
 
 PAIRS = [  # (name, baseline families, HBM families, x variable)
     ("P1 2D-Cult vs HBM", ("D2",), ("D3F",), "t_density"),
+    ("P1c 2D-Cult vs HBM-Cult", ("D2",), ("D3",), "t_density"),
     ("P2 Planar-2D vs HBM", ("D0",), ("D3F",), "t_density"),
     ("P3 PPM vs HBM", ("PPM",), ("D3F",), "t_per_step"),
 ]
@@ -278,7 +281,7 @@ def main():
     print(f"{len(pairs)} pair rows -> {args.prefix}_pairs.csv, {args.prefix}_regimes.csv, "
           f"{args.prefix}_pairs.png")
     for r in reg:
-        print(f"{r['pair'][:2]} d={r['d']} R={r['recharge_rounds']:>4s} "
+        print(f"{r['pair'].split()[0]:3s} d={r['d']} R={r['recharge_rounds']:>4s} "
               f"{r['x']} {r['x_bin']:>4}: HBM wins {r['hbm_wins']}/{r['n']} "
               f"(median STV ratio {r['median_ratio']:.2f})")
     if args.rows:
@@ -287,10 +290,10 @@ def main():
                    and not spec.endswith("-fact") else spec)
             steps = f"{steps:.0f}" if isinstance(steps, float) else ""
             return f"{tag:>22s} {steps:>6s}"
-        print(f"\n{'':2s} {'bench':16s} {'d':>3s} {'R':>4s} {'baseline':>22s} {'steps':>6s} "
+        print(f"\n{'':3s} {'bench':16s} {'d':>3s} {'R':>4s} {'baseline':>22s} {'steps':>6s} "
               f"{'HBM':>22s} {'steps':>6s} {'ratio':>6s}  (STV baseline / STV HBM)")
         for r in pairs:
-            print(f"{r['pair'][:2]} {r['bench']:16s} {r['d']:3d} {r['recharge_rounds']:>4s} "
+            print(f"{r['pair'].split()[0]:3s} {r['bench']:16s} {r['d']:3d} {r['recharge_rounds']:>4s} "
                   f"{side(r['baseline'], r['baseline_R'], r['baseline_steps'])} "
                   f"{side(r['hbm'], r['hbm_R'], r['hbm_steps'])} {r['ratio']:6.2f}")
     if args.knobs:
