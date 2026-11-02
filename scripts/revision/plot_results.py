@@ -1,18 +1,23 @@
-"""Paper figures for a revision campaign (analyze.py's CSV), sized for a two-column paper.
+"""Paper figures for a revision campaign (analyze.py's CSV), drawn at their printed size.
 
-  python plot_results.py rev.csv --out figs/ [--circuit ising_n66] [--fmt pdf,png]
+  python plot_results.py rev.csv --out figs/ [--circuit ising_n66 ...] [--fmt pdf,png]
 
-Single-column (3.35 in) unless noted; no titles (the caption carries them):
-  ratios      P1, P1c, P2 per circuit and their geometric mean (> 1: HBM wins)
-  heatmap     (two columns) every configuration's STV over the best on its circuit
-  sharing     best 2D baseline's STV over HBM's, against the sharing ratio (geomean, range)
-  spacetime   one circuit: qubits (data, other tiles, T sources) and rounds per configuration
-  tradeoff    one circuit: qubits against rounds, with lines of equal STV
-  scaling     each family's best STV against N, Ising and Heisenberg apart
+ISCA style (IEEEtran: column 3.49 in, text 7.14 in): every text at 8 pt or more, axis labels
+9 pt, no in-plot titles, legend in a frameless row above the axes or direct labels, colours
+ordered by lightness plus hatching / markers so they survive grayscale, fonts embedded as
+TrueType. Include each PDF at width=\\columnwidth (heatmap: \\textwidth) so nothing rescales.
+
+  ratios        baseline STV / HBM STV per circuit and their geometric mean (> 1: HBM wins)
+  heatmap       (two columns) every configuration's STV over the best on its circuit
+  sharing       best 2D baseline's STV over HBM's against the sharing ratio (geomean, range)
+  spacetime_X   one circuit: qubits (data, other tiles, T sources) and rounds, per layout
+  tradeoff_X    one circuit: qubits against rounds, with lines of equal STV
+  scaling       each family's best STV against N, Ising and Heisenberg apart
+  captions.md   a draft caption per figure, takeaway first, numbers from this CSV
 Cells are those of stv_table.py (cultivation at its lowest-STV R). A run whose program error
-breaks the target at the simulated d (meets_target False) is marked: a dagger, or a hollow
-marker. At the larger d it needs, its STV would grow. Circuits marked * have more T gates than
-the fast cultivation grade allows (R = 360). Fonts are embedded as TrueType (no Type 3).
+breaks the target at the simulated d (meets_target False) is marked with a dagger or a hollow
+marker: at the larger d it needs, its STV would grow. Circuits marked * have too many T gates
+for the fast cultivation grade, so cultivation runs at R = 360.
 """
 
 import argparse
@@ -30,19 +35,22 @@ import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.ticker as mticker  # noqa: E402
 import numpy as np  # noqa: E402
 from matplotlib.colors import LogNorm  # noqa: E402
-from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
 from analyze import parse_grades  # noqa: E402
 from stv_table import COLS, CULT, HBM, HBMC, cell, num  # noqa: E402
 
-COL, FULL = 3.35, 7.0  # inches: one column, both columns
-INK, MUTED, GRID = "#222222", "#6b6b6b", "#dddddd"
-# Okabe-Ito hues per family (colour-blind safe), lighter with more sharing.
-FAMILY = {"2D-Cult": "#D55E00", "Planar-2D": "#7a7a7a", "HBM": "#0072B2", "HBM-Cult": "#009E73"}
-SHORT = {  # spec -> (family, short label)
-    "D2-wide": ("2D-Cult", "2D-Cult"), "D2-tight": ("2D-Cult", "2D-Cult½"),
-    "D0-alt": ("Planar-2D", "Planar-2D"),
+COL, FULL = 3.45, 7.1  # inches: one column, both columns
+INK, MUTED, GRID = "#1a1a1a", "#555555", "#d9d9d9"
+# Fill colours ordered by lightness (grayscale-safe), the proposal darkest.
+FILL = {"HBM": "#1B4F9C", "HBM-Cult": "#2CA27A", "2D-Cult": "#F0A33A", "Planar-2D": "#D4D4D4"}
+LINE = dict(FILL, **{"Planar-2D": "#808080"})
+HATCH = {"HBM": None, "HBM-Cult": "////", "2D-Cult": None, "Planar-2D": None}
+STYLE = {  # line plots: marker, line style
+    "HBM": ("o", "-"), "HBM-Cult": ("s", "--"), "2D-Cult": ("^", "-."), "Planar-2D": ("D", ":"),
+}
+SHORT = {  # spec -> (family, sharing label)
+    "D2-wide": ("2D-Cult", ""), "D2-tight": ("2D-Cult", "½"), "D0-alt": ("Planar-2D", ""),
     "D3-k1-fact": ("HBM", "Ded"), "D3-s2-fact": ("HBM", "S2"), "D3-s4-fact": ("HBM", "S4"),
     "D3-s8-fact": ("HBM", "S8"), "D3-s16-fact": ("HBM", "S16"),
     "D3-k1": ("HBM-Cult", "Ded"), "D3-s2": ("HBM-Cult", "S2"), "D3-s4": ("HBM-Cult", "S4"),
@@ -50,19 +58,21 @@ SHORT = {  # spec -> (family, short label)
 }
 SHARING = ["k1", "s2", "s4", "s8", "s16"]
 SHARE_LABEL = ["Ded", "S2", "S4", "S8", "S16"]
+SPACETIME_SPECS = ["D2-wide", "D0-alt", "D3-k1-fact", "D3-s4-fact", "D3-s16-fact", "D3-k1",
+                   "D3-s4", "D3-s16"]
 
 logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 plt.rcParams.update({
     "font.family": "sans-serif", "font.sans-serif": ["Arial", "Helvetica", "DejaVu Sans"],
-    "font.size": 7, "axes.labelsize": 7, "xtick.labelsize": 6.5, "ytick.labelsize": 6.5,
-    "legend.fontsize": 6.5, "axes.linewidth": 0.6, "xtick.major.width": 0.6,
+    "font.size": 8, "axes.labelsize": 9, "xtick.labelsize": 8, "ytick.labelsize": 8,
+    "legend.fontsize": 8, "axes.linewidth": 0.6, "xtick.major.width": 0.6,
     "ytick.major.width": 0.6, "xtick.minor.width": 0.4, "ytick.minor.width": 0.4,
     "xtick.major.size": 2.5, "ytick.major.size": 2.5, "xtick.minor.size": 1.5,
-    "ytick.minor.size": 1.5, "lines.linewidth": 1.0, "lines.markersize": 3.5,
+    "ytick.minor.size": 1.5, "lines.linewidth": 1.1, "lines.markersize": 4,
     "axes.spines.top": False, "axes.spines.right": False, "axes.edgecolor": INK,
     "axes.labelcolor": INK, "xtick.color": INK, "ytick.color": INK, "text.color": INK,
-    "legend.frameon": False, "legend.handlelength": 1.3, "legend.handletextpad": 0.4,
-    "legend.columnspacing": 0.9, "legend.borderaxespad": 0.2, "hatch.linewidth": 0.5,
+    "legend.frameon": False, "legend.handlelength": 1.5, "legend.handletextpad": 0.4,
+    "legend.columnspacing": 1.0, "legend.borderaxespad": 0.2, "hatch.linewidth": 0.6,
     "pdf.fonttype": 42, "ps.fonttype": 42, "savefig.dpi": 300, "savefig.bbox": "tight",
     "savefig.pad_inches": 0.02,
 })
@@ -71,14 +81,12 @@ plt.rcParams.update({
 def shade(hex_color, k, n):
     """The k-th of n shades of a colour, from full (k = 0) towards white."""
     rgb = np.array([int(hex_color[i:i + 2], 16) for i in (1, 3, 5)]) / 255
-    return tuple(rgb + (1 - rgb) * 0.62 * k / max(1, n - 1))
+    return tuple(rgb + (1 - rgb) * 0.6 * k / max(1, n - 1))
 
 
-def color(spec):
-    fam, short = SHORT[spec]
-    if fam in ("HBM", "HBM-Cult"):
-        return shade(FAMILY[fam], SHARE_LABEL.index(short), 5)
-    return shade(FAMILY[fam], 1, 2) if spec == "D2-tight" else FAMILY[fam]
+def name(spec):
+    fam, share = SHORT[spec]
+    return fam + share if fam == "2D-Cult" else (f"{fam}-{share}" if share else fam)
 
 
 def circuit(bench):
@@ -127,6 +135,10 @@ def label(bench, cs=None):
     return f"{'Heis' if fam == 'Heisenberg' else fam}-{n}{star}"
 
 
+def n_t(cs):
+    return num(next(iter(cs.values()))["n_t"])
+
+
 def gmean(xs):
     xs = [x for x in xs if x and math.isfinite(x) and x > 0]
     return math.exp(sum(map(math.log, xs)) / len(xs)) if xs else math.nan
@@ -136,26 +148,26 @@ def times(v):
     return f"{v:.2f}×" if v < 10 else f"{v:.0f}×"
 
 
-def mark(ax, x, y, col, miss, **kw):
-    ax.scatter(x, y, s=kw.pop("s", 14), facecolor="white" if miss else col, edgecolor=col,
-               linewidth=0.9, zorder=kw.pop("zorder", 3), **kw)
-
-
-def plain_log(ax, axis="y"):
-    """Log axis labelled 1, 2, 10, ... instead of 10^0."""
+def plain_log(ax, axis="y", scale=1.0, minor="25"):
+    """Log axis labelled 0.5, 1, 2, ... (values / scale); minor labels on leading digits."""
     a = getattr(ax, f"{axis}axis")
-    a.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
-    a.set_minor_formatter(mticker.NullFormatter())
+    a.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v / scale:g}"))
+    a.set_minor_formatter(mticker.FuncFormatter(
+        lambda v, _: f"{v / scale:g}" if f"{v:.1e}"[0] in minor else ""))
+
+
+def legend_above(ax, ncol, **kw):
+    ax.legend(loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=ncol, **kw)
 
 
 # --------------------------------------------------------------------------------------
 # Figures
 # --------------------------------------------------------------------------------------
 
-PAIRS = [  # key, legend, colour, hatch
-    ("P1", "2D-Cult / HBM", FAMILY["HBM"], None),
-    ("P1c", "2D-Cult / HBM-Cult", FAMILY["HBM-Cult"], "////"),
-    ("P2", "Planar-2D / HBM", FAMILY["Planar-2D"], None),
+PAIRS = [  # key, legend, fill family
+    ("P1", "HBM vs 2D-Cult", "HBM"),
+    ("P1c", "HBM-Cult vs 2D-Cult", "HBM-Cult"),
+    ("P2", "HBM vs Planar-2D", "Planar-2D"),
 ]
 
 
@@ -169,29 +181,39 @@ def pair_values(cs):
 def ratios(cells, benches, path):
     vals = {b: pair_values(cells[b]) for b in benches}
     names = [label(b, cells[b]) for b in benches] + ["GMean"]
-    fig, ax = plt.subplots(figsize=(COL, 1.55))
+    fig, ax = plt.subplots(figsize=(COL, 1.45))
     w = 0.27
-    for k, (key, legend, col, hatch) in enumerate(PAIRS):
+    gm = {}
+    for k, (key, legend, fam) in enumerate(PAIRS):
         ys = [vals[b][key] for b in benches]
-        ys.append(gmean(ys))
-        xs = np.arange(len(ys)) + (k - 1) * w
-        ax.bar(xs, [y or np.nan for y in ys], width=w, color="white" if hatch else col,
-               edgecolor=col, hatch=hatch, linewidth=0.6,
-               label=f"{key} {legend} ({ys[-1]:.2f}×)")
-    ax.axhline(1, color=INK, lw=0.6, ls="--", zorder=1)
-    ax.axvline(len(benches) - 0.5, color=MUTED, lw=0.5)
+        gm[key] = gmean(ys)
+        ys.append(gm[key])
+        ax.bar(np.arange(len(ys)) + (k - 1) * w, [y or np.nan for y in ys], width=w,
+               color=FILL[fam], hatch=HATCH[fam], edgecolor=INK, linewidth=0.4, label=legend)
+    ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
+    ax.axvline(len(benches) - 0.5, color=INK, lw=0.6, ls=":")
     ax.set_yscale("log")
     ax.set_ylim(0.6, 20)
-    plain_log(ax)
+    plain_log(ax, minor="25")
     ax.set_xticks(range(len(names)), names, rotation=45, ha="right", rotation_mode="anchor")
     ax.set_xlim(-0.6, len(names) - 0.4)
     ax.tick_params(axis="x", length=0)
-    ax.set_ylabel("STV ratio (higher:\nHBM better)")
+    ax.set_ylabel("STV ratio")
     ax.grid(True, axis="y", which="major", color=GRID, lw=0.5)
     ax.set_axisbelow(True)
-    ax.legend(loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=2, fontsize=6)
+    legend_above(ax, 2)
     fig.savefig(path)
     plt.close(fig)
+    p2 = [vals[b]["P2"] for b in benches if vals[b]["P2"]]
+    by_r = {g: gmean([vals[b]["P1"] for b in benches if grade(cells[b]) == g])
+            for g in (60, 360)}
+    return (f"**HBM cuts space-time volume by {gm['P1']:.2f}× over 2D cultivation "
+            f"({by_r[60]:.1f}× at R = 60, {by_r[360]:.1f}× on the * circuits) and "
+            f"{gm['P2']:.2f}× over the planar factory layout (geometric means); with "
+            f"cultivation on both sides HBM-Cult still saves {gm['P1c']:.2f}×.** Each bar is "
+            f"the baseline's STV over HBM's, each side at its best layout (higher is better; "
+            f"log scale). HBM vs Planar-2D ranges {min(p2):.2f}–{max(p2):.2f}×. *: the T "
+            f"count forces the slower R = 360 cultivation grade.")
 
 
 def heatmap(cells, benches, path):
@@ -203,7 +225,7 @@ def heatmap(cells, benches, path):
             if s in cells[b]:
                 m[i, j] = stv(cells[b][s]) / lo
     top = np.nanmax(m)
-    fig, ax = plt.subplots(figsize=(FULL, 2.45))
+    fig, ax = plt.subplots(figsize=(FULL, 2.6))
     ax.imshow(m, cmap="YlOrRd", norm=LogNorm(1, top), aspect="auto")
     for i, b in enumerate(benches):
         for j, s in enumerate(specs):
@@ -212,10 +234,10 @@ def heatmap(cells, benches, path):
                 continue
             dark = math.log(v) > 0.55 * math.log(top)
             text = (f"{v:.2f}" if v < 10 else f"{v:.0f}") + ("†" if misses(cells[b][s]) else "")
-            ax.text(j, i, text, ha="center", va="center", fontsize=6,
+            ax.text(j, i, text, ha="center", va="center", fontsize=8,
                     color="white" if dark else INK, fontweight="bold" if v == 1 else None)
             if v == 1:
-                ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, ec=INK, lw=1.2))
+                ax.add_patch(Rectangle((j - 0.5, i - 0.5), 1, 1, fill=False, ec=INK, lw=1.3))
     groups = []  # [family, first column, last column]
     for j, s in enumerate(specs):
         fam = "2D baselines" if SHORT[s][0] in ("2D-Cult", "Planar-2D") else SHORT[s][0]
@@ -223,31 +245,40 @@ def heatmap(cells, benches, path):
             groups[-1][2] = j
         else:
             groups.append([fam, j, j])
-    names = {"HBM": "HBM (factories on top)", "HBM-Cult": "HBM-Cult (cultivation on top)"}
+    heads = {"HBM": "HBM (factories on top)", "HBM-Cult": "HBM-Cult (cultivation on top)"}
     for fam, a, z in groups:
         if a:
             ax.axvline(a - 0.5, color="white", lw=2.5)
-        ax.annotate(names.get(fam, fam), ((a + z) / 2, -1.45), ha="center", va="bottom",
-                    fontsize=7, annotation_clip=False)
-        ax.plot([a - 0.42, z + 0.42], [-1.38, -1.38], color=INK, lw=0.6, clip_on=False)
+        ax.annotate(heads.get(fam, fam), ((a + z) / 2, -1.5), ha="center", va="bottom",
+                    fontsize=9, annotation_clip=False)
+        ax.plot([a - 0.42, z + 0.42], [-1.42, -1.42], color=INK, lw=0.6, clip_on=False)
     short2d = {"D2-wide": "Cult", "D2-tight": "Cult½", "D0-alt": "Planar"}
     for j, s in enumerate(specs):
         ax.annotate(short2d.get(s, SHORT[s][1]), (j, -0.62), ha="center", va="bottom",
-                    fontsize=6.5, annotation_clip=False)
+                    fontsize=8, annotation_clip=False)
     ax.set_xticks([])
     ax.set_yticks(range(len(benches)),
-                  [f"{label(b, cells[b])} ({num(next(iter(cells[b].values()))['n_t']):,.0f} T)"
-                   for b in benches])
+                  [f"{label(b, cells[b])} ({n_t(cells[b]):,.0f} T)" for b in benches])
     ax.tick_params(length=0, pad=1.5)
     for sp in ax.spines.values():
         sp.set_visible(False)
     fig.savefig(path)
     plt.close(fig)
+    wins = defaultdict(int)
+    for i, b in enumerate(benches):
+        wins[name(specs[int(np.nanargmin(m[i]))])] += 1
+    won = ", ".join(f"{k} on {v}" for k, v in sorted(wins.items(), key=lambda kv: -kv[1]))
+    return (f"**Dedicated HBM with factories on top has the lowest space-time volume on "
+            f"most circuits (best: {won} of {len(benches)}); sharing a source among more data "
+            f"qubits raises it, most with cultivation (up to {top:.0f}×).** Each cell is a "
+            f"configuration's STV over the best on its circuit (boxed: 1). †: misses the 1% "
+            f"error target at d = 13 (its STV is a lower bound). *: R = 360 cultivation.")
 
 
 def sharing(cells, benches, path):
-    fig, ax = plt.subplots(figsize=(COL, 1.55))
+    fig, ax = plt.subplots(figsize=(COL, 1.5))
     x = np.arange(len(SHARING))
+    gm = {}
     for fam, fmt in (("HBM", "D3-{}-fact"), ("HBM-Cult", "D3-{}")):
         per = []  # per sharing ratio: the ratio on each circuit
         for key in SHARING:
@@ -257,20 +288,28 @@ def sharing(cells, benches, path):
                 if base and c:
                     rs.append(stv(base) / stv(c))
             per.append(rs)
-        ax.fill_between(x, [min(r) for r in per], [max(r) for r in per], color=FAMILY[fam],
+        gm[fam] = [gmean(r) for r in per]
+        mk, ls = STYLE[fam]
+        ax.fill_between(x, [min(r) for r in per], [max(r) for r in per], color=LINE[fam],
                         alpha=0.15, lw=0)
-        ax.plot(x, [gmean(r) for r in per], color=FAMILY[fam], marker="o", ms=3,
+        ax.plot(x, gm[fam], color=LINE[fam], marker=mk, ls=ls,
                 label=f"{fam} ({'factories' if fam == 'HBM' else 'cultivation'})")
-    ax.axhline(1, color=INK, lw=0.6, ls="--")
+    ax.axhline(1, color=INK, lw=0.7, ls="--")
     ax.set_yscale("log")
-    plain_log(ax)
+    plain_log(ax, minor="")
     ax.set_xticks(x, SHARE_LABEL)
     ax.set_xlabel("data qubits per T source")
-    ax.set_ylabel("STV(best 2D) / STV(HBM)\n(higher: HBM better)")
+    ax.set_ylabel("STV ratio")
     ax.grid(True, axis="y", color=GRID, lw=0.5)
     ax.legend(loc="lower left")
     fig.savefig(path)
     plt.close(fig)
+    h, c = gm["HBM"], gm["HBM-Cult"]
+    return (f"**Sharing a T source does not pay at these T densities: HBM goes from "
+            f"{h[0]:.2f}× (Ded) to {h[-1]:.2f}× (S16) of the best 2D baseline's STV, "
+            f"HBM-Cult from {c[0]:.2f}× to {c[-1]:.3f}×.** Lines: geometric mean over the "
+            f"{len(benches)} circuits of the best 2D baseline's STV over HBM's (higher is "
+            f"better); bands: range.")
 
 
 def space_parts(c, grades):
@@ -289,47 +328,47 @@ def rows_with_gaps(specs):
     ys, y = [], 0.0
     for k, s in enumerate(specs):
         if k and group(s) != group(specs[k - 1]):
-            y += 0.6
+            y += 0.5
         ys.append(y)
         y += 1
     return np.array(ys)
 
 
-def row_label(s):
-    fam, short = SHORT[s]
-    return short if fam in ("2D-Cult", "Planar-2D") else f"{fam}-{short}"
-
-
 def spacetime(cells, bench, grades, path):
     cs = cells[bench]
-    specs = [s for _, s in COLS if s in cs]
+    specs = [s for s in SPACETIME_SPECS if s in cs]
     y = rows_with_gaps(specs)
-    fig, (a1, a2) = plt.subplots(1, 2, figsize=(COL, 2.3), sharey=True,
-                                 gridspec_kw=dict(wspace=0.2))
+    fig, (a1, a2) = plt.subplots(1, 2, figsize=(COL - 0.1, 1.95), sharey=True,
+                                 gridspec_kw=dict(wspace=0.22))
     parts = np.array([space_parts(cs[s], grades) for s in specs]) / 1e3
     left = np.zeros(len(specs))
-    for k, (name, col) in enumerate([("data", "#333333"), ("other tiles", "#bdbdbd"),
-                                     ("T sources", "#E69F00")]):
-        a1.barh(y, parts[:, k], left=left, color=col, height=0.78, label=name, lw=0)
+    for k, (part, col, hatch) in enumerate([("data", "#1a1a1a", None),
+                                            ("other tiles", "#d4d4d4", None),
+                                            ("T sources", "#9B72B0", "....")]):
+        a1.barh(y, parts[:, k], left=left, color=col, hatch=hatch, edgecolor=INK, lw=0.4,
+                height=0.75, label=part)
         left += parts[:, k]
-    a1.set_xlabel("physical qubits (thousands)")
-    a1.set_yticks(y, [row_label(s) for s in specs])
+    a1.set_xlabel("qubits (thousands)")
+    a1.set_yticks(y, [name(s) for s in specs])
     a1.invert_yaxis()
-    a1.legend(loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=3, fontsize=6,
-              handlelength=0.9)
+    legend_above(a1, 3, handlelength=1.0, columnspacing=0.8)
     rounds = np.array([num(cs[s]["rounds"]) for s in specs])
     ideal = num(cs[specs[0]]["ideal_depth"]) * int(cs[specs[0]]["d_sim"])
-    a2.barh(y, rounds, color=[color(s) for s in specs], height=0.78, lw=0)
-    a2.axvline(ideal, color=INK, lw=0.6, ls="--")
-    lo = min(stv(cs[s]) for s in specs)
+    fills = [shade(FILL[SHORT[s][0]], SHARE_LABEL.index(SHORT[s][1]), 5)
+             if SHORT[s][1] in SHARE_LABEL else FILL[SHORT[s][0]] for s in specs]
+    a2.barh(y, rounds, color=fills, hatch=[HATCH[SHORT[s][0]] for s in specs], edgecolor=INK,
+            lw=0.4, height=0.75)
+    a2.axvline(ideal, color=INK, lw=0.7, ls="--")
+    lo = min(stv(cs[s]) for s in cs)
     for k, s in enumerate(specs):
-        a2.text(rounds[k] * 1.2, y[k], times(stv(cs[s]) / lo) + ("†" if misses(cs[s]) else ""),
-                va="center", fontsize=5.5)
+        a2.text(rounds[k] * 1.25, y[k], times(stv(cs[s]) / lo) + ("†" if misses(cs[s]) else ""),
+                va="center", fontsize=8)
     a2.set_xscale("log")
-    a2.set_xlim(ideal / 1.5, rounds.max() * 7)
-    a2.set_xlabel("rounds (log)")
-    a2.text(1, 1.01, "STV / best", transform=a2.transAxes, ha="right", va="bottom",
-            fontsize=6, color=MUTED)
+    a2.set_xlim(ideal / 1.6, rounds.max() * 9)
+    a2.xaxis.set_major_locator(mticker.LogLocator(numticks=10))
+    plain_log(a2, "x", scale=1e3, minor="")
+    a2.set_xlabel("rounds (thousands)")
+    a2.text(1, 1.02, "STV", transform=a2.transAxes, ha="right", va="bottom", fontsize=8)
     for ax in (a1, a2):
         ax.tick_params(axis="y", length=0)
         ax.grid(True, axis="x", color=GRID, lw=0.5)
@@ -337,6 +376,25 @@ def spacetime(cells, bench, grades, path):
     a2.spines["left"].set_visible(False)
     fig.savefig(path)
     plt.close(fig)
+    ded, cult = cs.get("D3-k1-fact"), cs.get("D2-wide")
+    share = space_parts(ded, grades)[2] / num(ded["Q"]) if ded else math.nan
+    return (f"**{label(bench, cs)}: HBM-Ded spends {share:.0%} of its qubits on factories but "
+            f"runs within {num(ded['rounds']) / ideal:.2f}× of the stall-free time; "
+            f"cultivation layouts are small but wait for recharge "
+            f"({num(cult['rounds']) / ideal:.0f}× the stall-free time for 2D-Cult).** Left: "
+            f"physical qubits by role. Right: rounds (log); dashed: stall-free (ideal depth × "
+            f"d); labels: STV over the best configuration. †: misses the error target.")
+
+
+TRADEOFF_LABEL = {  # spec -> (text, offset in points, ha, va)
+    "D2-wide": ("2D-Cult", (0, 5), "center", "bottom"),
+    "D2-tight": ("2D-Cult½", (0, 5), "center", "bottom"),
+    "D0-alt": ("Planar-2D", (-6, -2), "right", "top"),
+    "D3-k1-fact": ("HBM-Ded", (6, -2), "left", "top"),
+    "D3-s16-fact": ("HBM-S16", (6, 0), "left", "center"),
+    "D3-k1": ("HBM-Cult-Ded", (0, -6), "center", "top"),
+    "D3-s16": ("HBM-Cult-S16", (6, 0), "left", "center"),
+}
 
 
 def tradeoff(cells, bench, path):
@@ -344,7 +402,7 @@ def tradeoff(cells, bench, path):
     fig, ax = plt.subplots(figsize=(COL, 1.9))
     qs = [num(c["Q"]) for c in cs.values()]
     rs = [num(c["rounds"]) for c in cs.values()]
-    x = np.geomspace(min(qs) / 1.6, max(qs) * 1.6, 50)
+    x = np.geomspace(min(qs) / 2, max(qs) * 2, 50)
     for e in range(math.floor(math.log10(min(map(stv, cs.values())))) - 1,
                    math.ceil(math.log10(max(map(stv, cs.values())))) + 2):
         ax.plot(x, 10.0 ** e / x, color=GRID, lw=0.6, zorder=0)
@@ -353,69 +411,64 @@ def tradeoff(cells, bench, path):
               ("HBM-Cult", [f"D3-{k}" for k in SHARING])]
     for fam, specs in series:
         specs = [s for s in specs if s in cs]
-        if not specs:
-            continue
+        mk, ls = STYLE[fam]
         px = [num(cs[s]["Q"]) for s in specs]
         py = [num(cs[s]["rounds"]) for s in specs]
-        ax.plot(px, py, color=FAMILY[fam], lw=0.8, zorder=2)
+        ax.plot(px, py, color=LINE[fam], ls=ls, lw=0.9, zorder=2)
         for s, a, b in zip(specs, px, py):
-            mark(ax, a, b, FAMILY[fam], misses(cs[s]), s=16)
-        if fam in ("HBM", "HBM-Cult"):
-            for s, a, b in ((specs[0], px[0], py[0]), (specs[-1], px[-1], py[-1])):
-                ax.annotate(SHORT[s][1], (a, b), xytext=(4, -1), textcoords="offset points",
-                            fontsize=5.5, color=FAMILY[fam], va="top")
-        if fam == "2D-Cult":
-            for s, a, b in zip(specs, px, py):
-                ax.annotate("k½" if s == "D2-tight" else "k1", (a, b), xytext=(-4, 2),
-                            textcoords="offset points", fontsize=5.5, color=FAMILY[fam],
-                            ha="right")
+            ax.scatter(a, b, s=20, marker=mk, facecolor="white" if misses(cs[s]) else LINE[fam],
+                       edgecolor=LINE[fam], linewidth=1.0, zorder=3)
+            if s in TRADEOFF_LABEL:
+                text, off, ha, va = TRADEOFF_LABEL[s]
+                ax.annotate(text, (a, b), xytext=off, textcoords="offset points", ha=ha, va=va,
+                            fontsize=8, color=INK)
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(min(qs) / 1.3, max(qs) * 1.4)
-    ax.set_ylim(min(rs) / 1.6, max(rs) * 1.6)
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v / 1e3:g}k"))
-    ax.xaxis.set_minor_formatter(mticker.FuncFormatter(
-        lambda v, _: f"{v / 1e3:g}k" if f"{v:.0f}"[0] in "25" else ""))
-    ax.yaxis.set_major_formatter(mticker.FuncFormatter(
-        lambda v, _: f"{v / 1e3:g}k" if v >= 1e3 else f"{v:g}"))
-    ax.yaxis.set_minor_formatter(mticker.NullFormatter())
-    ax.set_xlabel("physical qubits")
-    ax.set_ylabel("rounds")
-    handles = [Line2D([], [], color=FAMILY[f], marker="o", ms=3, lw=0.8, label=f)
-               for f, _ in series]
-    handles.append(Line2D([], [], color=MUTED, marker="o", ms=3, mfc="white", lw=0,
-                          label="misses target"))
-    ax.legend(handles=handles, loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=5,
-              fontsize=6, handlelength=1.0, columnspacing=0.7)
+    ax.set_xlim(min(qs) / 1.5, max(qs) * 2.2)
+    ax.set_ylim(min(rs) / 2.2, max(rs) * 1.8)
+    plain_log(ax, "x", scale=1e3, minor="25")
+    plain_log(ax, "y", scale=1e3, minor="")
+    ax.set_xlabel("qubits (thousands)")
+    ax.set_ylabel("rounds (thousands)")
     fig.savefig(path)
     plt.close(fig)
+    return (f"**{label(bench, cs)}: HBM trades qubits for time along the lowest-STV "
+            f"contours, while sharing cultivation patches saves almost no qubits and costs "
+            f"many rounds.** Each point is a configuration (log-log); grey lines: equal STV, "
+            f"10× apart (lower left is better); lines join the sharing ratios Ded–S16. "
+            f"Hollow: misses the error target.")
 
 
 def scaling(cells, benches, path):
     lines = [("2D-Cult", CULT), ("Planar-2D", ("D0-alt",)), ("HBM", HBM), ("HBM-Cult", HBMC)]
     fams = sorted({circuit(b)[0] for b in benches}, key=lambda f: f != "Ising")
-    fig, axes = plt.subplots(1, len(fams), figsize=(COL, 1.55), sharey=True, squeeze=False,
+    fig, axes = plt.subplots(1, len(fams), figsize=(COL, 1.5), sharey=True, squeeze=False,
                              gridspec_kw=dict(wspace=0.12))
     for ax, fam in zip(axes[0], fams):
         bs = [b for b in benches if circuit(b)[0] == fam]
-        for name, specs in lines:
+        for line, specs in lines:
             pts = [(circuit(b)[1], best(cells[b], specs)) for b in bs]
             pts = [(n, c) for n, c in pts if c]
-            ax.plot([n for n, _ in pts], [stv(c) for _, c in pts], color=FAMILY[name],
-                    label=name, zorder=2)
+            mk, ls = STYLE[line]
+            ax.plot([n for n, _ in pts], [stv(c) for _, c in pts], color=LINE[line], ls=ls,
+                    label=line, zorder=2)
             for n, c in pts:
-                mark(ax, n, stv(c), FAMILY[name], misses(c), s=10)
+                ax.scatter(n, stv(c), s=16, marker=mk, facecolor="white" if misses(c)
+                           else LINE[line], edgecolor=LINE[line], linewidth=1.0, zorder=3)
         ax.set_yscale("log")
-        one_two_five = mticker.FuncFormatter(
-            lambda v, _: f"{v / 1e9:g}" if f"{v:.1e}"[0] in "125" else "")
-        ax.yaxis.set_major_formatter(one_two_five)
-        ax.yaxis.set_minor_formatter(one_two_five)
-        ax.set_xlabel(f"{fam}: logical qubits")
+        plain_log(ax, scale=1e9, minor="25")
+        ax.set_xlabel(f"{fam} qubits")
         ax.grid(True, axis="y", color=GRID, lw=0.5)
-    axes[0][0].set_ylabel(r"STV ($10^9$ qubit-rounds)")
-    axes[0][0].legend(loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=4, fontsize=6)
+    axes[0][0].set_ylabel("STV (billions)")
+    legend_above(axes[0][0], 4, handlelength=2.0, columnspacing=0.8)
     fig.savefig(path)
     plt.close(fig)
+    lowest = sum(1 for b in benches if best(cells[b], HBM)
+                 and stv(best(cells[b], HBM)) <= min(stv(c) for c in cells[b].values()))
+    return (f"**HBM has the lowest STV on {lowest} of {len(benches)} circuits; both "
+            f"cultivation families jump once the T count forces the slow grade (*).** Best "
+            f"configuration of each family against the number of logical qubits (log STV). "
+            f"Hollow: misses the error target.")
 
 
 def main():
@@ -437,20 +490,23 @@ def main():
     chosen = args.circuit or [
         max((b for b in benches if grade(cells[b]) == g), key=lambda b: circuit(b)[1])
         for g in sorted({grade(cells[b]) for b in benches}, key=str)]
-    written = []
-    for ext in args.fmt.split(","):
-        def out(name):
-            written.append(f"{name}.{ext}")
-            return os.path.join(args.out, f"{name}.{ext}")
-        ratios(cells, benches, out("ratios"))
-        heatmap(cells, benches, out("heatmap"))
-        sharing(cells, benches, out("sharing"))
-        scaling(cells, benches, out("scaling"))
-        for b in chosen:
-            tag = label(b).lower()
-            spacetime(cells, b, args.cult_grades, out(f"spacetime_{tag}"))
-            tradeoff(cells, b, out(f"tradeoff_{tag}"))
-    print("wrote", ", ".join(written), "to", args.out)
+    figs = [("ratios", lambda p: ratios(cells, benches, p)),
+            ("heatmap", lambda p: heatmap(cells, benches, p)),
+            ("sharing", lambda p: sharing(cells, benches, p)),
+            ("scaling", lambda p: scaling(cells, benches, p))]
+    for b in chosen:
+        tag = label(b).lower()
+        figs.append((f"spacetime_{tag}", lambda p, b=b: spacetime(cells, b, args.cult_grades, p)))
+        figs.append((f"tradeoff_{tag}", lambda p, b=b: tradeoff(cells, b, p)))
+    captions = []
+    for fig_name, draw in figs:
+        for ext in args.fmt.split(","):
+            caption = draw(os.path.join(args.out, f"{fig_name}.{ext}"))
+        captions.append(f"## {fig_name}\n\n{caption}\n")
+    with open(os.path.join(args.out, "captions.md"), "w") as f:
+        f.write("# Draft captions (numbers from " + os.path.basename(args.csv) + ")\n\n"
+                + "\n".join(captions))
+    print("wrote", len(figs), "figures (" + args.fmt + ") and captions.md to", args.out)
 
 
 if __name__ == "__main__":
