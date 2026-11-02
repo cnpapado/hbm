@@ -93,7 +93,11 @@ Upper-First it does not fit at d=13, rule 5 below).
 **One folder per campaign.** Set `REV_DIR=runs/<name>` (relative to `test/`): outputs, results,
 Slurm logs and to-do lists then go to `test/runs/<name>/{outs,results,logs,lists}`, and
 finished runs are looked up only there, so a new name starts from zero and touches nothing
-else. Analyze with `analyze.py test/runs/<name>/outs`. `submit_revision.sh` stops when
+else. Analyze with `analyze.py test/runs/<name>/outs`, or publish:
+`REV_DIR=runs/<name> bash test/revision/publish_results.sh` (login node, seconds) writes
+`test/runs/<name>/analysis/` (`rev.csv`, `table_{STV,Q,steps}.{csv,txt}`, `status.txt`),
+commits only that folder (`test/runs/` is gitignored, so `add -f`) and pushes the branch;
+rerun it whenever runs finish. `submit_revision.sh` stops when
 `REV_DIR` is unset; `REV_DIR=.` uses the original `outs_rev/`, `results_rev/`, `logs_rev/`,
 and the note below applies.
 
