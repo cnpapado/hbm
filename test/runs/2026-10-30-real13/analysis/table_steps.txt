@@ -1,0 +1,17 @@
+steps per circuit and configuration (P1, P1c, P2: baseline STV / best HBM STV, > 1: HBM wins)
+
+            circuit  2D-Cult-k1  2D-Cult-k1/2  Planar-2D  HBM-Ded  HBM-S2  HBM-S4  HBM-S8  HBM-S16  HBMc-Ded  HBMc-S2  HBMc-S4  HBMc-S8  HBMc-S16     P1   P1c    P2  best HBM  best HBMc
+          ising_n10         779         1,237        136      136     139     246     491      982       779      734    1,471    2,941     5,887   2.84  1.20  1.38    HBM-S2   HBMc-Ded
+          ising_n13         781         1,359        137      137     170     326     652    1,303       781      973    1,951    3,907     7,813   2.72  1.20  1.33   HBM-Ded   HBMc-Ded
+          ising_n16         781         1,377        137      137     203     405     809    1,618       781    1,213    2,425    4,849     9,703   2.72  1.20  1.33   HBM-Ded   HBMc-Ded
+heisenberg_qedc_n16         779         1,288        141      137     213     412     820    1,639       779    1,227    2,456    4,910     9,824   2.71  1.20  1.37   HBM-Ded   HBMc-Ded
+heisenberg_qedc_n20         787         1,402        143      139     169     348     691    2,069       787      885    2,066    4,136    12,404   2.64  1.19  1.12   HBM-Ded   HBMc-Ded
+heisenberg_qedc_n25         787         1,294        164      139     196     435     867    2,599       787    1,113    2,594    5,192    15,584   2.64  1.19  1.29   HBM-Ded   HBMc-Ded
+          ising_n26         538           858         96       95     103     174     518      776       538      518    1,034    3,098     4,646   2.62  1.19  0.96    HBM-S2   HBMc-Ded
+          ising_n34         532           880        109       94     116     226     674    1,010       532      674    1,346    4,034     6,050   2.60  1.19  1.09   HBM-Ded   HBMc-Ded
+heisenberg_qedc_n49       3,777         6,822        221      139     203     434   1,292    2,583     3,777    5,541   12,472   37,412    74,851  12.38  1.19  1.33   HBM-Ded   HBMc-Ded
+heisenberg_qedc_n64       3,777         6,820        256      139     218     425     846    1,691     3,777    6,121   12,240   24,478    48,983  12.28  1.19  1.40   HBM-Ded   HBMc-Ded
+          ising_n66       2,587         4,354        143       96     106     198     394      981     2,587    2,584    5,658   11,342    28,393  12.10  1.19  1.05   HBM-Ded   HBMc-Ded
+
+finished and feasible: 2D-Cult-k1 11, 2D-Cult-k1/2 11, Planar-2D 11, HBM-Ded 11, HBM-S2 11, HBM-S4 11, HBM-S8 11, HBM-S16 11, HBMc-Ded 11, HBMc-S2 11, HBMc-S4 11, HBMc-S8 11, HBMc-S16 11  (of 11 circuits with any result)
+-> runs/2026-10-30-real13/analysis/table_steps.csv

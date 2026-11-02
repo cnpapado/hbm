@@ -1,0 +1,16 @@
+updated 2026-11-02 06:01:22 on quser44, code at 64037bf
+143 runs in rev.csv: {'ok': 143}
+  D0-alt        ok 11
+  D2-tight      ok 11
+  D2-wide       ok 11
+  D3-k1         ok 11
+  D3-k1-fact    ok 11
+  D3-s16        ok 11
+  D3-s16-fact   ok 11
+  D3-s2         ok 11
+  D3-s2-fact    ok 11
+  D3-s4         ok 11
+  D3-s4-fact    ok 11
+  D3-s8         ok 11
+  D3-s8-fact    ok 11
+Slurm: 0 tasks running, 0 pending
