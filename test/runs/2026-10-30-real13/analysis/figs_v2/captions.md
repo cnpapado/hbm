@@ -16,6 +16,10 @@ STV of a 2D baseline divided by that of HBM with the same kind of T source, agai
 
 STV of a 2D baseline divided by that of HBM with the same kind of T source, against the number of T sources in HBM over that in the baseline, one panel per circuit: Planar-2D against HBM, both with factories (solid), and 2D-Cult (one cultivation patch per data qubit) against HBM-Cult, both with cultivation patches (dashed). Markers give HBM's layout, from one source per data qubit (Ded) to one per 16 (S16). Above the dashed line (1), HBM has the lower STV; on the dotted line both use the same number of sources; log-log. The two lines use different baselines, so their heights are not comparable with each other. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
 
+## sources_vs_2dcult
+
+STV of 2D-Cult (one cultivation patch per data qubit) divided by that of HBM with factories on top, against the number of factories in HBM over the number of cultivation patches in 2D-Cult, one panel per circuit. The two sides use different T sources: factories are always ready, while a cultivation patch recharges after each T state. Markers give HBM's layout, from one factory per data qubit (Ded) to one per 16 (S16). Above the dashed line (1), HBM has the lower STV; on the dotted line both use the same number of T sources; log-log. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
+
 ## spacetime_ising-66
 
 Space and time of representative configurations on Ising-66. Left: physical qubits, split into data tiles, other tiles (routing and unused) and T-state sources (factories or cultivation patches). Right: runtime in rounds (log scale); the dashed line is the stall-free runtime (ideal depth × d). Labels: the configuration's STV relative to the lowest on this circuit and its code distance.

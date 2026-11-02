@@ -363,21 +363,22 @@ def sharing(cells, benches, path):
 SHARE_MARK = {"k1": "o", "s2": "s", "s4": "^", "s8": "D", "s16": "v"}
 
 
-def sources(cells, benches, path):
-    """Per circuit: STV ratio against the T-source count ratio, a marker per sharing ratio."""
+def source_grid(cells, benches, path, pairs):
+    """One panel per circuit: STV ratio against the T-source count ratio, a marker per
+    sharing ratio. pairs: (family, HBM spec format, baseline spec, HBM count column,
+    baseline count column, legend)."""
     ncol = 6
     nrow = math.ceil((len(benches) + 1) / ncol)
     fig, axes = plt.subplots(nrow, ncol, figsize=(FULL, 1.2 * nrow + 0.25), sharex=True,
                              sharey=True, squeeze=False,
                              gridspec_kw=dict(wspace=0.1, hspace=0.38))
-    pairs = [("HBM", "D3-{}-fact", "D0-alt", "n_factories", "factories"),
-             ("HBM-Cult", "D3-{}", "D2-wide", "n_patches", "cultivation")]
+    xs, ys = [], []
     for ax, b in zip(axes.flat, benches):
         cs = cells[b]
-        for fam, fmt, base, count, _ in pairs:
+        for fam, fmt, base, count, base_count, _ in pairs:
             if base not in cs:
                 continue
-            n0 = int(cs[base][count])
+            n0 = int(cs[base][base_count])
             pts = sorted((int(cs[fmt.format(k)][count]) / n0,
                           stv(cs[base]) / stv(cs[fmt.format(k)]), k)
                          for k in SHARING if fmt.format(k) in cs)
@@ -386,6 +387,8 @@ def sources(cells, benches, path):
             for x, y, k in pts:
                 ax.scatter(x, y, s=18, marker=SHARE_MARK[k], color=LINE[fam], edgecolor=INK,
                            lw=0.3, zorder=3)
+                xs.append(x)
+                ys.append(y)
         ax.axhline(1, color=INK, lw=0.6, ls="--")
         ax.axvline(1, color=INK, lw=0.6, ls=":")
         ax.set_title(label(b, cs), fontsize=8, pad=2)
@@ -394,15 +397,15 @@ def sources(cells, benches, path):
     ax0 = axes.flat[0]
     ax0.set_xscale("log")
     ax0.set_yscale("log")
-    ax0.set_xlim(0.03, 3)
-    ax0.set_ylim(0.015, 3)
+    ax0.set_xlim(min(0.03, min(xs) / 1.5), max(3, max(xs) * 1.5))
+    ax0.set_ylim(min(0.5, min(ys) / 1.6), max(2, max(ys) * 1.6))
     plain_log(ax0, "x", minor="")
     plain_log(ax0, "y", minor="")
     for ax in axes.flat[len(benches):]:
         ax.axis("off")
     key = axes.flat[-1]
     handles = [Line2D([], [], color=LINE[fam], ls=STYLE[fam][1], lw=1.1, label=name)
-               for fam, _, _, _, name in pairs]
+               for fam, _, _, _, _, name in pairs]
     handles += [Line2D([], [], ls="", marker=SHARE_MARK[k], ms=4.5, color="#9a9a9a",
                        mec=INK, mew=0.3, label=lab) for k, lab in shares(cells)]
     key.legend(handles=handles, loc="center", fontsize=8, handlelength=1.8,
@@ -411,6 +414,12 @@ def sources(cells, benches, path):
     fig.supylabel("STV ratio", fontsize=9, x=0.06)
     fig.savefig(path)
     plt.close(fig)
+
+
+def sources(cells, benches, path):
+    source_grid(cells, benches, path, [
+        ("HBM", "D3-{}-fact", "D0-alt", "n_factories", "n_factories", "factories"),
+        ("HBM-Cult", "D3-{}", "D2-wide", "n_patches", "n_patches", "cultivation")])
     return ("STV of a 2D baseline divided by that of HBM with the same kind of T source, "
             "against the number of T sources in HBM over that in the baseline, one panel per "
             "circuit: Planar-2D against HBM, both with factories (solid), and 2D-Cult (one "
@@ -421,6 +430,19 @@ def sources(cells, benches, path):
             "log-log. The two lines use different baselines, so their heights are not "
             "comparable with each other. All runs at "
             f"{d_note(cells)}." + STAR)
+
+
+def sources_vs_2dcult(cells, benches, path):
+    source_grid(cells, benches, path, [
+        ("HBM", "D3-{}-fact", "D2-wide", "n_factories", "n_patches", "HBM (factories)")])
+    return ("STV of 2D-Cult (one cultivation patch per data qubit) divided by that of HBM "
+            "with factories on top, against the number of factories in HBM over the number of "
+            "cultivation patches in 2D-Cult, one panel per circuit. The two sides use "
+            "different T sources: factories are always ready, while a cultivation patch "
+            "recharges after each T state. Markers give HBM's layout, from one factory per "
+            f"data qubit (Ded) to one per {most_shared(cells)} (S{most_shared(cells)}). Above "
+            "the dashed line (1), HBM has the lower STV; on the dotted line both use the same "
+            f"number of T sources; log-log. All runs at {d_note(cells)}." + STAR)
 
 
 def space_parts(c, grades):
@@ -664,7 +686,8 @@ def main():
         figs = [("ratios_same", lambda p: ratios_same(cells, benches, p)),
                 ("heatmap", lambda p: heatmap(cells, benches, p)),
                 ("sharing", lambda p: sharing(cells, benches, p)),
-                ("sources", lambda p: sources(cells, benches, p))]  # two columns
+                ("sources", lambda p: sources(cells, benches, p)),  # two columns
+                ("sources_vs_2dcult", lambda p: sources_vs_2dcult(cells, benches, p))]
     else:
         figs = [("ratios", lambda p: ratios(cells, benches, p)),
                 ("heatmap", lambda p: heatmap(cells, benches, p)),
