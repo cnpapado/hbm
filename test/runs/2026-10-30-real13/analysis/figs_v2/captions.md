@@ -12,10 +12,6 @@ STV of every configuration (columns) on every circuit (rows), divided by the low
 
 STV of a 2D baseline divided by that of HBM with the same kind of T source, against HBM's sharing ratio (Ded: one T source per data qubit; S2-S16: one source per 2 to 16 data qubits): Planar-2D over HBM, both with factories (solid), and 2D-Cult over HBM-Cult, both with cultivation patches (dashed), each 2D baseline at its best layout. Lines: geometric mean over the circuits; bands: range. Above the dashed line (1), HBM has the lower STV; log scale.
 
-## pprime
-
-STV of a 2D baseline divided by that of HBM with the same kind of T source and a fixed layout (as in the like-for-like ratios), against the error rate p′ of the vertical links between the layers, in units of the physical error rate p. At each p′ every run uses the smallest odd code distance that meets the program-error target (d = 11-45); vertical merges use the lower thresholds measured for them in Stim. Lines: geometric mean over the circuits; bands: range. Above the dashed line (1), HBM has the lower STV; log scale.
-
 ## crossover
 
 STV of Planar-2D divided by that of HBM-Ded (both with factories) against the circuit's T density, the T count over logical qubits times ideal depth. Each marker is one circuit. Above the dashed line (1), HBM has the lower STV; log scale. All runs at each run at the smallest odd code distance that meets the program-error target (d = 11-17).

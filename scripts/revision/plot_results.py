@@ -507,7 +507,7 @@ def scaling(cells, benches, path):
 
 
 # --------------------------------------------------------------------------------------
-# v2: like-for-like at fixed layouts, vertical-link sensitivity, T-density crossover
+# v2: like-for-like at fixed layouts, T-density crossover
 # --------------------------------------------------------------------------------------
 
 SAME = [  # key, legend, baseline spec, HBM spec, fill family (fixed layouts, same T source)
@@ -550,41 +550,6 @@ def ratios_same(cells, benches, path):
             f"scale. All runs at {d_note(cells)}." + STAR)
 
 
-PPRIMES = (1, 5, 10)
-
-
-def pprime(rows, grades, path):
-    fig, ax = plt.subplots(figsize=(COL, 1.5))
-    x = np.arange(len(PPRIMES))
-    per_fit = [to_cells(refit(rows, m, grades))[0] for m in PPRIMES]
-    for _, legend, base, hbm, fam in SAME:
-        per = [[r for r in (same_ratio(cells[b], base, hbm) for b in cells) if r]
-               for cells in per_fit]
-        mk, ls = STYLE[fam]
-        ax.fill_between(x, [min(r) for r in per], [max(r) for r in per], color=LINE[fam],
-                        alpha=0.15, lw=0)
-        ax.plot(x, [gmean(r) for r in per], color=LINE[fam], marker=mk, ls=ls, label=legend)
-    ax.axhline(1, color=INK, lw=0.7, ls="--")
-    ax.set_yscale("log")
-    plain_log(ax, minor="25")
-    ax.set_xticks(x, ["p" if m == 1 else f"{m}p" for m in PPRIMES])
-    ax.set_xlabel("vertical-link error rate p′")
-    ax.set_ylabel("STV ratio")
-    ax.grid(True, axis="y", color=GRID, lw=0.5)
-    ax.legend(loc="lower left")
-    fig.savefig(path)
-    plt.close(fig)
-    ds = sorted({int(c["d_sim"]) for cells in per_fit for cs in cells.values()
-                 for c in cs.values()})
-    return ("STV of a 2D baseline divided by that of HBM with the same kind of T source and a "
-            "fixed layout (as in the like-for-like ratios), against the error rate p′ of the "
-            "vertical links between the layers, in units of the physical error rate p. At each "
-            "p′ every run uses the smallest odd code distance that meets the program-error "
-            f"target (d = {ds[0]}-{ds[-1]}); vertical merges use the lower thresholds measured "
-            "for them in Stim. Lines: geometric mean over the circuits; bands: range. Above "
-            "the dashed line (1), HBM has the lower STV; log scale.")
-
-
 def crossover(sets, path):
     """sets: [(name, cells)]; the first is drawn in colour, the rest in grey."""
     fig, ax = plt.subplots(figsize=(COL, 1.6))
@@ -625,7 +590,7 @@ def main():
     ap.add_argument("csv", help="output of analyze.py")
     ap.add_argument("--set", choices=["v1", "v2"], default="v1",
                     help="v1: all runs at the simulated d, best layouts; v2: each run at its "
-                         "own d, like-for-like fixed layouts, p' sensitivity, T-density crossover")
+                         "own d, like-for-like fixed layouts, T-density crossover")
     ap.add_argument("--out", help="directory for the figures (default figs, or figs_v2)")
     ap.add_argument("--extra", nargs="+", default=[], metavar="NAME=CSV",
                     help="v2 crossover: more campaigns drawn in grey, e.g. synthetic=rev.csv")
@@ -654,7 +619,6 @@ def main():
         figs = [("ratios_same", lambda p: ratios_same(cells, benches, p)),
                 ("heatmap", lambda p: heatmap(cells, benches, p)),
                 ("sharing", lambda p: sharing(cells, benches, p)),
-                ("pprime", lambda p: pprime(rows, args.cult_grades, p)),
                 ("crossover", lambda p: crossover(sets, p))]
     else:
         figs = [("ratios", lambda p: ratios(cells, benches, p)),
