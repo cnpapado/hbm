@@ -175,6 +175,17 @@ def miss_note(cells, mark):
 STAR = " *: the circuit's T count requires the slower cultivation grade (R = 360 rounds)."
 
 
+def shares(cells):
+    """[(key, label)] of the HBM sharing ratios present in the data (Ded first)."""
+    return [(k, lab) for k, lab in zip(SHARING, SHARE_LABEL)
+            if any(f"D3-{k}-fact" in cs or f"D3-{k}" in cs for cs in cells.values())]
+
+
+def most_shared(cells):
+    """The largest sharing ratio present, as a number (16 for S16)."""
+    return int(shares(cells)[-1][1][1:])
+
+
 def n_t(cs):
     return num(next(iter(cs.values()))["n_t"])
 
@@ -304,19 +315,21 @@ def heatmap(cells, benches, path):
             "configuration. Columns: the 2D baselines (2D-Cult with one or half a cultivation "
             "patch per data qubit, Planar-2D), HBM with factories on top and HBM-Cult with "
             "cultivation patches on top, each with one source per data qubit (Ded) or one "
-            "source shared by 2 to 16 data qubits (S2-S16). Row labels give the circuit's T "
+            f"source shared by 2 to {most_shared(cells)} data qubits (S2-S{most_shared(cells)}). "
+            "Row labels give the circuit's T "
             f"count. All runs at {d_note(cells)}." + miss_note(cells, "†") + STAR)
 
 
 def sharing(cells, benches, path):
     fig, ax = plt.subplots(figsize=(COL, 1.5))
-    x = np.arange(len(SHARING))
+    keys = shares(cells)
+    x = np.arange(len(keys))
     # Each HBM source type against the 2D layout with the same source type.
     lines = [("HBM", "D3-{}-fact", ("D0-alt",), "Planar-2D / HBM (factories)"),
              ("HBM-Cult", "D3-{}", ("D2-wide",), "2D-Cult / HBM-Cult (cultivation)")]
     for fam, fmt, base_specs, legend in lines:
         per = []  # per sharing ratio: the ratio on each circuit
-        for key in SHARING:
+        for key, _ in keys:
             rs = []
             for b in benches:
                 base, c = best(cells[b], base_specs), cells[b].get(fmt.format(key))
@@ -330,7 +343,7 @@ def sharing(cells, benches, path):
     ax.axhline(1, color=INK, lw=0.7, ls="--")
     ax.set_yscale("log")
     plain_log(ax, minor="")
-    ax.set_xticks(x, SHARE_LABEL)
+    ax.set_xticks(x, [lab for _, lab in keys])
     ax.set_xlabel("data qubits per T source")
     ax.set_ylabel("STV ratio")
     ax.grid(True, axis="y", color=GRID, lw=0.5)
@@ -338,8 +351,9 @@ def sharing(cells, benches, path):
     fig.savefig(path)
     plt.close(fig)
     return ("STV of a 2D baseline divided by that of HBM with the same kind of T source, "
-            "against HBM's sharing ratio (Ded: one T source per data qubit; S2-S16: one "
-            "source per 2 to 16 data qubits): Planar-2D over HBM, both with factories "
+            "against HBM's sharing ratio (Ded: one T source per data qubit; "
+            f"S2-S{most_shared(cells)}: one source per 2 to {most_shared(cells)} data qubits): "
+            "Planar-2D over HBM, both with factories "
             "(solid), and 2D-Cult (one patch per data qubit) over HBM-Cult, both with "
             "cultivation patches (dashed). Lines: geometric mean over the circuits; bands: "
             "range. Above the dashed line (1), HBM has the lower STV; log scale.")
@@ -389,7 +403,7 @@ def sources(cells, benches, path):
     handles = [Line2D([], [], color=LINE[fam], ls=STYLE[fam][1], lw=1.1, label=name)
                for fam, _, _, _, name in pairs]
     handles += [Line2D([], [], ls="", marker=SHARE_MARK[k], ms=4.5, color="#9a9a9a",
-                       mec=INK, mew=0.3, label=lab) for k, lab in zip(SHARING, SHARE_LABEL)]
+                       mec=INK, mew=0.3, label=lab) for k, lab in shares(cells)]
     key.legend(handles=handles, loc="center", fontsize=8, handlelength=1.8,
                borderaxespad=0)
     fig.supxlabel("T sources in HBM / T sources in the 2D baseline", fontsize=9, y=-0.05)
@@ -401,7 +415,8 @@ def sources(cells, benches, path):
             "circuit: Planar-2D against HBM, both with factories (solid), and 2D-Cult (one "
             "cultivation patch per data qubit) against HBM-Cult, both with cultivation patches "
             "(dashed). Markers give HBM's layout, from one source per data qubit (Ded) to one "
-            "per 16 (S16). Above the dashed line (1), HBM has the lower STV; on the dotted "
+            f"per {most_shared(cells)} (S{most_shared(cells)}). Above the dashed line (1), HBM "
+            "has the lower STV; on the dotted "
             "line both use the same number of sources; log-log. All runs at "
             f"{d_note(cells)}." + STAR)
 
@@ -431,7 +446,9 @@ def rows_with_gaps(specs):
 
 def spacetime(cells, bench, grades, path):
     cs = cells[bench]
-    specs = [s for s in SPACETIME_SPECS if s in cs]
+    top = shares(cells)[-1][0]
+    specs = [s.replace("s16", top) for s in SPACETIME_SPECS]
+    specs = [s for i, s in enumerate(specs) if s in cs and s not in specs[:i]]
     y = rows_with_gaps(specs)
     fig, (a1, a2) = plt.subplots(1, 2, figsize=(COL - 0.1, 1.95), sharey=True,
                                  gridspec_kw=dict(wspace=0.22))
@@ -492,14 +509,15 @@ TRADEOFF_LABEL = {  # spec -> (text, offset in points, ha, va)
     "D2-tight": ("2D-Cult½", (0, 5), "center", "bottom"),
     "D0-alt": ("Planar-2D", (-6, -2), "right", "top"),
     "D3-k1-fact": ("HBM-Ded", (6, -2), "left", "top"),
-    "D3-s16-fact": ("HBM-S16", (6, 0), "left", "center"),
     "D3-k1": ("HBM-Cult-Ded", (0, -6), "center", "top"),
-    "D3-s16": ("HBM-Cult-S16", (6, 0), "left", "center"),
 }
 
 
 def tradeoff(cells, bench, path):
     cs = cells[bench]
+    key, lab = shares(cells)[-1]
+    labels = dict(TRADEOFF_LABEL, **{f"D3-{key}-fact": (f"HBM-{lab}", (6, 0), "left", "center"),
+                                     f"D3-{key}": (f"HBM-Cult-{lab}", (6, 0), "left", "center")})
     fig, ax = plt.subplots(figsize=(COL, 1.9))
     qs = [num(c["Q"]) for c in cs.values()]
     rs = [num(c["rounds"]) for c in cs.values()]
@@ -519,8 +537,8 @@ def tradeoff(cells, bench, path):
         for s, a, b in zip(specs, px, py):
             ax.scatter(a, b, s=20, marker=mk, facecolor="white" if misses(cs[s]) else LINE[fam],
                        edgecolor=LINE[fam], linewidth=1.0, zorder=3)
-            if s in TRADEOFF_LABEL:
-                text, off, ha, va = TRADEOFF_LABEL[s]
+            if s in labels:
+                text, off, ha, va = labels[s]
                 ax.annotate(text, (a, b), xytext=off, textcoords="offset points", ha=ha, va=va,
                             fontsize=8, color=INK)
     ax.set_xscale("log")
@@ -535,7 +553,7 @@ def tradeoff(cells, bench, path):
     plt.close(fig)
     return (f"Physical qubits against runtime in rounds for every configuration on "
             f"{label(bench)} (log-log). Lines join the layouts of a family (2D-Cult: one and "
-            "half a cultivation patch per data qubit; HBM and HBM-Cult: Ded to S16). Grey "
+            f"half a cultivation patch per data qubit; HBM and HBM-Cult: Ded to S{most_shared(cells)}). Grey "
             "lines join points of equal STV, ten times apart; points further to the lower "
             f"left have lower STV. All runs at {d_note(cells)}." + miss_note(cells, "Hollow"))
 
@@ -621,6 +639,8 @@ def main():
                     help="v1: all runs at the simulated d, best layouts; v2: each run at its "
                          "own d, like-for-like fixed layouts")
     ap.add_argument("--out", help="directory for the figures (default figs, or figs_v2)")
+    ap.add_argument("--drop", nargs="+", default=[], metavar="SPEC",
+                    help="leave these configurations out, e.g. D3-s16-fact D3-s16")
     ap.add_argument("--circuit", nargs="+",
                     help="circuits for spacetime and tradeoff (default: the largest at each R)")
     ap.add_argument("--fmt", default="pdf,png", help="comma-separated file types")
@@ -630,7 +650,7 @@ def main():
 
     v2 = args.set == "v2"
     out_dir = args.out or ("figs_v2" if v2 else "figs")
-    rows = read_rows(args.csv)
+    rows = [r for r in read_rows(args.csv) if r["spec"] not in args.drop]
     cells, benches = to_cells(refit(rows, 1, args.cult_grades) if v2 else rows)
     if not benches:
         raise SystemExit("no finished, feasible runs in " + args.csv)
