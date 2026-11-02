@@ -1,0 +1,37 @@
+# Draft captions (rev.csv, v2)
+
+## ratios_same
+
+STV of a 2D baseline divided by that of HBM with the same kind of T source and a layout fixed for all circuits, per circuit and as the geometric mean (GMean): Planar-2D against HBM-Ded, both with factories, and 2D-Cult (one cultivation patch per data qubit) against HBM-Cult-Ded, both with cultivation patches. Ded: one T source per data qubit. Above the dashed line (1), HBM has the lower STV; log scale. All runs at each run at the smallest odd code distance that meets the program-error target (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
+
+## heatmap
+
+STV of every configuration (columns) on every circuit (rows), divided by the lowest STV on that circuit; the boxed cell (1.00) is the circuit's best configuration. Columns: the 2D baselines (2D-Cult with one or half a cultivation patch per data qubit, Planar-2D), HBM with factories on top and HBM-Cult with cultivation patches on top, each with one source per data qubit (Ded) or one source shared by 2 to 16 data qubits (S2-S16). Row labels give the circuit's T count. All runs at each run at the smallest odd code distance that meets the program-error target (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
+
+## sharing
+
+STV of a 2D baseline divided by that of HBM with the same kind of T source, against HBM's sharing ratio (Ded: one T source per data qubit; S2-S16: one source per 2 to 16 data qubits): Planar-2D over HBM, both with factories (solid), and 2D-Cult over HBM-Cult, both with cultivation patches (dashed), each 2D baseline at its best layout. Lines: geometric mean over the circuits; bands: range. Above the dashed line (1), HBM has the lower STV; log scale.
+
+## pprime
+
+STV of a 2D baseline divided by that of HBM with the same kind of T source and a fixed layout (as in the like-for-like ratios), against the error rate p′ of the vertical links between the layers, in units of the physical error rate p. At each p′ every run uses the smallest odd code distance that meets the program-error target (d = 11-45); vertical merges use the lower thresholds measured for them in Stim. Lines: geometric mean over the circuits; bands: range. Above the dashed line (1), HBM has the lower STV; log scale.
+
+## crossover
+
+STV of Planar-2D divided by that of HBM-Ded (both with factories) against the circuit's T density, the T count over logical qubits times ideal depth. Each marker is one circuit. Above the dashed line (1), HBM has the lower STV; log scale. All runs at each run at the smallest odd code distance that meets the program-error target (d = 11-17).
+
+## spacetime_ising-66
+
+Space and time of representative configurations on Ising-66. Left: physical qubits, split into data tiles, other tiles (routing and unused) and T-state sources (factories or cultivation patches). Right: runtime in rounds (log scale); the dashed line is the stall-free runtime (ideal depth × d). Labels: the configuration's STV relative to the lowest on this circuit and its code distance.
+
+## tradeoff_ising-66
+
+Physical qubits against runtime in rounds for every configuration on Ising-66 (log-log). Lines join the layouts of a family (2D-Cult: one and half a cultivation patch per data qubit; HBM and HBM-Cult: Ded to S16). Grey lines join points of equal STV, ten times apart; points further to the lower left have lower STV. All runs at each run at the smallest odd code distance that meets the program-error target (d = 11-17).
+
+## spacetime_ising-34
+
+Space and time of representative configurations on Ising-34. Left: physical qubits, split into data tiles, other tiles (routing and unused) and T-state sources (factories or cultivation patches). Right: runtime in rounds (log scale); the dashed line is the stall-free runtime (ideal depth × d). Labels: the configuration's STV relative to the lowest on this circuit and its code distance.
+
+## tradeoff_ising-34
+
+Physical qubits against runtime in rounds for every configuration on Ising-34 (log-log). Lines join the layouts of a family (2D-Cult: one and half a cultivation patch per data qubit; HBM and HBM-Cult: Ded to S16). Grey lines join points of equal STV, ten times apart; points further to the lower left have lower STV. All runs at each run at the smallest odd code distance that meets the program-error target (d = 11-17).

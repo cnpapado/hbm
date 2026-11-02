@@ -7,6 +7,7 @@
 #   rev.csv                   analyze.py over <REV_DIR>/outs, one row per finished run
 #   table_{STV,Q,steps}.csv   stv_table.py, a row per circuit and a column per configuration
 #   table_{STV,Q,steps}.txt   the same tables as printed
+#   rev_fitd.csv, table_STV_fitd.*  every run at its own d (fit_d.py)
 #   status.txt                when, runs per configuration and status, Slurm jobs left
 # then commits only that folder (test/runs/ is gitignored, hence add -f), pulls and pushes the
 # current branch. Works on partial results: rerun it whenever there are new runs. Run it on the
@@ -26,6 +27,10 @@ for m in STV Q steps; do
     python3 ../scripts/revision/stv_table.py "$out/rev.csv" --metric "$m" \
         --csv "$out/table_$m.csv" > "$out/table_$m.txt"
 done
+# Each run at its own d (the smallest odd d meeting the target), for the fair comparison.
+python3 ../scripts/revision/fit_d.py "$out/rev.csv" --csv "$out/rev_fitd.csv"
+python3 ../scripts/revision/stv_table.py "$out/rev_fitd.csv" --csv "$out/table_STV_fitd.csv" \
+    > "$out/table_STV_fitd.txt"
 
 {
     echo "updated $(date '+%F %T') on $(hostname -s), code at $(git rev-parse --short HEAD)"

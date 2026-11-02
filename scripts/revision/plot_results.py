@@ -38,6 +38,7 @@ from matplotlib.colors import LogNorm  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
 from analyze import parse_grades  # noqa: E402
+from fit_d import patch_qubits, refit  # noqa: E402
 from stv_table import COLS, CULT, HBM, HBMC, cell, num  # noqa: E402
 
 COL, FULL = 3.45, 7.1  # inches: one column, both columns
@@ -95,9 +96,15 @@ def circuit(bench):
     return (m.group(1).capitalize(), int(m.group(2))) if m else (bench, 0)
 
 
-def load(path):
+def read_rows(path, fit=None, grades=None):
+    """analyze.py's rows; with fit = m, each run at its own d for vertical links at m * p."""
+    rows = list(csv.DictReader(open(path)))
+    return refit(rows, fit, grades) if fit else rows
+
+
+def to_cells(rows):
     groups = defaultdict(list)
-    for r in csv.DictReader(open(path)):
+    for r in rows:
         groups[(r["bench"], r["spec"])].append(r)
     cells = defaultdict(dict)
     for (bench, spec), rows in groups.items():
@@ -106,6 +113,10 @@ def load(path):
             cells[bench][spec] = c
     benches = sorted(cells, key=lambda b: (circuit(b)[0] != "Ising", circuit(b)))
     return cells, benches
+
+
+def load(path, fit=None, grades=None):
+    return to_cells(read_rows(path, fit, grades))
 
 
 def stv(c):
@@ -138,6 +149,29 @@ def label(bench, cs=None):
 def d_sim(cells):
     """The code distance the runs were simulated at."""
     return int(next(iter(next(iter(cells.values())).values()))["d_sim"])
+
+
+def fitted(cells):
+    return any("d_sim_run" in c for cs in cells.values() for c in cs.values())
+
+
+def d_note(cells):
+    """How the code distance was chosen, for captions."""
+    if not fitted(cells):
+        return f"code distance d = {d_sim(cells)}"
+    ds = sorted({int(c["d_sim"]) for cs in cells.values() for c in cs.values()})
+    return (f"each run at the smallest odd code distance that meets the program-error target "
+            f"(d = {ds[0]}-{ds[-1]})")
+
+
+def miss_note(cells, mark):
+    """The caption note for runs that miss the target, or nothing when every run meets it."""
+    if fitted(cells):
+        return ""
+    return f" {mark}: the run exceeds the program-error target at d = {d_sim(cells)}."
+
+
+STAR = " *: the circuit's T count requires the slower cultivation grade (R = 360 rounds)."
 
 
 def n_t(cs):
@@ -209,13 +243,11 @@ def ratios(cells, benches, path):
     legend_above(ax, 2)
     fig.savefig(path)
     plt.close(fig)
-    d = d_sim(cells)
     return ("Space-time volume (STV) of each baseline divided by that of HBM, per circuit and "
             "as the geometric mean (GMean), with each side at its best layout: HBM (factories "
             "on top) against 2D cultivation (2D-Cult), HBM-Cult (cultivation on top) against "
             "2D-Cult, and HBM against the planar factory layout (Planar-2D). Above the dashed "
-            "line (1), HBM has the lower STV; log scale. All runs at code distance "
-            f"d = {d}. " + "*: the circuit's T count requires the slower cultivation grade (R = 360 rounds).")
+            f"line (1), HBM has the lower STV; log scale. All runs at {d_note(cells)}." + STAR)
 
 
 def heatmap(cells, benches, path):
@@ -272,8 +304,7 @@ def heatmap(cells, benches, path):
             "patch per data qubit, Planar-2D), HBM with factories on top and HBM-Cult with "
             "cultivation patches on top, each with one source per data qubit (Ded) or one "
             "source shared by 2 to 16 data qubits (S2-S16). Row labels give the circuit's T "
-            f"count. †: the run exceeds the program-error target at d = {d_sim(cells)}. "
-            + "*: the circuit's T count requires the slower cultivation grade (R = 360 rounds).")
+            f"count. All runs at {d_note(cells)}." + miss_note(cells, "†") + STAR)
 
 
 def sharing(cells, benches, path):
@@ -319,7 +350,7 @@ def space_parts(c, grades):
     data = int(c["N"]) * 2 * d * d
     src = int(c["n_factories"]) * 22 * d * d
     if int(c["n_patches"]):
-        src += int(c["n_patches"]) * grades[int(c["recharge_rounds"])][1]
+        src += int(c["n_patches"]) * patch_qubits(grades[int(c["recharge_rounds"])][1], d)
     return data, num(c["Q"]) - data - src, src
 
 
@@ -354,18 +385,25 @@ def spacetime(cells, bench, grades, path):
     a1.invert_yaxis()
     legend_above(a1, 3, handlelength=1.0, columnspacing=0.8)
     rounds = np.array([num(cs[s]["rounds"]) for s in specs])
-    ideal = num(cs[specs[0]]["ideal_depth"]) * int(cs[specs[0]]["d_sim"])
+    ds = [int(cs[s]["d_sim"]) for s in specs]
+    ideals = np.array([num(cs[s]["ideal_depth"]) * d for s, d in zip(specs, ds)])
+    ideal = ideals.min()
     fills = [shade(FILL[SHORT[s][0]], SHARE_LABEL.index(SHORT[s][1]), 5)
              if SHORT[s][1] in SHARE_LABEL else FILL[SHORT[s][0]] for s in specs]
     a2.barh(y, rounds, color=fills, hatch=[HATCH[SHORT[s][0]] for s in specs], edgecolor=INK,
             lw=0.4, height=0.75)
-    a2.axvline(ideal, color=INK, lw=0.7, ls="--")
+    if len(set(ds)) == 1:
+        a2.axvline(ideal, color=INK, lw=0.7, ls="--")
+    else:  # the stall-free time depends on each run's d
+        a2.vlines(ideals, y - 0.5, y + 0.5, color=INK, lw=0.8, ls=(0, (2, 1)))
     lo = min(stv(cs[s]) for s in cs)
     for k, s in enumerate(specs):
-        a2.text(rounds[k] * 1.25, y[k], times(stv(cs[s]) / lo) + ("†" if misses(cs[s]) else ""),
-                va="center", fontsize=8)
+        text = times(stv(cs[s]) / lo) + ("†" if misses(cs[s]) else "")
+        if fitted(cells):
+            text += f" d{ds[k]}"
+        a2.text(rounds[k] * 1.25, y[k], text, va="center", fontsize=8)
     a2.set_xscale("log")
-    a2.set_xlim(ideal / 1.6, rounds.max() * 9)
+    a2.set_xlim(ideal / 1.6, rounds.max() * (16 if fitted(cells) else 9))
     a2.xaxis.set_major_locator(mticker.LogLocator(numticks=10))
     plain_log(a2, "x", scale=1e3, minor="")
     a2.set_xlabel("rounds (thousands)")
@@ -381,8 +419,9 @@ def spacetime(cells, bench, grades, path):
             "qubits, split into data tiles, other tiles (routing and unused) and T-state "
             "sources (factories or cultivation patches). Right: runtime in rounds (log scale); "
             "the dashed line is the stall-free runtime (ideal depth × d). Labels: the "
-            "configuration's STV relative to the lowest on this circuit. †: the run exceeds "
-            f"the program-error target at d = {d_sim(cells)}.")
+            "configuration's STV relative to the lowest on this circuit"
+            + (" and its code distance" if fitted(cells) else "") + "."
+            + miss_note(cells, "†"))
 
 
 TRADEOFF_LABEL = {  # spec -> (text, offset in points, ha, va)
@@ -435,8 +474,7 @@ def tradeoff(cells, bench, path):
             f"{label(bench)} (log-log). Lines join the layouts of a family (2D-Cult: one and "
             "half a cultivation patch per data qubit; HBM and HBM-Cult: Ded to S16). Grey "
             "lines join points of equal STV, ten times apart; points further to the lower "
-            "left have lower STV. Hollow markers: the run exceeds the program-error target "
-            f"at d = {d_sim(cells)}.")
+            f"left have lower STV. All runs at {d_note(cells)}." + miss_note(cells, "Hollow"))
 
 
 def scaling(cells, benches, path):
@@ -465,33 +503,164 @@ def scaling(cells, benches, path):
     plt.close(fig)
     return ("Lowest STV of each family (2D-Cult, Planar-2D, HBM, HBM-Cult) against the "
             "number of logical qubits, for the Ising (left) and Heisenberg (right) circuits; "
-            "log scale. Hollow markers: the run exceeds the program-error target at "
-            f"d = {d_sim(cells)}.")
+            f"log scale. All runs at {d_note(cells)}." + miss_note(cells, "Hollow"))
+
+
+# --------------------------------------------------------------------------------------
+# v2: like-for-like at fixed layouts, vertical-link sensitivity, T-density crossover
+# --------------------------------------------------------------------------------------
+
+SAME = [  # key, legend, baseline spec, HBM spec, fill family (fixed layouts, same T source)
+    ("fact", "factories: Planar-2D / HBM-Ded", "D0-alt", "D3-k1-fact", "HBM"),
+    ("cult", "cultivation: 2D-Cult / HBM-Cult-Ded", "D2-wide", "D3-k1", "HBM-Cult"),
+]
+
+
+def same_ratio(cs, base, hbm):
+    return stv(cs[base]) / stv(cs[hbm]) if base in cs and hbm in cs else None
+
+
+def ratios_same(cells, benches, path):
+    names = [label(b, cells[b]) for b in benches] + ["GMean"]
+    fig, ax = plt.subplots(figsize=(COL, 1.45))
+    w = 0.38
+    for k, (_, legend, base, hbm, fam) in enumerate(SAME):
+        ys = [same_ratio(cells[b], base, hbm) for b in benches]
+        ys.append(gmean(ys))
+        ax.bar(np.arange(len(ys)) + (k - 0.5) * w, [y or np.nan for y in ys], width=w,
+               color=FILL[fam], hatch=HATCH[fam], edgecolor=INK, linewidth=0.4, label=legend)
+    ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
+    ax.axvline(len(benches) - 0.5, color=INK, lw=0.6, ls=":")
+    ax.set_yscale("log")
+    plain_log(ax, minor="2345678")
+    ax.set_xticks(range(len(names)), names, rotation=45, ha="right", rotation_mode="anchor")
+    ax.set_xlim(-0.6, len(names) - 0.4)
+    ax.tick_params(axis="x", length=0)
+    ax.set_ylabel("STV ratio")
+    ax.grid(True, axis="y", which="both", color=GRID, lw=0.5)
+    ax.set_axisbelow(True)
+    legend_above(ax, 1)
+    fig.savefig(path)
+    plt.close(fig)
+    return ("STV of a 2D baseline divided by that of HBM with the same kind of T source and "
+            "a layout fixed for all circuits, per circuit and as the geometric mean (GMean): "
+            "Planar-2D against HBM-Ded, both with factories, and 2D-Cult (one cultivation "
+            "patch per data qubit) against HBM-Cult-Ded, both with cultivation patches. Ded: "
+            "one T source per data qubit. Above the dashed line (1), HBM has the lower STV; log "
+            f"scale. All runs at {d_note(cells)}." + STAR)
+
+
+PPRIMES = (1, 5, 10)
+
+
+def pprime(rows, grades, path):
+    fig, ax = plt.subplots(figsize=(COL, 1.5))
+    x = np.arange(len(PPRIMES))
+    per_fit = [to_cells(refit(rows, m, grades))[0] for m in PPRIMES]
+    for _, legend, base, hbm, fam in SAME:
+        per = [[r for r in (same_ratio(cells[b], base, hbm) for b in cells) if r]
+               for cells in per_fit]
+        mk, ls = STYLE[fam]
+        ax.fill_between(x, [min(r) for r in per], [max(r) for r in per], color=LINE[fam],
+                        alpha=0.15, lw=0)
+        ax.plot(x, [gmean(r) for r in per], color=LINE[fam], marker=mk, ls=ls, label=legend)
+    ax.axhline(1, color=INK, lw=0.7, ls="--")
+    ax.set_yscale("log")
+    plain_log(ax, minor="25")
+    ax.set_xticks(x, ["p" if m == 1 else f"{m}p" for m in PPRIMES])
+    ax.set_xlabel("vertical-link error rate p′")
+    ax.set_ylabel("STV ratio")
+    ax.grid(True, axis="y", color=GRID, lw=0.5)
+    ax.legend(loc="lower left")
+    fig.savefig(path)
+    plt.close(fig)
+    ds = sorted({int(c["d_sim"]) for cells in per_fit for cs in cells.values()
+                 for c in cs.values()})
+    return ("STV of a 2D baseline divided by that of HBM with the same kind of T source and a "
+            "fixed layout (as in the like-for-like ratios), against the error rate p′ of the "
+            "vertical links between the layers, in units of the physical error rate p. At each "
+            "p′ every run uses the smallest odd code distance that meets the program-error "
+            f"target (d = {ds[0]}-{ds[-1]}); vertical merges use the lower thresholds measured "
+            "for them in Stim. Lines: geometric mean over the circuits; bands: range. Above "
+            "the dashed line (1), HBM has the lower STV; log scale.")
+
+
+def crossover(sets, path):
+    """sets: [(name, cells)]; the first is drawn in colour, the rest in grey."""
+    fig, ax = plt.subplots(figsize=(COL, 1.6))
+    _, legend, base, hbm, fam = SAME[0]
+    for k, (set_name, cells) in enumerate(sets):
+        pts = [(num(next(iter(cs.values()))["t_density"]), same_ratio(cs, base, hbm), b)
+               for b, cs in cells.items()]
+        pts = [p for p in pts if p[1]]
+        if k == 0:
+            for fam_name, mk in (("Ising", "o"), ("Heisenberg", "s")):
+                sel = [p for p in pts if circuit(p[2])[0] == fam_name]
+                ax.scatter([p[0] for p in sel], [p[1] for p in sel], s=18, marker=mk,
+                           color=LINE["HBM"], edgecolor=INK, lw=0.4, zorder=3, label=fam_name)
+        else:
+            ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=12, marker="^",
+                       color="#9a9a9a", edgecolor=INK, lw=0.3, zorder=2, label=set_name)
+    ax.axhline(1, color=INK, lw=0.7, ls="--")
+    ax.set_yscale("log")
+    plain_log(ax, minor="2345")
+    ax.set_xlabel("T density (T gates per qubit per ideal step)")
+    ax.set_ylabel("STV ratio")
+    ax.grid(True, color=GRID, lw=0.5)
+    ax.set_axisbelow(True)
+    legend_above(ax, 3)
+    fig.savefig(path)
+    plt.close(fig)
+    return ("STV of Planar-2D divided by that of HBM-Ded (both with factories) against the "
+            "circuit's T density, the T count over logical qubits times ideal depth. Each "
+            "marker is one circuit"
+            + ("; grey: " + ", ".join(n for n, _ in sets[1:]) if len(sets) > 1 else "")
+            + ". Above the dashed line (1), HBM has the lower STV; log scale. All runs at "
+            f"{d_note(sets[0][1])}.")
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("csv", help="output of analyze.py")
-    ap.add_argument("--out", default="figs", help="directory for the figures")
+    ap.add_argument("--set", choices=["v1", "v2"], default="v1",
+                    help="v1: all runs at the simulated d, best layouts; v2: each run at its "
+                         "own d, like-for-like fixed layouts, p' sensitivity, T-density crossover")
+    ap.add_argument("--out", help="directory for the figures (default figs, or figs_v2)")
+    ap.add_argument("--extra", nargs="+", default=[], metavar="NAME=CSV",
+                    help="v2 crossover: more campaigns drawn in grey, e.g. synthetic=rev.csv")
     ap.add_argument("--circuit", nargs="+",
                     help="circuits for spacetime and tradeoff (default: the largest at each R)")
     ap.add_argument("--fmt", default="pdf,png", help="comma-separated file types")
     ap.add_argument("--cult-grades", type=parse_grades, default="60:3e-6:454,360:2e-9:463",
-                    help="as in analyze.py (for the patch qubits in spacetime)")
+                    help="as in analyze.py (for the patch qubits)")
     args = ap.parse_args()
 
-    cells, benches = load(args.csv)
+    v2 = args.set == "v2"
+    out_dir = args.out or ("figs_v2" if v2 else "figs")
+    rows = read_rows(args.csv)
+    cells, benches = to_cells(refit(rows, 1, args.cult_grades) if v2 else rows)
     if not benches:
         raise SystemExit("no finished, feasible runs in " + args.csv)
-    os.makedirs(args.out, exist_ok=True)
+    os.makedirs(out_dir, exist_ok=True)
     chosen = args.circuit or [
         max((b for b in benches if grade(cells[b]) == g), key=lambda b: circuit(b)[1])
         for g in sorted({grade(cells[b]) for b in benches}, key=str)]
-    figs = [("ratios", lambda p: ratios(cells, benches, p)),
-            ("heatmap", lambda p: heatmap(cells, benches, p)),
-            ("sharing", lambda p: sharing(cells, benches, p)),
-            ("scaling", lambda p: scaling(cells, benches, p))]
+    if v2:
+        sets = [("this campaign", cells)]
+        for item in args.extra:
+            set_name, path = item.split("=", 1) if "=" in item else (os.path.basename(item), item)
+            sets.append((set_name, load(path, 1, args.cult_grades)[0]))
+        figs = [("ratios_same", lambda p: ratios_same(cells, benches, p)),
+                ("heatmap", lambda p: heatmap(cells, benches, p)),
+                ("sharing", lambda p: sharing(cells, benches, p)),
+                ("pprime", lambda p: pprime(rows, args.cult_grades, p)),
+                ("crossover", lambda p: crossover(sets, p))]
+    else:
+        figs = [("ratios", lambda p: ratios(cells, benches, p)),
+                ("heatmap", lambda p: heatmap(cells, benches, p)),
+                ("sharing", lambda p: sharing(cells, benches, p)),
+                ("scaling", lambda p: scaling(cells, benches, p))]
     for b in chosen:
         tag = label(b).lower()
         figs.append((f"spacetime_{tag}", lambda p, b=b: spacetime(cells, b, args.cult_grades, p)))
@@ -499,12 +668,12 @@ def main():
     captions = []
     for fig_name, draw in figs:
         for ext in args.fmt.split(","):
-            caption = draw(os.path.join(args.out, f"{fig_name}.{ext}"))
+            caption = draw(os.path.join(out_dir, f"{fig_name}.{ext}"))
         captions.append(f"## {fig_name}\n\n{caption}\n")
-    with open(os.path.join(args.out, "captions.md"), "w") as f:
-        f.write("# Draft captions (" + os.path.basename(args.csv) + ")\n\n"
+    with open(os.path.join(out_dir, "captions.md"), "w") as f:
+        f.write(f"# Draft captions ({os.path.basename(args.csv)}, {args.set})\n\n"
                 + "\n".join(captions))
-    print("wrote", len(figs), "figures (" + args.fmt + ") and captions.md to", args.out)
+    print("wrote", len(figs), "figures (" + args.fmt + ") and captions.md to", out_dir)
 
 
 if __name__ == "__main__":
