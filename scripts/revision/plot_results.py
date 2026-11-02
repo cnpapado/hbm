@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt  # noqa: E402
 import matplotlib.ticker as mticker  # noqa: E402
 import numpy as np  # noqa: E402
 from matplotlib.colors import LogNorm  # noqa: E402
+from matplotlib.lines import Line2D  # noqa: E402
 from matplotlib.patches import Rectangle  # noqa: E402
 
 from analyze import parse_grades  # noqa: E402
@@ -344,46 +345,65 @@ def sharing(cells, benches, path):
             "range. Above the dashed line (1), HBM has the lower STV; log scale.")
 
 
+SHARE_MARK = {"k1": "o", "s2": "s", "s4": "^", "s8": "D", "s16": "v"}
+
+
 def sources(cells, benches, path):
-    """STV ratio against the T-source count ratio, one line per circuit through Ded..S16."""
-    fig, ax = plt.subplots(figsize=(COL, 1.9))
-    pairs = [("HBM", "D3-{}-fact", "D0-alt", "n_factories", "factories: Planar-2D / HBM"),
-             ("HBM-Cult", "D3-{}", "D2-wide", "n_patches", "cultivation: 2D-Cult / HBM-Cult")]
-    for fam, fmt, base, count, legend in pairs:
-        mk, ls = STYLE[fam]
-        for i, b in enumerate(benches):
-            cs = cells[b]
+    """Per circuit: STV ratio against the T-source count ratio, a marker per sharing ratio."""
+    ncol = 6
+    nrow = math.ceil((len(benches) + 1) / ncol)
+    fig, axes = plt.subplots(nrow, ncol, figsize=(FULL, 1.2 * nrow + 0.25), sharex=True,
+                             sharey=True, squeeze=False,
+                             gridspec_kw=dict(wspace=0.1, hspace=0.38))
+    pairs = [("HBM", "D3-{}-fact", "D0-alt", "n_factories", "factories"),
+             ("HBM-Cult", "D3-{}", "D2-wide", "n_patches", "cultivation")]
+    for ax, b in zip(axes.flat, benches):
+        cs = cells[b]
+        for fam, fmt, base, count, _ in pairs:
             if base not in cs:
                 continue
             n0 = int(cs[base][count])
-            pts = sorted((int(cs[fmt.format(k)][count]) / n0, stv(cs[base]) / stv(cs[fmt.format(k)]))
+            pts = sorted((int(cs[fmt.format(k)][count]) / n0,
+                          stv(cs[base]) / stv(cs[fmt.format(k)]), k)
                          for k in SHARING if fmt.format(k) in cs)
-            ax.plot([p[0] for p in pts], [p[1] for p in pts], color=LINE[fam], ls=ls, lw=0.6,
-                    alpha=0.7, zorder=2)
-            ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=10, marker=mk,
-                       color=LINE[fam], edgecolor=INK, lw=0.3, zorder=3,
-                       label=legend if i == 0 else None)
-    ax.axhline(1, color=INK, lw=0.7, ls="--")
-    ax.axvline(1, color=INK, lw=0.7, ls=":")
-    ax.set_xscale("log")
-    ax.set_yscale("log")
-    plain_log(ax, "x", minor="25")
-    plain_log(ax, "y", minor="25")
-    ax.set_xlabel("T sources in HBM / T sources in the 2D baseline")
-    ax.set_ylabel("STV ratio")
-    ax.grid(True, color=GRID, lw=0.5)
-    ax.set_axisbelow(True)
-    legend_above(ax, 1, handlelength=2.2)
+            ax.plot([p[0] for p in pts], [p[1] for p in pts], color=LINE[fam],
+                    ls=STYLE[fam][1], lw=0.9, zorder=2)
+            for x, y, k in pts:
+                ax.scatter(x, y, s=18, marker=SHARE_MARK[k], color=LINE[fam], edgecolor=INK,
+                           lw=0.3, zorder=3)
+        ax.axhline(1, color=INK, lw=0.6, ls="--")
+        ax.axvline(1, color=INK, lw=0.6, ls=":")
+        ax.set_title(label(b, cs), fontsize=8, pad=2)
+        ax.grid(True, color=GRID, lw=0.4)
+        ax.set_axisbelow(True)
+    ax0 = axes.flat[0]
+    ax0.set_xscale("log")
+    ax0.set_yscale("log")
+    ax0.set_xlim(0.03, 3)
+    ax0.set_ylim(0.015, 3)
+    plain_log(ax0, "x", minor="")
+    plain_log(ax0, "y", minor="")
+    for ax in axes.flat[len(benches):]:
+        ax.axis("off")
+    key = axes.flat[-1]
+    handles = [Line2D([], [], color=LINE[fam], ls=STYLE[fam][1], lw=1.1, label=name)
+               for fam, _, _, _, name in pairs]
+    handles += [Line2D([], [], ls="", marker=SHARE_MARK[k], ms=4.5, color="#9a9a9a",
+                       mec=INK, mew=0.3, label=lab) for k, lab in zip(SHARING, SHARE_LABEL)]
+    key.legend(handles=handles, loc="center", fontsize=8, handlelength=1.8,
+               borderaxespad=0)
+    fig.supxlabel("T sources in HBM / T sources in the 2D baseline", fontsize=9, y=-0.05)
+    fig.supylabel("STV ratio", fontsize=9, x=0.06)
     fig.savefig(path)
     plt.close(fig)
     return ("STV of a 2D baseline divided by that of HBM with the same kind of T source, "
-            "against the number of T sources in HBM over that in the baseline: Planar-2D "
-            "against HBM, both with factories, and 2D-Cult (one cultivation patch per data "
-            "qubit) against HBM-Cult, both with cultivation patches. Each line is one circuit "
-            "through HBM's sharing ratios, from one source per 16 data qubits (left) to one "
-            "per data qubit (right). Above the dashed line (1), HBM has the lower STV; at the "
-            "dotted line both use the same number of sources; log-log. All runs at "
-            f"{d_note(cells)}.")
+            "against the number of T sources in HBM over that in the baseline, one panel per "
+            "circuit: Planar-2D against HBM, both with factories (solid), and 2D-Cult (one "
+            "cultivation patch per data qubit) against HBM-Cult, both with cultivation patches "
+            "(dashed). Markers give HBM's layout, from one source per data qubit (Ded) to one "
+            "per 16 (S16). Above the dashed line (1), HBM has the lower STV; on the dotted "
+            "line both use the same number of sources; log-log. All runs at "
+            f"{d_note(cells)}." + STAR)
 
 
 def space_parts(c, grades):
@@ -622,7 +642,7 @@ def main():
         figs = [("ratios_same", lambda p: ratios_same(cells, benches, p)),
                 ("heatmap", lambda p: heatmap(cells, benches, p)),
                 ("sharing", lambda p: sharing(cells, benches, p)),
-                ("sources", lambda p: sources(cells, benches, p))]
+                ("sources", lambda p: sources(cells, benches, p))]  # two columns
     else:
         figs = [("ratios", lambda p: ratios(cells, benches, p)),
                 ("heatmap", lambda p: heatmap(cells, benches, p)),
