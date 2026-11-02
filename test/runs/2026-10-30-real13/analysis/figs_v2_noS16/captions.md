@@ -10,11 +10,11 @@ STV of every configuration (columns) on every circuit (rows), divided by the low
 
 ## sharing
 
-STV of a 2D baseline divided by that of HBM with the same kind of T source, against HBM's sharing ratio (Ded: one T source per data qubit; S2-S8: one source per 2 to 8 data qubits): Planar-2D over HBM, both with factories (solid), and 2D-Cult (one patch per data qubit) over HBM-Cult, both with cultivation patches (dashed). Lines: geometric mean over the circuits; bands: range. Above the dashed line (1), HBM has the lower STV; log scale.
+STV of a 2D baseline divided by that of HBM with the same kind of T source, against HBM's sharing ratio (Ded: one T source per data qubit; S2-S8: one source per 2 to 8 data qubits): Planar-2D over HBM, both with factories (solid), and 2D-Cult (one patch per data qubit) over HBM-Cult, both with cultivation patches (dashed). Lines: geometric mean over the circuits; bands: range. The two lines use different baselines, so their heights are not comparable with each other. Above the dashed line (1), HBM has the lower STV; log scale.
 
 ## sources
 
-STV of a 2D baseline divided by that of HBM with the same kind of T source, against the number of T sources in HBM over that in the baseline, one panel per circuit: Planar-2D against HBM, both with factories (solid), and 2D-Cult (one cultivation patch per data qubit) against HBM-Cult, both with cultivation patches (dashed). Markers give HBM's layout, from one source per data qubit (Ded) to one per 8 (S8). Above the dashed line (1), HBM has the lower STV; on the dotted line both use the same number of sources; log-log. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
+STV of a 2D baseline divided by that of HBM with the same kind of T source, against the number of T sources in HBM over that in the baseline, one panel per circuit: Planar-2D against HBM, both with factories (solid), and 2D-Cult (one cultivation patch per data qubit) against HBM-Cult, both with cultivation patches (dashed). Markers give HBM's layout, from one source per data qubit (Ded) to one per 8 (S8). Above the dashed line (1), HBM has the lower STV; on the dotted line both use the same number of sources; log-log. The two lines use different baselines, so their heights are not comparable with each other. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
 
 ## spacetime_ising-66
 

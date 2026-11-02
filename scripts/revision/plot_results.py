@@ -356,7 +356,8 @@ def sharing(cells, benches, path):
             "Planar-2D over HBM, both with factories "
             "(solid), and 2D-Cult (one patch per data qubit) over HBM-Cult, both with "
             "cultivation patches (dashed). Lines: geometric mean over the circuits; bands: "
-            "range. Above the dashed line (1), HBM has the lower STV; log scale.")
+            "range. The two lines use different baselines, so their heights are not comparable "
+            "with each other. Above the dashed line (1), HBM has the lower STV; log scale.")
 
 
 SHARE_MARK = {"k1": "o", "s2": "s", "s4": "^", "s8": "D", "s16": "v"}
@@ -416,8 +417,9 @@ def sources(cells, benches, path):
             "cultivation patch per data qubit) against HBM-Cult, both with cultivation patches "
             "(dashed). Markers give HBM's layout, from one source per data qubit (Ded) to one "
             f"per {most_shared(cells)} (S{most_shared(cells)}). Above the dashed line (1), HBM "
-            "has the lower STV; on the dotted "
-            "line both use the same number of sources; log-log. All runs at "
+            "has the lower STV; on the dotted line both use the same number of sources; "
+            "log-log. The two lines use different baselines, so their heights are not "
+            "comparable with each other. All runs at "
             f"{d_note(cells)}." + STAR)
 
 
