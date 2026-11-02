@@ -10,7 +10,7 @@ STV of every configuration (columns) on every circuit (rows), divided by the low
 
 ## sharing
 
-STV of the best 2D baseline divided by that of HBM, against HBM's sharing ratio (Ded: one T source per data qubit; S2-S16: one source per 2 to 16 data qubits), for HBM with factories (solid) and HBM-Cult with cultivation patches (dashed). Lines: geometric mean over the circuits; bands: range. Above the dashed line (1), HBM has the lower STV; log scale.
+STV of a 2D baseline divided by that of HBM with the same kind of T source, against HBM's sharing ratio (Ded: one T source per data qubit; S2-S16: one source per 2 to 16 data qubits): Planar-2D over HBM, both with factories (solid), and 2D-Cult over HBM-Cult, both with cultivation patches (dashed), each 2D baseline at its best layout. Lines: geometric mean over the circuits; bands: range. Above the dashed line (1), HBM has the lower STV; log scale.
 
 ## scaling
 

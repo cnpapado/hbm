@@ -9,7 +9,7 @@ TrueType. Include each PDF at width=\\columnwidth (heatmap: \\textwidth) so noth
 
   ratios        baseline STV / HBM STV per circuit and their geometric mean (> 1: HBM wins)
   heatmap       (two columns) every configuration's STV over the best on its circuit
-  sharing       best 2D baseline's STV over HBM's against the sharing ratio (geomean, range)
+  sharing       same-source 2D baseline's STV over HBM's against the sharing ratio
   spacetime_X   one circuit: qubits (data, other tiles, T sources) and rounds, per layout
   tradeoff_X    one circuit: qubits against rounds, with lines of equal STV
   scaling       each family's best STV against N, Ising and Heisenberg apart
@@ -279,22 +279,22 @@ def heatmap(cells, benches, path):
 def sharing(cells, benches, path):
     fig, ax = plt.subplots(figsize=(COL, 1.5))
     x = np.arange(len(SHARING))
-    gm = {}
-    for fam, fmt in (("HBM", "D3-{}-fact"), ("HBM-Cult", "D3-{}")):
+    # Each HBM source type against the 2D layout with the same source type.
+    lines = [("HBM", "D3-{}-fact", ("D0-alt",), "Planar-2D / HBM (factories)"),
+             ("HBM-Cult", "D3-{}", CULT, "2D-Cult / HBM-Cult (cultivation)")]
+    for fam, fmt, base_specs, legend in lines:
         per = []  # per sharing ratio: the ratio on each circuit
         for key in SHARING:
             rs = []
             for b in benches:
-                base, c = best(cells[b], CULT + ("D0-alt",)), cells[b].get(fmt.format(key))
+                base, c = best(cells[b], base_specs), cells[b].get(fmt.format(key))
                 if base and c:
                     rs.append(stv(base) / stv(c))
             per.append(rs)
-        gm[fam] = [gmean(r) for r in per]
         mk, ls = STYLE[fam]
         ax.fill_between(x, [min(r) for r in per], [max(r) for r in per], color=LINE[fam],
                         alpha=0.15, lw=0)
-        ax.plot(x, gm[fam], color=LINE[fam], marker=mk, ls=ls,
-                label=f"{fam} ({'factories' if fam == 'HBM' else 'cultivation'})")
+        ax.plot(x, [gmean(r) for r in per], color=LINE[fam], marker=mk, ls=ls, label=legend)
     ax.axhline(1, color=INK, lw=0.7, ls="--")
     ax.set_yscale("log")
     plain_log(ax, minor="")
@@ -305,11 +305,12 @@ def sharing(cells, benches, path):
     ax.legend(loc="lower left")
     fig.savefig(path)
     plt.close(fig)
-    return ("STV of the best 2D baseline divided by that of HBM, against HBM's sharing "
-            "ratio (Ded: one T source per data qubit; S2-S16: one source per 2 to 16 data "
-            "qubits), for HBM with factories (solid) and HBM-Cult with cultivation patches "
-            "(dashed). Lines: geometric mean over the circuits; bands: range. Above the dashed "
-            "line (1), HBM has the lower STV; log scale.")
+    return ("STV of a 2D baseline divided by that of HBM with the same kind of T source, "
+            "against HBM's sharing ratio (Ded: one T source per data qubit; S2-S16: one "
+            "source per 2 to 16 data qubits): Planar-2D over HBM, both with factories "
+            "(solid), and 2D-Cult over HBM-Cult, both with cultivation patches (dashed), each "
+            "2D baseline at its best layout. Lines: geometric mean over the circuits; bands: "
+            "range. Above the dashed line (1), HBM has the lower STV; log scale.")
 
 
 def space_parts(c, grades):
