@@ -12,6 +12,10 @@ STV of every configuration (columns) on every circuit (rows), divided by the low
 
 STV of a 2D baseline divided by that of HBM with the same kind of T source, against HBM's sharing ratio (Ded: one T source per data qubit; S2-S16: one source per 2 to 16 data qubits): Planar-2D over HBM, both with factories (solid), and 2D-Cult (one patch per data qubit) over HBM-Cult, both with cultivation patches (dashed). Lines: geometric mean over the circuits; bands: range. Above the dashed line (1), HBM has the lower STV; log scale.
 
+## sources
+
+STV of a 2D baseline divided by that of HBM with the same kind of T source, against the number of T sources in HBM over that in the baseline: Planar-2D against HBM, both with factories, and 2D-Cult (one cultivation patch per data qubit) against HBM-Cult, both with cultivation patches. Each line is one circuit through HBM's sharing ratios, from one source per 16 data qubits (left) to one per data qubit (right). Above the dashed line (1), HBM has the lower STV; at the dotted line both use the same number of sources; log-log. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17).
+
 ## spacetime_ising-66
 
 Space and time of representative configurations on Ising-66. Left: physical qubits, split into data tiles, other tiles (routing and unused) and T-state sources (factories or cultivation patches). Right: runtime in rounds (log scale); the dashed line is the stall-free runtime (ideal depth × d). Labels: the configuration's STV relative to the lowest on this circuit and its code distance.

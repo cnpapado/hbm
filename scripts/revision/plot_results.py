@@ -344,6 +344,48 @@ def sharing(cells, benches, path):
             "range. Above the dashed line (1), HBM has the lower STV; log scale.")
 
 
+def sources(cells, benches, path):
+    """STV ratio against the T-source count ratio, one line per circuit through Ded..S16."""
+    fig, ax = plt.subplots(figsize=(COL, 1.9))
+    pairs = [("HBM", "D3-{}-fact", "D0-alt", "n_factories", "factories: Planar-2D / HBM"),
+             ("HBM-Cult", "D3-{}", "D2-wide", "n_patches", "cultivation: 2D-Cult / HBM-Cult")]
+    for fam, fmt, base, count, legend in pairs:
+        mk, ls = STYLE[fam]
+        for i, b in enumerate(benches):
+            cs = cells[b]
+            if base not in cs:
+                continue
+            n0 = int(cs[base][count])
+            pts = sorted((int(cs[fmt.format(k)][count]) / n0, stv(cs[base]) / stv(cs[fmt.format(k)]))
+                         for k in SHARING if fmt.format(k) in cs)
+            ax.plot([p[0] for p in pts], [p[1] for p in pts], color=LINE[fam], ls=ls, lw=0.6,
+                    alpha=0.7, zorder=2)
+            ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=10, marker=mk,
+                       color=LINE[fam], edgecolor=INK, lw=0.3, zorder=3,
+                       label=legend if i == 0 else None)
+    ax.axhline(1, color=INK, lw=0.7, ls="--")
+    ax.axvline(1, color=INK, lw=0.7, ls=":")
+    ax.set_xscale("log")
+    ax.set_yscale("log")
+    plain_log(ax, "x", minor="25")
+    plain_log(ax, "y", minor="25")
+    ax.set_xlabel("T sources in HBM / T sources in the 2D baseline")
+    ax.set_ylabel("STV ratio")
+    ax.grid(True, color=GRID, lw=0.5)
+    ax.set_axisbelow(True)
+    legend_above(ax, 1, handlelength=2.2)
+    fig.savefig(path)
+    plt.close(fig)
+    return ("STV of a 2D baseline divided by that of HBM with the same kind of T source, "
+            "against the number of T sources in HBM over that in the baseline: Planar-2D "
+            "against HBM, both with factories, and 2D-Cult (one cultivation patch per data "
+            "qubit) against HBM-Cult, both with cultivation patches. Each line is one circuit "
+            "through HBM's sharing ratios, from one source per 16 data qubits (left) to one "
+            "per data qubit (right). Above the dashed line (1), HBM has the lower STV; at the "
+            "dotted line both use the same number of sources; log-log. All runs at "
+            f"{d_note(cells)}.")
+
+
 def space_parts(c, grades):
     """Qubits split into data tiles, other tiles and T sources (factories at 22 d^2)."""
     d = int(c["d_sim"])
@@ -579,7 +621,8 @@ def main():
     if v2:
         figs = [("ratios_same", lambda p: ratios_same(cells, benches, p)),
                 ("heatmap", lambda p: heatmap(cells, benches, p)),
-                ("sharing", lambda p: sharing(cells, benches, p))]
+                ("sharing", lambda p: sharing(cells, benches, p)),
+                ("sources", lambda p: sources(cells, benches, p))]
     else:
         figs = [("ratios", lambda p: ratios(cells, benches, p)),
                 ("heatmap", lambda p: heatmap(cells, benches, p)),
