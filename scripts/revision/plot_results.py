@@ -13,7 +13,7 @@ TrueType. Include each PDF at width=\\columnwidth (heatmap: \\textwidth) so noth
   spacetime_X   one circuit: qubits (data, other tiles, T sources) and rounds, per layout
   tradeoff_X    one circuit: qubits against rounds, with lines of equal STV
   scaling       each family's best STV against N, Ising and Heisenberg apart
-  captions.md   a draft caption per figure, takeaway first, numbers from this CSV
+  captions.md   a draft caption per figure: what it shows, no findings
 Cells are those of stv_table.py (cultivation at its lowest-STV R). A run whose program error
 breaks the target at the simulated d (meets_target False) is marked with a dagger or a hollow
 marker: at the larger d it needs, its STV would grow. Circuits marked * have too many T gates
@@ -135,6 +135,11 @@ def label(bench, cs=None):
     return f"{'Heis' if fam == 'Heisenberg' else fam}-{n}{star}"
 
 
+def d_sim(cells):
+    """The code distance the runs were simulated at."""
+    return int(next(iter(next(iter(cells.values())).values()))["d_sim"])
+
+
 def n_t(cs):
     return num(next(iter(cs.values()))["n_t"])
 
@@ -204,16 +209,13 @@ def ratios(cells, benches, path):
     legend_above(ax, 2)
     fig.savefig(path)
     plt.close(fig)
-    p2 = [vals[b]["P2"] for b in benches if vals[b]["P2"]]
-    by_r = {g: gmean([vals[b]["P1"] for b in benches if grade(cells[b]) == g])
-            for g in (60, 360)}
-    return (f"**HBM cuts space-time volume by {gm['P1']:.2f}× over 2D cultivation "
-            f"({by_r[60]:.1f}× at R = 60, {by_r[360]:.1f}× on the * circuits) and "
-            f"{gm['P2']:.2f}× over the planar factory layout (geometric means); with "
-            f"cultivation on both sides HBM-Cult still saves {gm['P1c']:.2f}×.** Each bar is "
-            f"the baseline's STV over HBM's, each side at its best layout (higher is better; "
-            f"log scale). HBM vs Planar-2D ranges {min(p2):.2f}–{max(p2):.2f}×. *: the T "
-            f"count forces the slower R = 360 cultivation grade.")
+    d = d_sim(cells)
+    return ("Space-time volume (STV) of each baseline divided by that of HBM, per circuit and "
+            "as the geometric mean (GMean), with each side at its best layout: HBM (factories "
+            "on top) against 2D cultivation (2D-Cult), HBM-Cult (cultivation on top) against "
+            "2D-Cult, and HBM against the planar factory layout (Planar-2D). Above the dashed "
+            "line (1), HBM has the lower STV; log scale. All runs at code distance "
+            f"d = {d}. " + "*: the circuit's T count requires the slower cultivation grade (R = 360 rounds).")
 
 
 def heatmap(cells, benches, path):
@@ -264,15 +266,14 @@ def heatmap(cells, benches, path):
         sp.set_visible(False)
     fig.savefig(path)
     plt.close(fig)
-    wins = defaultdict(int)
-    for i, b in enumerate(benches):
-        wins[name(specs[int(np.nanargmin(m[i]))])] += 1
-    won = ", ".join(f"{k} on {v}" for k, v in sorted(wins.items(), key=lambda kv: -kv[1]))
-    return (f"**Dedicated HBM with factories on top has the lowest space-time volume on "
-            f"most circuits (best: {won} of {len(benches)}); sharing a source among more data "
-            f"qubits raises it, most with cultivation (up to {top:.0f}×).** Each cell is a "
-            f"configuration's STV over the best on its circuit (boxed: 1). †: misses the 1% "
-            f"error target at d = 13 (its STV is a lower bound). *: R = 360 cultivation.")
+    return ("STV of every configuration (columns) on every circuit (rows), divided by the "
+            "lowest STV on that circuit; the boxed cell (1.00) is the circuit's best "
+            "configuration. Columns: the 2D baselines (2D-Cult with one or half a cultivation "
+            "patch per data qubit, Planar-2D), HBM with factories on top and HBM-Cult with "
+            "cultivation patches on top, each with one source per data qubit (Ded) or one "
+            "source shared by 2 to 16 data qubits (S2-S16). Row labels give the circuit's T "
+            f"count. †: the run exceeds the program-error target at d = {d_sim(cells)}. "
+            + "*: the circuit's T count requires the slower cultivation grade (R = 360 rounds).")
 
 
 def sharing(cells, benches, path):
@@ -304,12 +305,11 @@ def sharing(cells, benches, path):
     ax.legend(loc="lower left")
     fig.savefig(path)
     plt.close(fig)
-    h, c = gm["HBM"], gm["HBM-Cult"]
-    return (f"**Sharing a T source does not pay at these T densities: HBM goes from "
-            f"{h[0]:.2f}× (Ded) to {h[-1]:.2f}× (S16) of the best 2D baseline's STV, "
-            f"HBM-Cult from {c[0]:.2f}× to {c[-1]:.3f}×.** Lines: geometric mean over the "
-            f"{len(benches)} circuits of the best 2D baseline's STV over HBM's (higher is "
-            f"better); bands: range.")
+    return ("STV of the best 2D baseline divided by that of HBM, against HBM's sharing "
+            "ratio (Ded: one T source per data qubit; S2-S16: one source per 2 to 16 data "
+            "qubits), for HBM with factories (solid) and HBM-Cult with cultivation patches "
+            "(dashed). Lines: geometric mean over the circuits; bands: range. Above the dashed "
+            "line (1), HBM has the lower STV; log scale.")
 
 
 def space_parts(c, grades):
@@ -376,14 +376,12 @@ def spacetime(cells, bench, grades, path):
     a2.spines["left"].set_visible(False)
     fig.savefig(path)
     plt.close(fig)
-    ded, cult = cs.get("D3-k1-fact"), cs.get("D2-wide")
-    share = space_parts(ded, grades)[2] / num(ded["Q"]) if ded else math.nan
-    return (f"**{label(bench, cs)}: HBM-Ded spends {share:.0%} of its qubits on factories but "
-            f"runs within {num(ded['rounds']) / ideal:.2f}× of the stall-free time; "
-            f"cultivation layouts are small but wait for recharge "
-            f"({num(cult['rounds']) / ideal:.0f}× the stall-free time for 2D-Cult).** Left: "
-            f"physical qubits by role. Right: rounds (log); dashed: stall-free (ideal depth × "
-            f"d); labels: STV over the best configuration. †: misses the error target.")
+    return (f"Space and time of representative configurations on {label(bench)}. Left: physical "
+            "qubits, split into data tiles, other tiles (routing and unused) and T-state "
+            "sources (factories or cultivation patches). Right: runtime in rounds (log scale); "
+            "the dashed line is the stall-free runtime (ideal depth × d). Labels: the "
+            "configuration's STV relative to the lowest on this circuit. †: the run exceeds "
+            f"the program-error target at d = {d_sim(cells)}.")
 
 
 TRADEOFF_LABEL = {  # spec -> (text, offset in points, ha, va)
@@ -432,11 +430,12 @@ def tradeoff(cells, bench, path):
     ax.set_ylabel("rounds (thousands)")
     fig.savefig(path)
     plt.close(fig)
-    return (f"**{label(bench, cs)}: HBM trades qubits for time along the lowest-STV "
-            f"contours, while sharing cultivation patches saves almost no qubits and costs "
-            f"many rounds.** Each point is a configuration (log-log); grey lines: equal STV, "
-            f"10× apart (lower left is better); lines join the sharing ratios Ded–S16. "
-            f"Hollow: misses the error target.")
+    return (f"Physical qubits against runtime in rounds for every configuration on "
+            f"{label(bench)} (log-log). Lines join the layouts of a family (2D-Cult: one and "
+            "half a cultivation patch per data qubit; HBM and HBM-Cult: Ded to S16). Grey "
+            "lines join points of equal STV, ten times apart; points further to the lower "
+            "left have lower STV. Hollow markers: the run exceeds the program-error target "
+            f"at d = {d_sim(cells)}.")
 
 
 def scaling(cells, benches, path):
@@ -463,12 +462,10 @@ def scaling(cells, benches, path):
     legend_above(axes[0][0], 4, handlelength=2.0, columnspacing=0.8)
     fig.savefig(path)
     plt.close(fig)
-    lowest = sum(1 for b in benches if best(cells[b], HBM)
-                 and stv(best(cells[b], HBM)) <= min(stv(c) for c in cells[b].values()))
-    return (f"**HBM has the lowest STV on {lowest} of {len(benches)} circuits; both "
-            f"cultivation families jump once the T count forces the slow grade (*).** Best "
-            f"configuration of each family against the number of logical qubits (log STV). "
-            f"Hollow: misses the error target.")
+    return ("Lowest STV of each family (2D-Cult, Planar-2D, HBM, HBM-Cult) against the "
+            "number of logical qubits, for the Ising (left) and Heisenberg (right) circuits; "
+            "log scale. Hollow markers: the run exceeds the program-error target at "
+            f"d = {d_sim(cells)}.")
 
 
 def main():
@@ -504,7 +501,7 @@ def main():
             caption = draw(os.path.join(args.out, f"{fig_name}.{ext}"))
         captions.append(f"## {fig_name}\n\n{caption}\n")
     with open(os.path.join(args.out, "captions.md"), "w") as f:
-        f.write("# Draft captions (numbers from " + os.path.basename(args.csv) + ")\n\n"
+        f.write("# Draft captions (" + os.path.basename(args.csv) + ")\n\n"
                 + "\n".join(captions))
     print("wrote", len(figs), "figures (" + args.fmt + ") and captions.md to", args.out)
 
