@@ -6,7 +6,7 @@ STV of a 2D baseline divided by that of HBM with the same kind of T source and a
 
 ## split
 
-The STV ratios of Fig. ratios_same split into their two factors: physical qubits (x) and rounds (y) of the 2D baseline divided by those of HBM, one marker per circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over HBM-Cult-Ded (cultivation). Beyond 1 on an axis, HBM uses fewer qubits or rounds; above the dashed curve (x·y = 1), HBM has the lower STV. Markers that coincide share one label. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
+The STV ratios of Fig. ratios_same split into their two factors: physical qubits (x) and rounds (y; timesteps × code distance) of the 2D baseline divided by those of HBM, one marker per circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over HBM-Cult-Ded (cultivation). Beyond 1 on an axis, HBM uses fewer qubits or rounds; above the dashed curve (x·y = 1), HBM has the lower STV. Markers that coincide share one label. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
 
 ## heatmap
 

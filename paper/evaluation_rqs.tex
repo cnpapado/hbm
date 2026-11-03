@@ -65,10 +65,13 @@ plane unchanged.
 \textbf{Factories, qubits for small circuits and rounds for large ones:} On the four
 circuits with $N \le 16$, the gain is in qubits (1.31$\times$) at almost equal rounds
 (1.00--1.03$\times$): the ring of ports costs area, but its ports keep up with the T gates.
-On every larger circuit but Ising-26, Planar-2D takes 1.22--1.84$\times$ more rounds. Its
-factories never run out of T states; the extra rounds are T gates whose route to the ring is
-blocked by other routes (5,376 such stalls on Heis-64). HBM-Ded serves every T gate from
-directly above and runs every circuit at its ideal depth. From $N = 49$ on, it pays for this
+On every larger circuit but Ising-26, Planar-2D takes 1.22--1.84$\times$ more rounds
+(rounds = timesteps $\times$ $d$), for two reasons. First, it takes more timesteps
+(1.03--1.84$\times$): its factories never run out of T states, but T gates wait for a free
+route to the ring (5,376 such stalls on Heis-64). Second, on Ising-34, Heis-20 and Heis-25
+it needs a larger code distance ($d = 13$ against 11): its T gates route over 6,800--8,200
+tiles to the ring, which roughly doubles its program error. HBM-Ded serves every T gate
+from directly above, with no T routing, and runs every circuit at its ideal depth. From $N = 49$ on, it pays for this
 in qubits (0.70--0.84$\times$): it builds one factory per data slot, 81 on Ising-66 against
 the 40 ports of Planar-2D.
 
@@ -79,8 +82,8 @@ STV is 0.92$\times$ that of Planar-2D. Shared-2 brings it to parity (1.02$\times
 \begin{rqsummary}
 \textbf{RQ2 Summary:} With cultivation, the gain is entirely in qubits (1.20$\times$, same
 rounds). With factories, it is in qubits on small circuits (1.31$\times$) and in rounds on
-larger ones (1.22--1.84$\times$), where T-gate routes to the perimeter congest; HBM-Ded runs
-every circuit at its ideal depth.
+larger ones (1.22--1.84$\times$), where T-gate routes to the perimeter congest and add error;
+HBM-Ded runs every circuit at its ideal depth.
 \end{rqsummary}
 
 % ---- RQ3 ------------------------------------------------------------------------------------
@@ -128,8 +131,8 @@ already at Shared-2.
   \centering
   \includegraphics[width=\columnwidth]{figs_v2/split.pdf}
   \caption{The STV ratios of Fig.~\ref{fig:same} split into their two factors: physical
-    qubits ($x$) and rounds ($y$) of the 2D baseline divided by those of HBM, one marker per
-    circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over HBM-Cult-Ded
+    qubits ($x$) and rounds ($y$; timesteps $\times$ code distance) of the 2D baseline divided
+    by those of HBM, one marker per circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over HBM-Cult-Ded
     (cultivation). Beyond 1 on an axis, HBM uses fewer qubits or rounds; above the dashed
     curve ($xy = 1$), HBM has the lower STV. Markers that coincide share one label.}
   \label{fig:split}

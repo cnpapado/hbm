@@ -702,8 +702,8 @@ def split(cells, benches, path):
     fig.savefig(path)
     plt.close(fig)
     return ("The STV ratios of Fig. ratios_same split into their two factors: physical qubits "
-            "(x) and rounds (y) of the 2D baseline divided by those of HBM, one marker per "
-            "circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over "
+            "(x) and rounds (y; timesteps × code distance) of the 2D baseline divided by those "
+            "of HBM, one marker per circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over "
             "HBM-Cult-Ded (cultivation). Beyond 1 on an axis, HBM uses fewer qubits or rounds; "
             "above the dashed curve (x·y = 1), HBM has the lower STV. Markers that coincide "
             f"share one label. All runs at {d_note(cells)}." + STAR)
