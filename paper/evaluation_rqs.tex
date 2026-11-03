@@ -1,0 +1,161 @@
+% Evaluation, organised by research question (RQ list, one subsection per RQ, each closed by
+% a shaded summary box), in the style of Ghosh et al., arXiv:2604.19855.
+% Numbers: test/runs/2026-10-30-real13 (143 runs), every run at its own code distance
+% (fit_d.py, p' = p). Figures: test/runs/2026-10-30-real13/analysis/figs_v2/.
+%
+% Preamble:
+%   \usepackage{enumitem}
+%   \usepackage[most]{tcolorbox}
+%   \newtcolorbox{rqsummary}{enhanced, colback=blue!7, colframe=blue!7, boxrule=0pt,
+%     sharp corners, left=4pt, right=4pt, top=3pt, bottom=3pt,
+%     before skip=6pt, after skip=6pt}
+
+% ---- end of the evaluation setup, after the metrics ---------------------------------------
+
+Our evaluation answers three research questions:
+\begin{description}[leftmargin=2.6em, labelwidth=2.2em, font=\normalfont\bfseries]
+  \item[RQ1:] With the same kind of T-state source and the same error target, does moving
+    the sources from the data plane to an upper layer lower space-time volume?
+  \item[RQ2:] Does the reduction come from fewer physical qubits or from fewer rounds?
+  \item[RQ3:] How many upper-layer sources does HBM need?
+\end{description}
+% RQ4 (cost of a cross-layer merge) once the seam simulation is in.
+
+% ---- RQ1 ------------------------------------------------------------------------------------
+
+\subsection{(RQ1) Space-time volume}
+
+\textbf{Like-for-like comparison:} Fig.~\ref{fig:same} compares each 2D baseline with HBM
+using the same kind of source and one source per data qubit (Ded). With factories, HBM-Ded
+has a lower STV than Planar-2D on 10 of 11 circuits, by 1.31$\times$ on average (geometric
+mean; 0.92--1.67$\times$). With cultivation, HBM-Cult-Ded is lower than 2D-Cult on all 11
+circuits, by 1.19--1.21$\times$ (1.20$\times$ on average). Every run uses the smallest odd
+code distance that keeps its program error below 1\%, so both sides of each ratio meet the
+same target.
+
+\textbf{Best layout per circuit:} Across all 13 configurations (Fig.~\ref{fig:heatmap}), the
+lowest STV belongs to HBM-Ded on 9 circuits and to HBM-Shared-2 on Ising-10 and Ising-26.
+At its best sharing ratio, HBM with factories is below Planar-2D on all 11 circuits
+(1.02--1.67$\times$).
+
+\textbf{Denser in-plane cultivation:} Packing the cultivation patches into existing routing
+tiles (2D-Cult\textonehalf, one patch per two data qubits) does not close the gap: HBM-Cult-Ded
+is 1.29--1.98$\times$ below it.
+
+\begin{rqsummary}
+\textbf{RQ1 Summary:} At the same error target and with the same T-state source, an upper
+layer lowers STV by 1.31$\times$ with factories and by 1.20$\times$ with cultivation
+(geometric means). With its best layout, HBM beats the 2D baseline of its source type on all
+11 circuits.
+\end{rqsummary}
+
+% ---- RQ2 ------------------------------------------------------------------------------------
+
+\subsection{(RQ2) Qubits or time}
+
+Fig.~\ref{fig:split} splits each ratio of Fig.~\ref{fig:same} into a qubit ratio and a round
+ratio.
+
+\textbf{Cultivation, all in qubits:} 2D-Cult and HBM-Cult-Ded take the same number of rounds
+on every circuit. Both have a patch next to every data qubit with the same recharge time, so
+they run the same schedule. The whole gain is in qubits (1.19--1.21$\times$): in the plane,
+the patches add a row to the grid for every row of data qubits; on top, they leave the data
+plane unchanged.
+
+\textbf{Factories, qubits for small circuits and rounds for large ones:} On the four
+circuits with $N \le 16$, the gain is in qubits (1.31$\times$) at almost equal rounds
+(1.00--1.03$\times$): the ring of ports costs area, but its ports keep up with the T gates.
+On every larger circuit but Ising-26, Planar-2D takes 1.22--1.84$\times$ more rounds. Its
+factories never run out of T states; the extra rounds are T gates whose route to the ring is
+blocked by other routes (5,376 such stalls on Heis-64). HBM-Ded serves every T gate from
+directly above and runs every circuit at its ideal depth. From $N = 49$ on, it pays for this
+in qubits (0.70--0.84$\times$): it builds one factory per data slot, 81 on Ising-66 against
+the 40 ports of Planar-2D.
+
+\textbf{Where HBM loses:} On Ising-26, the ring keeps up (1.01$\times$ the rounds) and
+HBM-Ded builds 36 factories for 26 data qubits, so it needs 1.10$\times$ the qubits and its
+STV is 0.92$\times$ that of Planar-2D. Shared-2 brings it to parity (1.02$\times$).
+
+\begin{rqsummary}
+\textbf{RQ2 Summary:} With cultivation, the gain is entirely in qubits (1.20$\times$, same
+rounds). With factories, it is in qubits on small circuits (1.31$\times$) and in rounds on
+larger ones (1.22--1.84$\times$), where T-gate routes to the perimeter congest; HBM-Ded runs
+every circuit at its ideal depth.
+\end{rqsummary}
+
+% ---- RQ3 ------------------------------------------------------------------------------------
+
+\subsection{(RQ3) How many sources}
+
+Fig.~\ref{fig:sharing} varies HBM's sharing ratio against the same 2D baselines.
+
+\textbf{Factories:} Shared-2 uses 0.40--1.10$\times$ as many factories as Planar-2D and
+roughly matches it (1.05$\times$ on average; lower STV on 6 of 11 circuits). Sparser layouts
+lose: 0.61$\times$ at Shared-4 (lower on one circuit), 0.28$\times$ at Shared-8 and
+0.12$\times$ at Shared-16.
+
+\textbf{Cultivation:} Every shared layout loses to 2D-Cult, already at Shared-2
+(0.59$\times$). A patch delivers at most one T state every 6 ($R = 60$) or 29 ($R = 360$)
+steps, so with fewer patches T gates wait.
+
+\textbf{Caveats:} Factories are modelled as always ready, the most favourable case for
+sharing. % TODO: factory production time (HBM_FACTORY_ROUNDS=43), pending.
+For $N < 16$, Shared-16 is a single source.
+
+\begin{rqsummary}
+\textbf{RQ3 Summary:} HBM needs a dense upper layer: one source per data qubit gives the
+lowest STV on 9 of 11 circuits, and one per two data qubits on the other two. Sparser
+layouts lose to the 2D baselines: with factories from Shared-4 on, and with cultivation
+already at Shared-2.
+\end{rqsummary}
+
+% ---- figures ----------------------------------------------------------------------------------
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figs_v2/ratios_same.pdf}
+  \caption{STV of a 2D baseline divided by that of HBM with the same kind of T source and a
+    layout fixed for all circuits, per circuit and as the geometric mean (GMean): Planar-2D
+    against HBM-Ded, both with factories, and 2D-Cult (one cultivation patch per data qubit)
+    against HBM-Cult-Ded, both with cultivation patches. Ded: one T source per data qubit.
+    Above the dashed line (1), HBM has the lower STV. All runs at the smallest odd code
+    distance that meets the program-error target, chosen per run ($d = 11$--17). *: the
+    circuit's T count requires the slower cultivation grade ($R = 360$ rounds).}
+  \label{fig:same}
+\end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figs_v2/split.pdf}
+  \caption{The STV ratios of Fig.~\ref{fig:same} split into their two factors: physical
+    qubits ($x$) and rounds ($y$) of the 2D baseline divided by those of HBM, one marker per
+    circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over HBM-Cult-Ded
+    (cultivation). Beyond 1 on an axis, HBM uses fewer qubits or rounds; above the dashed
+    curve ($xy = 1$), HBM has the lower STV. Markers that coincide share one label.}
+  \label{fig:split}
+\end{figure}
+
+\begin{figure*}[t]
+  \centering
+  \includegraphics[width=\textwidth]{figs_v2/heatmap.pdf}
+  \caption{STV of every configuration (columns) on every circuit (rows), divided by the
+    lowest STV on that circuit; the boxed cell (1.00) is the circuit's best configuration.
+    Columns: the 2D baselines (2D-Cult with one or half a cultivation patch per data qubit,
+    Planar-2D), HBM with factories on top and HBM-Cult with cultivation patches on top, each
+    with one source per data qubit (Ded) or one source shared by 2 to 16 data qubits
+    (S2--S16). Row labels give the circuit's T count.}
+  \label{fig:heatmap}
+\end{figure*}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{figs_v2/sharing.pdf}
+  \caption{STV of a 2D baseline divided by that of HBM with the same kind of T source,
+    against HBM's sharing ratio (Ded: one T source per data qubit; S2--S16: one source per 2
+    to 16 data qubits): Planar-2D over HBM, both with factories (solid), and 2D-Cult (one
+    patch per data qubit) over HBM-Cult, both with cultivation patches (dashed). Lines:
+    geometric mean over the circuits; bands: range. The two lines use different baselines,
+    so their heights are not comparable with each other. Above the dashed line (1), HBM has
+    the lower STV; log scale.}
+  \label{fig:sharing}
+\end{figure}

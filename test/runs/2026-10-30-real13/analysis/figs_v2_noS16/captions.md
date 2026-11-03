@@ -4,6 +4,10 @@
 
 STV of a 2D baseline divided by that of HBM with the same kind of T source and a layout fixed for all circuits, per circuit and as the geometric mean (GMean): Planar-2D against HBM-Ded, both with factories, and 2D-Cult (one cultivation patch per data qubit) against HBM-Cult-Ded, both with cultivation patches. Ded: one T source per data qubit. Above the dashed line (1), HBM has the lower STV. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
 
+## split
+
+The STV ratios of Fig. ratios_same split into their two factors: physical qubits (x) and rounds (y) of the 2D baseline divided by those of HBM, one marker per circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over HBM-Cult-Ded (cultivation). Beyond 1 on an axis, HBM uses fewer qubits or rounds; above the dashed curve (x·y = 1), HBM has the lower STV. Markers that coincide share one label. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
+
 ## heatmap
 
 STV of every configuration (columns) on every circuit (rows), divided by the lowest STV on that circuit; the boxed cell (1.00) is the circuit's best configuration. Columns: the 2D baselines (2D-Cult with one or half a cultivation patch per data qubit, Planar-2D), HBM with factories on top and HBM-Cult with cultivation patches on top, each with one source per data qubit (Ded) or one source shared by 2 to 8 data qubits (S2-S8). Row labels give the circuit's T count. All runs at the smallest odd code distance that meets the program-error target, chosen per run (d = 11-17). *: the circuit's T count requires the slower cultivation grade (R = 360 rounds).
