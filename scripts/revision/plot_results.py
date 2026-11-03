@@ -14,6 +14,7 @@ TrueType. Include each PDF at width=\\columnwidth (heatmap: \\textwidth) so noth
   tradeoff_X    one circuit: qubits against rounds, with lines of equal STV
   scaling       each family's best STV against N, Ising and Heisenberg apart
   split         (v2) ratios_same's STV ratios split into qubit and round ratios
+  split_s2      (v2) the same for HBM's Shared-2 layouts
   captions.md   a draft caption per figure: what it shows, no findings
 Cells are those of stv_table.py (cultivation at its lowest-STV R). A run whose program error
 breaks the target at the simulated d (meets_target False) is marked with a dagger or a hollow
@@ -656,11 +657,15 @@ def ratios_same(cells, benches, path):
             f"runs at {d_note(cells)}." + STAR)
 
 
-def split(cells, benches, path):
-    """The like-for-like STV ratios of ratios_same, split into qubits (x) and rounds (y)."""
+def split(cells, benches, path, knob="k1", curve_label=(0.81, 1.25),
+          place=(("Ising-26", "left"),)):
+    """The like-for-like STV ratios of ratios_same, split into qubits (x) and rounds (y), for
+    HBM's layout `knob` (k1: Ded, s2: S2, ...) against the fixed 2D baselines. `place` moves
+    labels ("left" or "below-left" of their marker) clear of the curve and of each other."""
+    pairs = [("D0-alt", f"D3-{knob}-fact", "HBM"), ("D2-wide", f"D3-{knob}", "HBM-Cult")]
     fig, ax = plt.subplots(figsize=(COL, 2.1))
     xs_all, ys_all = [], []
-    for _, legend, base, hbm, fam in SAME:
+    for base, hbm, fam in pairs:
         pts = [(num(cells[b][base]["Q"]) / num(cells[b][hbm]["Q"]),
                 num(cells[b][base]["rounds"]) / num(cells[b][hbm]["rounds"]), b)
                for b in benches if base in cells[b] and hbm in cells[b]]
@@ -670,7 +675,10 @@ def split(cells, benches, path):
                    label=f"{name(base)} / {name(hbm)}")
         xs_all += [p[0] for p in pts]
         ys_all += [p[1] for p in pts]
-        groups = []  # points that coincide get one label
+        groups = []  # points that coincide get one label; a narrow column gets one too
+        if len(pts) > 2 and max(p[0] for p in pts) - min(p[0] for p in pts) < 0.05:
+            groups.append(list(pts))
+            pts = []
         for x, y, b in pts:
             for g in groups:
                 if abs(g[0][0] - x) < 0.03 and abs(g[0][1] - y) < 0.04:
@@ -679,19 +687,23 @@ def split(cells, benches, path):
             else:
                 groups.append([(x, y, b)])
         for g in groups:
-            x, y = min(p[0] for p in g), min(p[1] for p in g)
+            x = (max if len(g) > 2 else min)(p[0] for p in g)  # a column: right of it
+            y = min(p[1] for p in g)
+            ns = [circuit(p[2])[1] for p in g]
             text = (label(g[0][2], cells[g[0][2]]) if len(g) == 1 else
-                    f"{len(g)} circuits" if fam == "HBM-Cult" else
-                    f"N ≤ {max(circuit(p[2])[1] for p in g)}")
-            below = fam == "HBM" and len(g) > 1  # under the cultivation label
-            left = fam == "HBM" and len(g) == 1 and y < 1.05  # clear of the curve
-            ax.annotate(text, (x, y), xytext=(-4 if left else 4, -9 if below else 3),
+                    ", ".join(label(p[2], cells[p[2]]) for p in g) if len(g) == 2 else
+                    f"N ≤ {max(ns)}" if max(ns) <= 16 else f"{len(g)} circuits")
+            where = dict(place).get(text, "")
+            below = (fam == "HBM" and len(g) > 2) or where == "below-left"
+            on_left = where in ("left", "below-left")
+            ax.annotate(text, (x, y), xytext=(-4 if on_left else 4, -10 if below else 3),
                         textcoords="offset points", fontsize=8,
-                        ha="right" if left else "left", va="bottom", color=MUTED)
+                        ha="right" if on_left else "left", va="bottom", color=MUTED)
     lo, hi = min(xs_all + [1]) - 0.08, max(xs_all) + 0.25
     xx = np.linspace(lo, hi, 200)
     ax.plot(xx, 1 / xx, color=INK, lw=0.7, ls="--", zorder=1)
-    ax.text(0.81, 1 / 0.8, "equal STV", fontsize=8, ha="left", va="center", color=INK)
+    ax.text(curve_label[0], curve_label[1], "equal STV", fontsize=8, ha="left", va="center",
+            color=INK)
     ax.axvline(1, color=GRID, lw=0.6, zorder=0)
     ax.axhline(1, color=GRID, lw=0.6, zorder=0)
     ax.set_xlim(lo, hi)
@@ -701,10 +713,13 @@ def split(cells, benches, path):
     legend_above(ax, 2)
     fig.savefig(path)
     plt.close(fig)
-    return ("The STV ratios of Fig. ratios_same split into their two factors: physical qubits "
-            "(x) and rounds (y; timesteps × code distance) of the 2D baseline divided by those "
-            "of HBM, one marker per circuit. Circles: Planar-2D over HBM-Ded (factories); squares: 2D-Cult over "
-            "HBM-Cult-Ded (cultivation). Beyond 1 on an axis, HBM uses fewer qubits or rounds; "
+    hbm, cult = name(pairs[0][1]), name(pairs[1][1])
+    what = ("The STV ratios of Fig. ratios_same split into their two factors" if knob == "k1"
+            else f"As Fig. split, for HBM's {SHARE_LABEL[SHARING.index(knob)]} layout")
+    return (f"{what}: physical qubits (x) and rounds (y; timesteps × code distance) of the 2D "
+            f"baseline divided by those of HBM, one marker per circuit. Circles: Planar-2D over "
+            f"{hbm} (factories); squares: 2D-Cult (one cultivation patch per data qubit) over "
+            f"{cult} (cultivation). Beyond 1 on an axis, HBM uses fewer qubits or rounds; "
             "above the dashed curve (x·y = 1), HBM has the lower STV. Markers that coincide "
             f"share one label. All runs at {d_note(cells)}." + STAR)
 
@@ -739,6 +754,9 @@ def main():
     if v2:
         figs = [("ratios_same", lambda p: ratios_same(cells, benches, p)),
                 ("split", lambda p: split(cells, benches, p)),
+                ("split_s2", lambda p: split(
+                    cells, benches, p, "s2", (1.62, 0.7),
+                    (("Ising-34", "left"), ("Ising-16, Heis-16", "below-left")))),
                 ("heatmap", lambda p: heatmap(cells, benches, p)),
                 ("sharing", lambda p: sharing(cells, benches, p)),
                 ("sources", lambda p: sources(cells, benches, p)),  # two columns
