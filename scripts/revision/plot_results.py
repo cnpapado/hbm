@@ -667,7 +667,7 @@ def split(cells, benches, path):
         marker = STYLE[fam][0]
         ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=18, marker=marker,
                    facecolor=FILL[fam], edgecolor=INK, linewidth=0.4, zorder=3,
-                   label=legend.split(":")[0].capitalize())
+                   label=f"{name(base)} / {name(hbm)}")
         xs_all += [p[0] for p in pts]
         ys_all += [p[1] for p in pts]
         groups = []  # points that coincide get one label
