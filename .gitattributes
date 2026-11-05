@@ -1,0 +1,9 @@
+simulation_hamiltonians/*.qasm filter=lfs diff=lfs merge=lfs -text
+simulation_hamiltonians/chain_hams/*.qasm filter=lfs diff=lfs merge=lfs -text
+quantum-compiler-benchmark-circuits/simulation_hamiltonians/*.qasm filter=lfs diff=lfs merge=lfs -text
+quantum-compiler-benchmark-circuits/simulation_hamiltonians/ filter=lfs diff=lfs merge=lfs -text
+quantum-compiler-benchmark-circuits/simulation_hamiltonians/chain_hams/*.qasm filter=lfs diff=lfs merge=lfs -text
+quantum-compiler-benchmark-circuits/simulation_hamiltonians/1d_heisenberg_xyz_hams/*.qasm filter=lfs diff=lfs merge=lfs -text
+quantum-compiler-benchmark-circuits/simulation_hamiltonians/molecule_hams/*.qasm filter=lfs diff=lfs merge=lfs -text
+quantum-compiler-benchmark-circuits/simulation_hamiltonians/rotated_surface_code_hams/*.qasm filter=lfs diff=lfs merge=lfs -text
+quantum-compiler-benchmark-circuits/simulation_hamiltonians/tfsk_hams/*.qasm filter=lfs diff=lfs merge=lfs -text
