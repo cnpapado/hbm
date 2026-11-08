@@ -79,7 +79,12 @@ lives at `~/hbm` on the cluster and that a venv exists at `~/hbm/.venv`.
 Each campaign goes to `runs/<name>/{outs,results,logs,lists}` (`REV_DIR=runs/<name>`, required by
 `submit_revision.sh`; `REV_DIR=.` for the old `outs_rev/`, `results_rev/`, `logs_rev/`). The `ising`
 phase runs `benchmarks_real/ising_eps1e-2/` (QASMBench Ising n26/n34/n66, Clifford+T at ε = 10⁻²,
-copied from the `mati` branch). See `../REVISION.md`.
+copied from the `mati` branch). The `ham` phase runs the 18
+Hamiltonian-simulation circuits in `benchmarks_real/hamiltonians_eps1e-2/` (167-22k T): one Trotter
+step of the `simulation_hamiltonians` families, regenerated with `../scripts/hamiltonians/gen_trotter.py`
+(rz level in `benchmarks_real/hamiltonians_rz/`) and synthesized with `synth_ising.py --eps 1e-2 --merge`,
+because the suite's own circuits (52k-8.9M T) do not finish. Submit on Zaratan with
+`revision/submit_hamiltonians_zaratan.sh` (campaign `runs/hamiltonians`). See `../REVISION.md`.
 
 ## Analysis scripts under `test/`
 
