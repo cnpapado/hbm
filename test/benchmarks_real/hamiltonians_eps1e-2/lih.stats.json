@@ -1,0 +1,24 @@
+{
+  "input": "test/benchmarks_real/hamiltonians_rz/lih.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 2310,
+  "num_rz_synthesized": 1938,
+  "distinct_angles": 216,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 250,
+  "t_count": 12724,
+  "t_per_rotation_mean": 6.565531475748194,
+  "t_per_rotation_min": 0,
+  "t_per_rotation_max": 23,
+  "seconds": 20.8,
+  "ops": {
+    "h": 30808,
+    "s": 13227,
+    "t": 12724,
+    "cx": 6516,
+    "sdg": 4123,
+    "x": 3188
+  }
+}

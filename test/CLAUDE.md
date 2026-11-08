@@ -73,14 +73,19 @@ lives at `~/hbm` on the cluster and that a venv exists at `~/hbm/.venv`.
 ### Revision sweep (`revision/`)
 
 `revision/run_design.sh` (one benchmark x one `HBM_DESIGN` spec per array task),
-`revision/submit_revision.sh mini|pilot|core|full|ising|real [--dry-run]` (builds benchmark lists in
+`revision/submit_revision.sh mini|pilot|core|full|ising|real|ham [--dry-run]` (builds benchmark lists in
 `revision/lists/`, submits only unfinished runs; `PART`/`TIME`/`MEM` set the request),
 `revision/common.sh` (run tag and finished-run check shared by both), `revision/plan_d0.py` (D0 factory counts that fit on the ring, per circuit), and `revision/smoke_test.sh` (non-Slurm end-to-end check), `revision/publish_results.sh` (analyze a campaign into `runs/<name>/analysis/`, commit that folder and push), and `revision/run_qre.sh` (PPM cross-check against the Microsoft resource estimator, inside an Apptainer container).
 Each campaign goes to `runs/<name>/{outs,results,logs,lists}` (`REV_DIR=runs/<name>`, required by
 `submit_revision.sh`; `REV_DIR=.` for the old `outs_rev/`, `results_rev/`, `logs_rev/`). The `real`
 phase runs the 11 circuits of `benchmarks_real/` (Ising n10–n66 and QED-C Heisenberg n16–n64, one
 Trotter step, Clifford+T at ε = 10⁻²); `ising` only the Ising ones. Each phase runs 13 configurations
-(2D-Cult ×2, Planar-2D, HBM ×5 with factories, HBM-Cult ×5). See `../REVISION.md`.
+(2D-Cult ×2, Planar-2D, HBM ×5 with factories, HBM-Cult ×5). The `ham` phase runs the 18 Hamiltonian-simulation circuits in
+`benchmarks_real/hamiltonians_eps1e-2/` (167-22k T): one Trotter step of the
+`simulation_hamiltonians` families, regenerated with `../scripts/hamiltonians/gen_trotter.py`
+(rz level in `benchmarks_real/hamiltonians_rz/`) and synthesized with `synth_ising.py --eps 1e-2 --merge`,
+because the suite's own circuits (52k-8.9M T) do not finish. Submit on Zaratan with
+`revision/submit_hamiltonians_zaratan.sh` (campaign `runs/hamiltonians-fb`). See `../REVISION.md`.
 
 ## Analysis scripts under `test/`
 

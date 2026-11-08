@@ -1,0 +1,24 @@
+{
+  "input": "test/benchmarks_real/hamiltonians_rz/surface_d7.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 48,
+  "num_rz_synthesized": 48,
+  "distinct_angles": 51,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 3,
+  "t_count": 1003,
+  "t_per_rotation_mean": 20.895833333333332,
+  "t_per_rotation_min": 18,
+  "t_per_rotation_max": 26,
+  "seconds": 9.1,
+  "ops": {
+    "h": 1738,
+    "t": 1003,
+    "s": 584,
+    "sdg": 325,
+    "cx": 240,
+    "x": 72
+  }
+}

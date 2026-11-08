@@ -19,6 +19,10 @@
 #                                            per rotation
 #   ./submit_revision.sh real  [--dry-run]   ising + QED-C Heisenberg n16..n64
 #                                            (benchmarks_real/heisenberg_eps1e-2/): 11 circuits
+#   ./submit_revision.sh ham   [--dry-run]   Hamiltonian simulation (18 circuits: chain, heisxyz, sk,
+#                                            surface, H2/LiH/H2O), regenerated with
+#                                            scripts/hamiltonians/gen_trotter.py, Clifford+T at eps
+#                                            1e-2 (benchmarks_real/hamiltonians_eps1e-2/, 167-22k T)
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
@@ -103,6 +107,13 @@ ls benchmarks_bursty_cx/*.qasm > revision/lists/synth_all.txt
 ls ../quantum-compiler-benchmark-circuits/jku_suite/*.qasm > revision/lists/jku.txt
 ls benchmarks_real/ising_eps1e-2/*.qasm > revision/lists/real_ising.txt
 ls benchmarks_real/{ising,heisenberg}_eps1e-2/*.qasm > revision/lists/real.txt
+# ham: one Trotter step of the simulation_hamiltonians families, regenerated from scratch
+# (the suite's own circuits are 52k-8.9M T gates), Clifford+T at eps 1e-2
+if [ "$PHASE" = ham ]; then
+    ls benchmarks_real/hamiltonians_eps1e-2/*.qasm > revision/lists/ham.txt
+    [ "$(wc -l < revision/lists/ham.txt)" -eq 18 ] ||
+        echo "warning: expected 18 circuits in benchmarks_real/hamiltonians_eps1e-2/" >&2
+fi
 
 cult_error() {  # T error per state at R rounds (analyze.py --cult-grades)
     case "$1" in 60) echo 3e-6 ;; 360) echo 2e-9 ;; esac
@@ -193,6 +204,9 @@ case "$PHASE" in
     real)
         run_set revision/lists/real.txt
         ;;
+    ham)
+        run_set revision/lists/ham.txt
+        ;;
     core|full)
         lists=(revision/lists/synth_all.txt)
         [ "$PHASE" = "full" ] && lists+=(revision/lists/jku.txt)
@@ -204,7 +218,7 @@ case "$PHASE" in
         done
         ;;
     *)
-        echo "usage: $0 mini|pilot|core|full|ising|real [--dry-run]" >&2
+        echo "usage: $0 mini|pilot|core|full|ising|real|ham [--dry-run]" >&2
         exit 1
         ;;
 esac
