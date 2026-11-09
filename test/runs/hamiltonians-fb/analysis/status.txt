@@ -1,8 +1,8 @@
-updated 2026-11-09 10:32:30 on login-3, code at 3ae22e62
-249 runs in rev.csv: {'ok': 249}
+updated 2026-11-09 10:34:21 on login-3, code at 6eef3ad5
+250 runs in rev.csv: {'ok': 250}
   D0-alt        ok 15
   D2-tight      ok 16
-  D2-wide       ok 14
+  D2-wide       ok 15
   D3-k1         ok 15
   D3-k1-fact    ok 15
   D3-s16        ok 13
