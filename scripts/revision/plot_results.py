@@ -15,6 +15,7 @@ TrueType. Include each PDF at width=\\columnwidth (heatmap: \\textwidth) so noth
   scaling       each family's best STV against N, Ising and Heisenberg apart
   split         (v2) ratios_same's STV ratios split into qubit and round ratios
   split_s2      (v2) the same for HBM's Shared-2 layouts
+  plane_cost    (v2) the planar baselines' added tiles and timesteps over ideal depth
   captions.md   a draft caption per figure: what it shows, no findings
 Cells are those of stv_table.py (cultivation at its lowest-STV R). A run whose program error
 breaks the target at the simulated d (meets_target False) is marked with a dagger or a hollow
@@ -724,6 +725,84 @@ def split(cells, benches, path, knob="k1", curve_label=(0.81, 1.25),
             f"share one label. All runs at {d_note(cells)}." + STAR)
 
 
+PLANE = [("D0-alt", "Planar-2D"), ("D2-wide", "2D-Cult")]  # baseline spec, fill family
+
+
+def plane_cost(cells, benches, path):
+    """What the planar baselines pay for keeping their magic-state resources in the data
+    plane, per circuit: (a) the tiles they add to the data region (data qubits and the
+    routing tiles between them, i.e. HBM's lower layer), split into the tiles that hold a
+    resource (factory ports, cultivation patches) and the free tiles that reach them;
+    (b) timesteps over the circuit's ideal depth."""
+    names = [label(b, cells[b]) for b in benches]
+    fig, (top, bot) = plt.subplots(2, 1, figsize=(COL, 2.75), sharex=True,
+                                   gridspec_kw=dict(height_ratios=[1, 1.15], hspace=0.12))
+    w, x = 0.38, np.arange(len(benches))
+    for k, (spec, fam) in enumerate(PLANE):
+        res, acc = [], []
+        for b in benches:
+            cs = cells[b]
+            region = next((num(cs[s]["lower_tiles"]) for s in ("D3-k1", "D3-k1-fact") if s in cs),
+                          math.nan)
+            if spec not in cs:
+                res.append(math.nan)
+                acc.append(math.nan)
+                continue
+            extra, held = num(cs[spec]["lower_tiles"]) - region, num(cs[spec]["n_sources"])
+            res.append(100 * held / region)
+            acc.append(100 * (extra - held) / region)
+        xs = x + (k - 0.5) * w
+        top.bar(xs, res, width=w, color=FILL[fam], edgecolor=INK, linewidth=0.4)
+        top.bar(xs, acc, bottom=res, width=w, color=shade(FILL[fam], 1, 2), hatch="....",
+                edgecolor=INK, linewidth=0.4)
+        ratio = [num(cells[b][spec]["steps"]) / num(cells[b][spec]["ideal_depth"])
+                 if spec in cells[b] else math.nan for b in benches]
+        mk = STYLE[fam][0]
+        bot.vlines(xs, 1, ratio, color=LINE[fam], lw=1.0, zorder=2)
+        bot.scatter(xs, ratio, s=16, marker=mk, facecolor=FILL[fam], edgecolor=INK,
+                    linewidth=0.4, zorder=3)
+    top.set_ylabel("Added tiles (%)")
+    top.set_ylim(0, 60)
+    top.yaxis.set_major_locator(mticker.MultipleLocator(20))
+    top.grid(True, axis="y", color=GRID, lw=0.5)
+    top.set_axisbelow(True)
+    handles = [Rectangle((0, 0), 1, 1, facecolor=FILL[f], edgecolor=INK, linewidth=0.4)
+               for _, f in PLANE]
+    handles += [Rectangle((0, 0), 1, 1, facecolor="white", edgecolor=INK, linewidth=0.4),
+                Rectangle((0, 0), 1, 1, facecolor="white", hatch="....", edgecolor=INK,
+                          linewidth=0.4)]
+    top.legend(handles, [f for _, f in PLANE] + ["resource tiles", "access tiles"],
+               loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=4, handlelength=1.0,
+               columnspacing=0.8)
+    bot.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
+    bot.set_yscale("log")
+    bot.set_ylim(0.8, 45)
+    bot.yaxis.set_major_locator(mticker.FixedLocator([1, 2, 5, 10, 20]))
+    bot.yaxis.set_minor_locator(mticker.NullLocator())
+    bot.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    bot.set_ylabel("Timesteps / ideal")
+    bot.grid(True, axis="y", color=GRID, lw=0.5)
+    bot.set_axisbelow(True)
+    bot.set_xticks(x, names, rotation=45, ha="right", rotation_mode="anchor")
+    bot.set_xlim(-0.6, len(benches) - 0.4)
+    bot.tick_params(axis="x", length=0)
+    for ax, tag in ((top, "(a)"), (bot, "(b)")):
+        ax.text(-0.21, 1.0, tag, transform=ax.transAxes, fontsize=8, va="top", ha="left")
+    fig.savefig(path)
+    plt.close(fig)
+    ds = sorted({int(cells[b][s]["d_sim"]) for b in benches for s, _ in PLANE if s in cells[b]})
+    return ("The cost of keeping magic-state resources in the data plane, for the two planar "
+            "baselines, per circuit: Planar-2D (factory ports on a ring around the data "
+            "region) and 2D-Cult (one cultivation patch beside each data qubit). (a) Tiles each "
+            "baseline adds to its data region (the data qubits and the routing tiles between "
+            "them), as a percentage of that region: tiles that hold a resource (solid) and the "
+            "free tiles through which T states reach them (dotted). Factory bodies, outside "
+            "the plane, are not counted. (b) Timesteps divided by the circuit's ideal depth, "
+            "its critical path at one timestep per gate; log scale. All runs at the smallest "
+            "odd code distance that meets the program-error target, chosen per run "
+            f"(d = {ds[0]}-{ds[-1]})." + STAR)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -752,7 +831,8 @@ def main():
         max((b for b in benches if grade(cells[b]) == g), key=lambda b: circuit(b)[1])
         for g in sorted({grade(cells[b]) for b in benches}, key=str)]
     if v2:
-        figs = [("ratios_same", lambda p: ratios_same(cells, benches, p)),
+        figs = [("plane_cost", lambda p: plane_cost(cells, benches, p)),
+                ("ratios_same", lambda p: ratios_same(cells, benches, p)),
                 ("split", lambda p: split(cells, benches, p)),
                 ("split_s2", lambda p: split(
                     cells, benches, p, "s2", (1.62, 0.7),

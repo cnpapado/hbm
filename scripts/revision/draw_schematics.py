@@ -79,9 +79,10 @@ def draw_layout(ax, arch, source, top, lift):
             x, y = xy(p)
             (a, b), (_, c) = oblique(x + .5, y + .5, 0), oblique(x + .5, y + .5, lift)
             ax.plot([a, a], [b, c], color=LINK, lw=0.9, zorder=2.5, solid_capstyle="butt")
-        for p in range(w * h):  # Upper-First routing tiles and the sources
-            x, y = xy(p)
-            tile(ax, x, y, lift, *(src if p in sources else (ROUTE, None)))
+        for p in range(w * h):  # the upper layer holds only the sources (Lower-First)
+            if p in sources:
+                x, y = xy(p)
+                tile(ax, x, y, lift, *src)
     return 0, w + SLANT * h, 0, DEPTH * h + (lift if top else 0)
 
 
@@ -390,9 +391,10 @@ CAPTIONS = {
         "on an upper layer connected by vertical couplings. Planar-2D places a factory port "
         "on every other tile of a ring around the data; 2D-Cult places a cultivation patch "
         "beside each data qubit; HBM and HBM-Cult place one source above each data qubit "
-        "(Dedicated) on an upper layer whose other tiles route T states (Upper-First). "
-        "Factory bodies (11 tiles each) are not drawn; a cultivation patch is drawn as one "
-        "tile. Shared-S layouts keep one upper-layer source per S data qubits."),
+        "(Dedicated) on an upper layer that holds only sources. Factory bodies (11 tiles "
+        "each) are not drawn; a cultivation patch is drawn as one tile. Shared-S layouts keep "
+        "one upper-layer source per S data qubits, and T gates reach them by routing on the "
+        "data layer to the tile below a source (Lower-First)."),
     "cross_layer_merge": (
         "Lattice-surgery merge that injects a T state from the upper layer (d = 3). (a) The "
         "merged patch: data patch D, gap column G prepared in |+>, and T-state patch M; the "
