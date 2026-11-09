@@ -13,6 +13,11 @@ HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 # HBM_DESIGN (revision designs #0-#5) takes precedence over HBM_CONFIG; see designs.py.
 DESIGN = get_design()
 
+# Within a step the router tries orders of the executable gates, routing each greedily. The
+# default (as in DASCOT) starts from a random mix and searches CNOTs-then-T orders for small
+# steps; HBM_GATE_ORDER=t_first always routes the step's T gates before its CNOTs.
+T_FIRST = os.getenv("HBM_GATE_ORDER", "") == "t_first"
+
 
 # shared_2-route_bottom
 # shared_2-route_upper
@@ -522,8 +527,10 @@ def best_realizable_set_found(
     cnot_indices = [
         i for (i, (id, gate)) in enumerate(executable.items()) if len(gate) == 2
     ]
+    # the two groups of an order, each permuted on its own below
+    first, second = (t_indices, cnot_indices) if T_FIRST else (cnot_indices, t_indices)
     if initial_order == "naive":
-        best_order = cnot_indices + t_indices
+        best_order = first + second
         best_step = try_order(
             best_order,
             executable,
@@ -536,8 +543,11 @@ def best_realizable_set_found(
         current_order = best_order
         current_step = best_step
     elif initial_order == "random":
-        best_order = cnot_indices + t_indices
-        random.shuffle(best_order)
+        if T_FIRST:
+            best_order = random.sample(first, len(first)) + random.sample(second, len(second))
+        else:
+            best_order = cnot_indices + t_indices
+            random.shuffle(best_order)
         best_step = try_order(
             best_order,
             executable,
@@ -607,7 +617,7 @@ def best_realizable_set_found(
 
         orders_to_explore = orders[:sample_size]
         for cnot_order, t_order in orders_to_explore:
-            order = list(cnot_order) + list(t_order)
+            order = list(t_order) + list(cnot_order) if T_FIRST else list(cnot_order) + list(t_order)
             new_step = try_order(
                 order,
                 executable,
@@ -632,15 +642,15 @@ def best_realizable_set_found(
     else:
         while temperature > termination_temp:
             new_order = current_order.copy()
-            cnots, ts = new_order[: len(cnot_indices)], new_order[len(cnot_indices) :]
+            cnots, ts = new_order[: len(first)], new_order[len(first) :]
             if len(cnots) > 1:
                 ind1, ind2 = np.random.choice(
-                    range(len(cnot_indices)), size=2, replace=False
+                    range(len(first)), size=2, replace=False
                 )
                 cnots[ind1], cnots[ind2] = cnots[ind2], cnots[ind1]
             if len(ts) > 1:
                 ind1, ind2 = np.random.choice(
-                    range(len(t_indices)), size=2, replace=False
+                    range(len(second)), size=2, replace=False
                 )
                 ts[ind1], ts[ind2] = ts[ind2], ts[ind1]
             new_order = cnots + ts
