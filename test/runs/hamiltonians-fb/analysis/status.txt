@@ -1,0 +1,20 @@
+updated 2026-11-09 10:32:30 on login-3, code at 3ae22e62
+249 runs in rev.csv: {'ok': 249}
+  D0-alt        ok 15
+  D2-tight      ok 16
+  D2-wide       ok 14
+  D3-k1         ok 15
+  D3-k1-fact    ok 15
+  D3-s16        ok 13
+  D3-s16-fact   ok 13
+  D3-s16-fact-bottom ok 13
+  D3-s2         ok 16
+  D3-s2-fact    ok 16
+  D3-s2-fact-bottom ok 16
+  D3-s4         ok 16
+  D3-s4-fact    ok 16
+  D3-s4-fact-bottom ok 16
+  D3-s8         ok 13
+  D3-s8-fact    ok 13
+  D3-s8-fact-bottom ok 13
+Slurm: 38 tasks running, 0 pending
