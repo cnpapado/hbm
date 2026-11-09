@@ -128,7 +128,7 @@ feasible() {  # feasible <qasm> <R>: the circuit's T states alone meet the targe
 wanted() {  # wanted <qasm> <design> <R>: whether the run can change the results
     case "$2" in
         D0*) [ -z "$PLAN" ] || grep -qxF "$1 $2" "$PLAN"; return ;;  # fits on the ring
-        *-fact) return 0 ;;  # factories on top: no recharge grade to check
+        *-fact|*-fact-*) return 0 ;;  # factories on top (incl. -fact-bottom): no recharge grade
         D2*|D3*|D4*) ;;
         *) return 0 ;;
     esac

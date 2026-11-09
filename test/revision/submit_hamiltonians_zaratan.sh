@@ -21,6 +21,10 @@
 #
 # Overrides: ACCOUNT, PART, TIME (HH:MM:SS, wisq gets TIME - 30 min), MEM, REV_DIR,
 # CULT_SPECS / FACT_SPECS.
+# Lower-first (bottom-routed) HBM factories are not in the default set; add them with
+#   FACT_SPECS="D0-alt D3-k1-fact D3-s2-fact D3-s4-fact D3-s8-fact D3-s16-fact \
+#               D3-s2-fact-bottom D3-s4-fact-bottom D3-s8-fact-bottom D3-s16-fact-bottom"
+# (Shared layouts only: Dedicated has no routed T gates. Finished runs are skipped.)
 set -euo pipefail
 HBM_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 export HBM_ROOT HBM_VENV="${HBM_VENV:-$HBM_ROOT/wisq/.venv}"
