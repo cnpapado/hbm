@@ -1,0 +1,12 @@
+circuit,qubits,slots,grid,tiles,slot_usage,tile_usage
+ising_n10,10,16,9x9,81,0.625,0.123
+ising_n13,13,16,9x9,81,0.812,0.160
+heisenberg_qedc_n16,16,16,9x9,81,1.000,0.198
+ising_n16,16,16,9x9,81,1.000,0.198
+heisenberg_qedc_n20,20,25,11x11,121,0.800,0.165
+heisenberg_qedc_n25,25,25,11x11,121,1.000,0.207
+ising_n26,26,36,13x13,169,0.722,0.154
+ising_n34,34,36,13x13,169,0.944,0.201
+heisenberg_qedc_n49,49,49,15x15,225,1.000,0.218
+heisenberg_qedc_n64,64,64,17x17,289,1.000,0.221
+ising_n66,66,81,19x19,361,0.815,0.183
