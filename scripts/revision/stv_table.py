@@ -7,8 +7,8 @@ rounds, at the simulated d) or, with --metric, its Q or steps:
   .       not finished yet
 2D-Cult cells use the cultivation R with the lowest STV. The last columns compare STV:
 P1 = best 2D-Cult / best HBM, P2 = Planar-2D / best HBM (> 1: HBM wins), and name the best
-HBM layout. Bottom-routed Shared-S columns (D3-s<S>-fact-bottom) appear when the CSV has them,
-and count as HBM layouts.
+HBM layout. Bottom-routed (D3-s<S>-fact-bottom) and active-qubit (-active) Shared-S columns
+appear when the CSV has them, and count as HBM layouts.
 
 Usage:
   python stv_table.py rev.csv [--metric STV|Q|steps] [--csv stv_table.csv]
@@ -25,6 +25,9 @@ COLS = [  # (column, spec)
     ("HBM-S8", "D3-s8-fact"), ("HBM-S16", "D3-s16-fact"),
 ]
 BOTTOM_COLS = [(f"HBM-S{k}-bot", f"D3-s{k}-fact-bottom") for k in (2, 4, 8, 16)]  # if run
+# -active: ceil(N / S) factories for the N qubits in use (designs.py), if run
+ACTIVE_COLS = ([(f"HBM-S{k}-act", f"D3-s{k}-fact-active") for k in (2, 4, 8, 16)]
+               + [(f"HBM-S{k}-bot-act", f"D3-s{k}-fact-bottom-active") for k in (2, 4, 8, 16)])
 CULT = ("D2-wide", "D2-tight")
 
 
@@ -64,7 +67,7 @@ def main():
     by = {}
     for r in rows:
         by.setdefault((r["bench"], r["spec"]), []).append(r)
-    cols = COLS + [c for c in BOTTOM_COLS if any(r["spec"] == c[1] for r in rows)]
+    cols = COLS + [c for c in BOTTOM_COLS + ACTIVE_COLS if any(r["spec"] == c[1] for r in rows)]
     hbm_specs = [spec for _, spec in cols if spec.startswith("D3")]
     benches = sorted({r["bench"] for r in rows},
                      key=lambda b: tuple(int(x) for x in re.findall(r"\d+", b)[::-1]))

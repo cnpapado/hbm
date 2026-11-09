@@ -35,12 +35,21 @@ Spec grammar ("-"-separated tokens):
                      directly above every data qubit, one extra row per data row; tight: patches
                      replace the routing tiles between pairs of data rows (1 per 2 qubits).
                      -borrow: a T gate may route in-plane to another qubit's ready patch.
-  D3-k1 | D3-khalf | D3-k2 | D3-kquarter | D3-s2 | D3-s4 | D3-s8 | D3-s16 [-route] [-fact]
+  D3-k1 | D3-khalf | D3-k2 | D3-kquarter | D3-rows | D3-ancilla | D3-full | D3-s2 | D3-s4 | D3-s8
+     | D3-s16 [-route] [-fact]
                      Cultivation on top (proposed).
                      k1: patch above each data qubit (the HBMS paper's Dedicated); khalf: above
                      the routing tiles between pairs of data rows; k2: above every data qubit
                      and every routing tile on a data qubit's vertical side; kquarter: one per
-                     2x2 data block, reached by a full top routing layer. s<S>: the HBMS
+                     2x2 data block, reached by a full top routing layer. rows: a patch on
+                     every top tile of the data rows (above each data qubit and each routing
+                     tile between data qubits in a row, about 2 per qubit), with the rows
+                     between as the top routing layer. ancilla (needs -bottom): a patch above
+                     every lower-plane tile that is not a data slot (about 4 per qubit); the
+                     top layer has no free lane, so T gates route in the data plane. full (needs
+                     -bottom): a patch on every top tile, i.e. ancilla plus k1; the patch above a
+                     data qubit serves only that qubit (bottom routing reaches a patch only from
+                     the free tile below it). s<S>: the HBMS
                      paper's Shared-S, one per S data qubits at architecture.py's
                      hbm_shared_<S>_positions, with a full top routing layer (s4 = kquarter).
                      -route: add that routing layer to k1/k2/khalf. -fact: each top source is
@@ -49,6 +58,10 @@ Spec grammar ("-"-separated tokens):
                      routing layer; a routed T gate goes from the data qubit's vertical side
                      through the data plane to the tile below a source, which merges down
                      into it (one vertical merge). Direct sources are unchanged.
+                     -active (s<S> only): ceil(N / S) sources for the N qubits the circuit
+                     uses, instead of one per S slots of the padded square grid; they are an
+                     evenly spaced subset of the Shared-S positions (of Shared-S/2, S/4...
+                     where Shared-S has too few positions).
   D4-k1 | D4-k1p5[-route]                Compact plane + cultivation on top (proposed).
 
 Physical parameters (env vars; defaults are for p = 1e-3):
@@ -224,11 +237,16 @@ def parse_design(spec, d=None, cult_rounds=None, factory_rounds=None, factory_qu
                       "PLANE", allow_direct=True, allow_route="borrow" in flags,
                       top_routing_layer=False, **params)
     if family == "D3":
-        check(("k1", "k2", "khalf", "kquarter") + SHARED_KNOBS, ("route", "fact", "bottom"))
-        routed = knob in ("kquarter",) + SHARED_KNOBS or "route" in flags
+        check(("k1", "k2", "khalf", "kquarter", "rows", "ancilla", "full") + SHARED_KNOBS,
+              ("route", "fact", "bottom", "active"))
+        if "active" in flags and knob not in SHARED_KNOBS:
+            raise ValueError(f"-active needs a Shared-S layout (s2, s4, s8, s16), got {spec!r}")
+        routed = knob in ("kquarter", "rows", "ancilla", "full") + SHARED_KNOBS or "route" in flags
         bottom = "bottom" in flags
+        if knob in ("ancilla", "full") and not bottom:
+            raise ValueError(f"D3-{knob} leaves no top routing lane; it needs -bottom, got {spec!r}")
         if bottom and not routed:
-            raise ValueError(f"-bottom needs a routed layout (kquarter, s<S> or -route), "
+            raise ValueError(f"-bottom needs a routed layout (kquarter, rows, s<S> or -route), "
                              f"got {spec!r}")
         source = "factory" if "fact" in flags else "cultivation"
         return Design(spec, family, knob, flags, "square_sparse", "top", source,
@@ -577,6 +595,13 @@ def _d2_cultivation_plane(design, n):
     return arch, _cult_acct(len(patches))
 
 
+def _spread(positions, k):
+    """k of the sorted positions, evenly spaced through the list (all of them if k >= len)."""
+    if k >= len(positions):
+        return positions
+    return [positions[(2 * i + 1) * len(positions) // (2 * k)] for i in range(k)]
+
+
 def _d3_top(design, n):
     """Sources on the top layer: cultivation patches, or factories with -fact (each drawn on
     one top tile and charged factory_qubits)."""
@@ -592,9 +617,22 @@ def _d3_top(design, n):
         patches = sorted(set(data) | side)
     elif design.knob == "kquarter":
         patches = hbm_shared_4_positions(arch)
+    elif design.knob == "rows":  # data sits on the odd rows
+        patches = [_pos(r, c, width) for r in range(1, height, 2) for c in range(width)]
+    elif design.knob == "ancilla":  # above every lower-plane routing tile
+        patches = [p for p in range(width * height) if p not in set(data)]
+    elif design.knob == "full":
+        patches = list(range(width * height))
     else:  # s2, s4, s8, s16
         patches = SHARED[design.knob](arch)
     patches = sorted(set(patches))
+    if "active" in design.flags:  # one source per S qubits in use, not per S grid slots
+        k = math.ceil(n / int(design.knob[1:]))
+        for knob in reversed(SHARED_KNOBS[: SHARED_KNOBS.index(design.knob) + 1]):
+            patches = sorted(set(SHARED[knob](arch)))  # densest needed: s<S>, else s<S/2>...
+            if len(patches) >= k:
+                break
+        patches = _spread(patches, k)
     arch.update(magic_states=patches, blocked=[], blocked_top=[])
     top_tiles = width * height if design.top_routing_layer else len(patches)
     if design.source == "factory":
