@@ -15,3 +15,24 @@
     `D3-rows`.
   Cultivation S4-S16 are not defined, so their markers are missing (and the `sharing`
   figure is not drawn). `D3-ancilla-bottom` and `D3-full-bottom` are not in the figures.
+
+## Dense cultivation layouts (all bottom-first except `D3-rows`)
+
+STV relative to HBM-Ded cultivation (`D3-k1`), from `rev_all.csv`; lower is better.
+`rows` = patches on the data rows, `ancilla` = above every routing tile, `full` = whole
+upper layer (a patch above a data qubit serves only that qubit). heis n49/n64 and ising
+n66 use R360; the rest R60.
+
+| circuit | D2-tight | rows (top) | rows (bottom) | ancilla | full |
+|---|---|---|---|---|---|
+| ising n10 | 1.42 | 0.37 | 0.27 | 0.29 | 0.32 |
+| ising n13 | 1.33 | 0.48 | 0.37 | 0.30 | 0.33 |
+| heis n16  | 1.35 | 0.60 | 0.48 | 0.36 | 0.35 |
+| ising n16 | 1.37 | 0.59 | 0.46 | 0.33 | 0.33 |
+| heis n20  | 1.46 | 0.52 | 0.39 | 0.32 | 0.33 |
+| heis n25  | 1.47 | 0.61 | 0.49 | 0.37 | 0.36 |
+| ising n26 | 1.18 | 0.39 | 0.31 | 0.29 | 0.32 |
+| ising n34 | 1.19 | 0.50 | 0.41 | 0.32 | 0.33 |
+| heis n49  | 1.34 | 0.64 | 0.51 | 0.36 | 0.33 |
+| heis n64  | 1.33 | 0.67 | 0.52 | 0.37 | 0.33 |
+| ising n66 | 1.25 | 0.47 | 0.36 | 0.24 | 0.23 |
