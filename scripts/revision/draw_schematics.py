@@ -8,6 +8,8 @@
   cross_layer_merge  (two columns) the Z_D Z_M merge that injects a T state from the upper
                      layer: (a) the merged patch, (b) the same patch folded across the layers,
                      (c) the CNOT order of a cross-layer check. Replaces the old Fig. 2.
+  lower_first        (one column) Lower-First routing in Shared-2, N = 4: a T path on the data
+                     layer to the ancilla tile below a resource, then one vertical coupling.
   captions.md        a caption per figure: what it shows, no findings.
 
 The merge figure is built from a rotated-surface-code construction that this script checks
@@ -377,6 +379,85 @@ def cross_layer_merge(path, d=3):
 
 # ---------------------------------------------------------------- output
 
+# ---------------------------------------------------------------- Lower-First routing
+
+PATH = "#8FD3C1"  # ancilla tiles on a T path
+
+
+def t_path(arch, q, target):
+    """Shortest path of free ancilla tiles from a tile on q's vertical (Z) side to `target`,
+    as the router searches it (design_routing._best_path, BOTTOM)."""
+    w, h = arch["width"], arch["height"]
+    data = set(arch["alg_qubits"])
+    starts = [p for p in (q - w, q + w) if 0 <= p < w * h and p not in data]
+    prev, frontier = {s: None for s in starts}, list(starts)
+    while frontier and target not in prev:
+        nxt = []
+        for p in frontier:
+            r, c = divmod(p, w)
+            for rr, cc in ((r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)):
+                n = rr * w + cc
+                if 0 <= rr < h and 0 <= cc < w and n not in data and n not in prev:
+                    prev[n] = p
+                    nxt.append(n)
+        frontier = nxt
+    out, p = [], target
+    while p is not None:
+        out.append(p)
+        p = prev[p]
+    return out[::-1]
+
+
+def lower_first(path, n=4):
+    """Shared-2 for N = 4 (the simulator's layout): the upper layer holds only the two
+    resources; a T gate routes on the data layer to the ancilla tile below a resource and
+    merges up through that tile's vertical coupling."""
+    arch = build_arch(parse_design("D3-s2", d=13), n)
+    arch = arch[0] if isinstance(arch, tuple) else arch
+    w, h = arch["width"], arch["height"]
+    data, sources = sorted(arch["alg_qubits"]), sorted(arch["magic_states"])
+    q, src = data[1], sources[0]  # the T gate's data qubit and the resource it reaches
+    route = set(t_path(arch, q, src))
+    lift = 3.2
+
+    def xy(p):
+        r, c = divmod(p, w)
+        return c, h - 1 - r
+
+    fig = plt.figure(figsize=(COL, 1.75))
+    ax = fig.add_axes((0.0, 0.0, 0.62, 1.0))
+    for p in range(w * h):
+        x, y = xy(p)
+        tile(ax, x, y, 0, DATA if p in data else PATH if p in route else ROUTE)
+    corners = [oblique(a, b, lift) for a, b in ((0, 0), (w, 0), (w, h), (0, h))]
+    ax.add_patch(Polygon(corners, closed=True, fill=False, edgecolor=MUTED, lw=0.5,
+                         ls=(0, (3, 2)), zorder=2.5))
+    for s in sources:
+        x, y = xy(s)
+        (a, b), (_, c) = oblique(x + .5, y + .5, 0), oblique(x + .5, y + .5, lift)
+        ax.plot([a, a], [b, c], color=LINK, lw=1.6 if s == src else 0.8, zorder=3,
+                solid_capstyle="butt")
+        tile(ax, x, y, lift, SOURCE)
+    for p, text in ((q, "q"), (src, "M")):
+        x, y = xy(p)
+        cx, cy = oblique(x + .5, y + .5, lift if p == src else 0)
+        ax.text(cx, cy, text, ha="center", va="center", fontsize=7,
+                color="white" if p == q else INK, zorder=10)
+    ax.set_xlim(-0.3, w + SLANT * h + 0.3)
+    ax.set_ylim(-0.3, DEPTH * h + lift + 0.4)
+    ax.set_aspect("equal")
+    ax.axis("off")
+    handles = [Patch(facecolor=DATA, edgecolor=EDGE, lw=0.4, label="Data qubit"),
+               Patch(facecolor=ROUTE, edgecolor=EDGE, lw=0.4, label="Ancilla tile"),
+               Patch(facecolor=PATH, edgecolor=EDGE, lw=0.4, label="T path"),
+               Patch(facecolor=SOURCE, edgecolor=EDGE, lw=0.4, label="Magic-state\nresource"),
+               Line2D([], [], color=LINK, lw=1.0, label="Vertical\ncoupling"),
+               Line2D([], [], color=MUTED, lw=0.5, ls=(0, (3, 2)), label="Upper layer")]
+    fig.legend(handles=handles, loc="center left", bbox_to_anchor=(0.63, 0.5),
+               handlelength=1.1, labelspacing=0.55)
+    save(fig, path)
+
+
 def save(fig, path):
     for p in path:
         fig.savefig(p)
@@ -395,6 +476,13 @@ CAPTIONS = {
         "each) are not drawn; a cultivation patch is drawn as one tile. Shared-S layouts keep "
         "one upper-layer source per S data qubits, and T gates reach them by routing on the "
         "data layer to the tile below a source (Lower-First)."),
+    "lower_first": (
+        "Lower-First routing in a Shared-2 configuration of a Square Sparse layout with four "
+        "logical data qubits (the simulator's layout). The upper layer holds only the two "
+        "magic-state resources, each above an ancilla tile between two data qubits of a row. "
+        "A T gate on data qubit q routes over free ancilla tiles of the data layer, starting "
+        "next to q's Z boundary, to the ancilla tile below resource M, and merges up through "
+        "that tile's vertical coupling. Each resource has one vertical coupling."),
     "cross_layer_merge": (
         "Lattice-surgery merge that injects a T state from the upper layer (d = 3). (a) The "
         "merged patch: data patch D, gap column G prepared in |+>, and T-state patch M; the "
@@ -417,6 +505,7 @@ def main():
     paths = lambda name: [os.path.join(args.out, f"{name}.{f}") for f in fmts]  # noqa: E731
     design_space(paths("design_space"))
     cross_layer_merge(paths("cross_layer_merge"))
+    lower_first(paths("lower_first"))
     with open(os.path.join(args.out, "captions.md"), "w") as f:
         for name, text in CAPTIONS.items():
             f.write(f"**{name}.pdf.** {text}\n\n")
