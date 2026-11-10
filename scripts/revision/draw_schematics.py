@@ -497,23 +497,34 @@ def lower_first(path, n=4):
     save(fig, path)
 
 
+def slab(ax, x, y, z, color, side, t=0.22, lw=0.3):
+    """A tile with thickness t: its front and right faces in `side`, then its top face."""
+    p = lambda a, b, c: oblique(x + a, y + b, c)  # noqa: E731
+    for face in ([p(0, 0, z - t), p(1, 0, z - t), p(1, 0, z), p(0, 0, z)],
+                 [p(1, 0, z - t), p(1, 1, z - t), p(1, 1, z), p(1, 0, z)]):
+        ax.add_patch(Polygon(face, closed=True, facecolor=side, edgecolor=EDGE, linewidth=lw,
+                             zorder=3 + z))
+    ax.add_patch(Polygon([p(0, 0, z), p(1, 0, z), p(1, 1, z), p(0, 1, z)], closed=True,
+                         facecolor=color, edgecolor=EDGE, linewidth=lw, zorder=3 + z))
+
+
 def upper_layers(path, n=16):
     """HBMS's upper-layer configurations for N = 16 (the simulator's layouts), 2 x 2:
     Dedicated, Shared-2, Shared-4 and Shared-8. The upper layer holds only the resources; each
-    has one vertical coupling to the tile below it (Lower-First)."""
+    has one vertical coupling to the tile below it (Lower-First), marked on the data layer."""
     panels = [("D3-k1", "Dedicated"), ("D3-s2", "Shared-2"), ("D3-s4", "Shared-4"),
               ("D3-s8", "Shared-8")]
-    lift = 4.1
-    W, H = COL, 2.75
+    lift, side = 4.0, "#B9651F"
+    W, H = COL, 2.7
     fig = plt.figure(figsize=(W, H))
-    pw, ph, top = 0.5, 0.41, 0.83  # panel width and height (figure fractions), top edge
+    pw, ph, top = 0.5, 0.42, 0.855  # panel width and height (figure fractions), top edge
     for k, (spec, title) in enumerate(panels):
         arch = build_arch(parse_design(spec, d=13), n)
         arch = arch[0] if isinstance(arch, tuple) else arch
         w, h = arch["width"], arch["height"]
         data, sources = set(arch["alg_qubits"]), sorted(arch["magic_states"])
         col, row = k % 2, k // 2
-        ax = fig.add_axes((col * pw, top - (row + 1) * ph, pw, ph - 0.06))
+        ax = fig.add_axes((col * pw, top - (row + 1) * ph, pw, ph - 0.05))
 
         def xy(p):
             r, c = divmod(p, w)
@@ -521,30 +532,47 @@ def upper_layers(path, n=16):
 
         for p in range(w * h):
             x, y = xy(p)
-            tile(ax, x, y, 0, DATA if p in data else ROUTE, lw=0.25)
+            pts = [oblique(x + a_, y + b_) for a_, b_ in ((0, 0), (1, 0), (1, 1), (0, 1))]
+            ax.add_patch(Polygon(pts, closed=True, facecolor=DATA if p in data else ROUTE,
+                                 edgecolor="#2A4A78" if p in data else "#A8A8A8",
+                                 linewidth=0.25, zorder=2))
+        for s_ in sources:  # landing tile: the tile below the resource
+            x, y = xy(s_)
+            pts = [oblique(x + a_, y + b_) for a_, b_ in ((.12, .12), (.88, .12), (.88, .88),
+                                                          (.12, .88))]
+            ax.add_patch(Polygon(pts, closed=True, facecolor="none", edgecolor=SOURCE,
+                                 linewidth=0.8, zorder=2.1))
         corners = [oblique(a_, b_, lift) for a_, b_ in ((0, 0), (w, 0), (w, h), (0, h))]
-        ax.add_patch(Polygon(corners, closed=True, facecolor="#F4F4F4", edgecolor=MUTED,
+        ax.add_patch(Polygon(corners, closed=True, facecolor="#F3F3F3", edgecolor=MUTED,
                              lw=0.45, ls=(0, (3, 2)), zorder=2.2))
         for s_ in sources:
             x, y = xy(s_)
             (a_, b_), (_, c_) = oblique(x + .5, y + .5, 0), oblique(x + .5, y + .5, lift)
-            ax.plot([a_, a_], [b_, c_], color=LINK, lw=0.7, zorder=2.6, solid_capstyle="butt")
-            tile(ax, x, y, lift, SOURCE, lw=0.25)
+            ax.plot([a_, a_], [b_, c_ - 0.1], color=LINK, lw=0.75, zorder=2.6,
+                    solid_capstyle="butt")
+            ax.plot([a_], [b_], marker="o", markersize=1.8, color=LINK, zorder=2.65)
+        for s_ in sorted(sources, key=lambda p: -xy(p)[1]):  # back to front
+            x, y = xy(s_)
+            slab(ax, x, y, lift, SOURCE, side, lw=0.25)
         ax.set_xlim(-0.3, w + SLANT * h + 0.3)
-        ax.set_ylim(-0.3, DEPTH * h + lift + 0.2)
+        ax.set_ylim(-0.3, DEPTH * h + lift + 0.15)
         ax.set_aspect("equal")
         ax.axis("off")
-        fig.text(col * pw + pw / 2, top - row * ph - 0.005,
-                 f"({'abcd'[k]}) {title}: {len(sources)} resources", ha="center", va="top",
-                 fontsize=8)
-    handles = [Patch(facecolor=DATA, edgecolor=EDGE, lw=0.4, label="Data qubit"),
-               Patch(facecolor=ROUTE, edgecolor=EDGE, lw=0.4, label="Ancilla tile"),
+        fig.text(col * pw + 0.02, top - row * ph, f"({'abcd'[k]}) {title}",
+                 ha="left", va="top", fontsize=8, fontweight="bold")
+        fig.text(col * pw + pw - 0.02, top - row * ph, f"{len(sources)} resources",
+                 ha="right", va="top", fontsize=8, color=MUTED)
+    handles = [Patch(facecolor=DATA, edgecolor="#2A4A78", lw=0.4, label="Data qubit"),
+               Patch(facecolor=ROUTE, edgecolor="#A8A8A8", lw=0.4, label="Ancilla tile"),
                Patch(facecolor=SOURCE, edgecolor=EDGE, lw=0.4, label="Magic-state resource"),
-               Line2D([], [], color=LINK, lw=1.0, label="Vertical coupling"),
-               Patch(facecolor="#F4F4F4", edgecolor=MUTED, lw=0.45, ls=(0, (3, 2)),
+               Line2D([], [], color=LINK, lw=1.0, marker="o", markersize=2.5,
+                      markevery=[0], label="Vertical coupling"),
+               Patch(facecolor="none", edgecolor=SOURCE, lw=0.9,
+                     label="Tile below a resource"),
+               Patch(facecolor="#F3F3F3", edgecolor=MUTED, lw=0.45, ls=(0, (3, 2)),
                      label="Upper layer")]
     fig.legend(handles=handles, loc="upper center", ncol=3, bbox_to_anchor=(0.5, 1.01),
-               handlelength=1.2, columnspacing=0.9)
+               handlelength=1.2, columnspacing=0.8)
     save(fig, path)
 
 
@@ -578,9 +606,9 @@ CAPTIONS = {
         "The HBMS upper-layer configurations for N = 16 logical data qubits, drawn from the "
         "simulator's layouts: (a) Dedicated, one magic-state resource above each data qubit; "
         "(b)-(d) Shared-2, -4 and -8, one resource per 2, 4 or 8 data qubits, each above an "
-        "ancilla tile of the data layer. The upper layer holds only the resources, and each "
-        "resource has one vertical coupling to the tile below it. Shared-16 follows the same "
-        "pattern with one resource."),
+        "ancilla tile of the data layer. The upper layer holds only the resources. Each "
+        "resource has one vertical coupling, which lands on the tile below it (outlined). "
+        "Shared-16 follows the same pattern with one resource."),
     "cross_layer_merge": (
         "Lattice-surgery merge that injects a T state from the upper layer (d = 3). (a) The "
         "merged patch: data patch D, gap column G prepared in |+>, and T-state patch M; the "
