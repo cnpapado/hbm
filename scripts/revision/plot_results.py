@@ -766,14 +766,14 @@ def plane_cost(cells, benches, path):
     top.yaxis.set_major_locator(mticker.MultipleLocator(20))
     top.grid(True, axis="y", color=GRID, lw=0.5)
     top.set_axisbelow(True)
-    handles = [Rectangle((0, 0), 1, 1, facecolor=FILL[f], edgecolor=INK, linewidth=0.4)
-               for _, f in PLANE]
-    handles += [Rectangle((0, 0), 1, 1, facecolor="white", edgecolor=INK, linewidth=0.4),
-                Rectangle((0, 0), 1, 1, facecolor="white", hatch="....", edgecolor=INK,
-                          linewidth=0.4)]
-    top.legend(handles, [f for _, f in PLANE] + ["resource tiles", "access tiles"],
-               loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=4, handlelength=1.0,
-               columnspacing=0.8)
+    handles, texts = [], []
+    for (_, fam), held in zip(PLANE, ("factory ports", "cultivation patches")):
+        handles += [Rectangle((0, 0), 1, 1, facecolor=FILL[fam], edgecolor=INK, linewidth=0.4),
+                    Rectangle((0, 0), 1, 1, facecolor=shade(FILL[fam], 1, 2), hatch="....",
+                              edgecolor=INK, linewidth=0.4)]
+        texts += [f"{fam}: {held}", f"{fam}: free access tiles"]
+    top.legend(handles, texts, loc="lower left", bbox_to_anchor=(-0.02, 1.0), ncol=2,
+               handlelength=1.0, columnspacing=0.8)
     bot.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
     bot.set_yscale("log")
     bot.set_ylim(0.8, 45)
