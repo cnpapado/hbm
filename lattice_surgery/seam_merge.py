@@ -393,10 +393,31 @@ def check(args):
 
 # ---- fitting
 
+def load_sinter(path):
+    """Rows like the CSV's from a sinter resume file (<csv>.sinter), so a fit can run on the
+    partial results of tasks that have not finished. Its lines are incremental: lines of the
+    same task (strong_id) are summed."""
+    import json
+    tot = {}
+    with open(path) as f:
+        for r in csv.DictReader(f, skipinitialspace=True):
+            r = {k.strip(): v for k, v in r.items()}
+            t = tot.setdefault(r["strong_id"], dict(json.loads(r["json_metadata"]), shots=0,
+                                                    errors=0, discards=0, seconds=0.0))
+            t["old_offset"] = str(t.get("old_offset", False))  # as in the CSV
+            for k in ("shots", "errors", "discards"):
+                t[k] += int(r[k])
+            t["seconds"] += float(r["seconds"])
+    return list(tot.values())
+
+
 def load(paths):
     rows = []
     for pat in paths:
         for path in sorted(glob.glob(pat)) or [pat]:
+            if path.endswith(".sinter"):
+                rows += load_sinter(path)
+                continue
             with open(path) as f:
                 rows += list(csv.DictReader(f))
     for r in rows:
