@@ -499,18 +499,22 @@ def lower_first(path, n=4):
 
 def upper_layers(path, n=16):
     """HBMS's upper-layer configurations for N = 16 (the simulator's layouts), 2 x 2, in the
-    style of lower_first: Dedicated, Shared-2, Shared-4 and Shared-8. The upper layer holds
+    style of lower_first: Dedicated, Shared-2, Shared-4 and Full (a cultivation patch on every
+    upper tile). The upper layer holds
     only the resources; each has one vertical coupling to the tile below it (Lower-First)."""
     panels = [("D3-k1", "Dedicated"), ("D3-s2", "Shared-2"), ("D3-s4", "Shared-4"),
-              ("D3-s8", "Shared-8")]
+              ("full", "Full (cultivation)")]
     lift = 4.0
     fig = plt.figure(figsize=(COL, 2.6))
     pw, ph, top = 0.5, 0.425, 0.85  # panel width and height (figure fractions), top edge
     for k, (spec, title) in enumerate(panels):
-        arch = build_arch(parse_design(spec, d=13), n)
+        arch = build_arch(parse_design("D3-k1" if spec == "full" else spec, d=13), n)
         arch = arch[0] if isinstance(arch, tuple) else arch
         w, h = arch["width"], arch["height"]
         data, sources = set(arch["alg_qubits"]), sorted(arch["magic_states"])
+        if spec == "full":  # mati's D3-full: a patch on every upper tile
+            sources = list(range(w * h))
+        hatch = CULT_HATCH if spec == "full" else None
         col, row = k % 2, k // 2
         ax = fig.add_axes((col * pw, top - (row + 1) * ph, pw, ph - 0.045))
 
@@ -527,13 +531,15 @@ def upper_layers(path, n=16):
         for s_ in sources:
             x, y = xy(s_)
             (a_, b_), (_, c_) = oblique(x + .5, y + .5, 0), oblique(x + .5, y + .5, lift)
-            ax.plot([a_, a_], [b_, c_], color=LINK, lw=0.9, zorder=2.6, solid_capstyle="butt")
+            ax.plot([a_, a_], [b_, c_], color=LINK, lw=0.45 if hatch else 0.9, zorder=2.6,
+                    solid_capstyle="butt")
             tile(ax, x, y, lift, SOURCE, lw=0.3)
         ax.set_xlim(-0.3, w + SLANT * h + 0.3)
         ax.set_ylim(-0.3, DEPTH * h + lift + 0.15)
         ax.set_aspect("equal")
         ax.axis("off")
-        fig.text(col * pw, top - row * ph, f"({'abcd'[k]}) {title}, {len(sources)} resources",
+        fig.text(col * pw, top - row * ph,
+                 f"({'abcd'[k]}) {title}, {len(sources)} " + ("patches" if hatch else "resources"),
                  ha="left", va="top", fontsize=8)
     handles = [Patch(facecolor=DATA, edgecolor=EDGE, lw=0.4, label="Data qubit"),
                Patch(facecolor=ROUTE, edgecolor=EDGE, lw=0.4, label="Ancilla tile"),
@@ -573,10 +579,12 @@ CAPTIONS = {
     "upper_layers": (
         "The HBMS upper-layer configurations for N = 16 logical data qubits, drawn from the "
         "simulator's layouts: (a) Dedicated, one magic-state resource above each data qubit; "
-        "(b)-(d) Shared-2, -4 and -8, one resource per 2, 4 or 8 data qubits, each above an "
-        "ancilla tile of the data layer. The upper layer holds only the resources, and each "
-        "resource has one vertical coupling to the tile below it. Shared-16 follows the same "
-        "pattern with one resource."),
+        "(b), (c) Shared-2 and -4, one resource per 2 or 4 data qubits, each above an ancilla "
+        "tile of the data layer; (d) Full, a cultivation patch above every tile of the data "
+        "layer. The upper layer holds only the resources, and each resource has one vertical "
+        "coupling to the tile below it. For factories, the resource drawn is the factory's "
+        "output tile; its distillation block sits on further layers above (not drawn). "
+        "Shared-8 and Shared-16 follow the pattern of (b) and (c) with 2 and 1 resources."),
     "cross_layer_merge": (
         "Lattice-surgery merge that injects a T state from the upper layer (d = 3). (a) The "
         "merged patch: data patch D, gap column G prepared in |+>, and T-state patch M; the "
