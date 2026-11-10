@@ -2,9 +2,9 @@
 
   python draw_schematics.py [--out figures/revision] [--fmt pdf,png]
 
-  design_space       (one column) the four evaluated designs for N = 16, from the simulator's
-                     own layouts (designs.build_arch): T-state source (factory or cultivation)
-                     against placement (data plane or upper layer). Replaces the old Figs. 1, 3.
+  design_space       (one column) the planar baselines and HBMS-Dedicated for N = 16, from the
+                     simulator's own layouts (designs.build_arch): resource (factory or
+                     cultivation) against placement (data plane or upper layer). Fig. 1.
   cross_layer_merge  (two columns) the Z_D Z_M merge that injects a T state from the upper
                      layer: (a) the merged patch, (b) the same patch folded across the layers,
                      (c) the CNOT order of a cross-layer check. Replaces the old Fig. 2.
@@ -80,6 +80,9 @@ def draw_layout(ax, arch, source, top, lift):
         tile(ax, x, y, 0, DATA if p in data else src[0] if not top and p in sources else ROUTE,
              hatch=src[1] if not top and p in sources and p not in data else None)
     if top:
+        corners = [oblique(a, b, lift) for a, b in ((0, 0), (w, 0), (w, h), (0, h))]
+        ax.add_patch(Polygon(corners, closed=True, facecolor="#F4F4F4", edgecolor=MUTED,
+                             lw=0.5, ls=(0, (3, 2)), zorder=2.2))  # the upper layer
         for p in data:  # vertical coupling from each data tile to the tile above it
             x, y = xy(p)
             (a, b), (_, c) = oblique(x + .5, y + .5, 0), oblique(x + .5, y + .5, lift)
@@ -94,8 +97,8 @@ def draw_layout(ax, arch, source, top, lift):
 def design_space(path, n=16):
     """2 x 2: rows factory / cultivation, columns in the data plane / on an upper layer, every
     cell at the same scale."""
-    cells = {(0, 0): ("D0-alt", "Planar-2D"), (0, 1): ("D3-k1-fact", "HBM"),
-             (1, 0): ("D2-wide", "2D-Cult"), (1, 1): ("D3-k1", "HBM-Cult")}
+    cells = {(0, 0): ("D0-alt", "Planar-2D"), (0, 1): ("D3-k1-fact", "HBMS, Dedicated"),
+             (1, 0): ("D2-wide", "2D-Cult"), (1, 1): ("D3-k1", "HBMS, Dedicated")}
     lift, unit = 4.6, 0.095  # inches per tile
     fig = plt.figure(figsize=(COL, 2.55))
     left, gap, cell_w = 0.17, 0.08, None
@@ -123,8 +126,8 @@ def design_space(path, n=16):
         fig.text((left + ci * (cell_w + gap) + cell_w / 2) / COL, (2.55 - top_h + 0.04) / 2.55,
                  text, ha="center", va="bottom", fontsize=8, color=MUTED)
     handles = [Patch(facecolor=DATA, edgecolor=EDGE, lw=0.4, label="Data qubit"),
-               Patch(facecolor=ROUTE, edgecolor=EDGE, lw=0.4, label="Routing tile"),
-               Patch(facecolor=SOURCE, edgecolor=EDGE, lw=0.4, label="Factory port"),
+               Patch(facecolor=ROUTE, edgecolor=EDGE, lw=0.4, label="Ancilla tile"),
+               Patch(facecolor=SOURCE, edgecolor=EDGE, lw=0.4, label="Factory output"),
                Patch(facecolor=SOURCE, edgecolor=EDGE, lw=0.4, hatch=CULT_HATCH,
                      label="Cultivation patch"),
                Line2D([], [], color=LINK, lw=1.0, label="Vertical coupling")]
@@ -574,16 +577,15 @@ def save(fig, path):
 
 CAPTIONS = {
     "design_space": (
-        "The four evaluated designs for N = 16 logical data qubits, drawn from the "
-        "simulator's layouts. Rows: T-state source (15-to-1 distillation factories or "
-        "magic-state cultivation). Columns: placement of the sources, in the data plane or "
-        "on an upper layer connected by vertical couplings. Planar-2D places a factory port "
-        "on every other tile of a ring around the data; 2D-Cult places a cultivation patch "
-        "beside each data qubit; HBM and HBM-Cult place one source above each data qubit "
-        "(Dedicated) on an upper layer that holds only sources. Factory bodies (11 tiles "
-        "each) are not drawn; a cultivation patch is drawn as one tile. Shared-S layouts keep "
-        "one upper-layer source per S data qubits, and T gates reach them by routing on the "
-        "data layer to the tile below a source (Lower-First)."),
+        "The planar baselines and HBMS for N = 16 logical data qubits, drawn from the "
+        "simulator's layouts. Rows: kind of magic-state resource, 15-to-1 distillation "
+        "factories or cultivation patches. Columns: where the resources sit, in the data plane "
+        "or on an upper layer. Planar-2D places a factory output on every other tile of a ring "
+        "around the data region; 2D-Cult places a cultivation patch beside each data qubit. "
+        "HBMS places the resources on an upper layer that holds nothing else, here one above "
+        "each data qubit (Dedicated), each with one vertical coupling to the tile below it. "
+        "The factories' distillation blocks are not drawn: in Planar-2D they sit outside the "
+        "ring, in HBMS on further layers above."),
     "lower_first": (
         "Lower-First routing in a Shared-2 configuration of a Square Sparse layout with four "
         "logical data qubits (the simulator's layout): (a) both layers, (b) the data layer "
