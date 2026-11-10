@@ -10,6 +10,8 @@
                      (c) the CNOT order of a cross-layer check. Replaces the old Fig. 2.
   lower_first        (one column) Lower-First routing in Shared-2, N = 4: a T path on the data
                      layer to the ancilla tile below a resource, then one vertical coupling.
+  upper_layers       (one column) the upper-layer configurations for N = 16: Dedicated,
+                     Shared-2, -4, -8; replaces the old layered-organization and top-layer figures.
   captions.md        a caption per figure: what it shows, no findings.
 
 The merge figure is built from a rotated-surface-code construction that this script checks
@@ -495,6 +497,57 @@ def lower_first(path, n=4):
     save(fig, path)
 
 
+def upper_layers(path, n=16):
+    """HBMS's upper-layer configurations for N = 16 (the simulator's layouts), 2 x 2:
+    Dedicated, Shared-2, Shared-4 and Shared-8. The upper layer holds only the resources; each
+    has one vertical coupling to the tile below it (Lower-First)."""
+    panels = [("D3-k1", "Dedicated"), ("D3-s2", "Shared-2"), ("D3-s4", "Shared-4"),
+              ("D3-s8", "Shared-8")]
+    lift = 4.1
+    W, H = COL, 2.75
+    fig = plt.figure(figsize=(W, H))
+    pw, ph, top = 0.5, 0.41, 0.83  # panel width and height (figure fractions), top edge
+    for k, (spec, title) in enumerate(panels):
+        arch = build_arch(parse_design(spec, d=13), n)
+        arch = arch[0] if isinstance(arch, tuple) else arch
+        w, h = arch["width"], arch["height"]
+        data, sources = set(arch["alg_qubits"]), sorted(arch["magic_states"])
+        col, row = k % 2, k // 2
+        ax = fig.add_axes((col * pw, top - (row + 1) * ph, pw, ph - 0.06))
+
+        def xy(p):
+            r, c = divmod(p, w)
+            return c, h - 1 - r
+
+        for p in range(w * h):
+            x, y = xy(p)
+            tile(ax, x, y, 0, DATA if p in data else ROUTE, lw=0.25)
+        corners = [oblique(a_, b_, lift) for a_, b_ in ((0, 0), (w, 0), (w, h), (0, h))]
+        ax.add_patch(Polygon(corners, closed=True, facecolor="#F4F4F4", edgecolor=MUTED,
+                             lw=0.45, ls=(0, (3, 2)), zorder=2.2))
+        for s_ in sources:
+            x, y = xy(s_)
+            (a_, b_), (_, c_) = oblique(x + .5, y + .5, 0), oblique(x + .5, y + .5, lift)
+            ax.plot([a_, a_], [b_, c_], color=LINK, lw=0.7, zorder=2.6, solid_capstyle="butt")
+            tile(ax, x, y, lift, SOURCE, lw=0.25)
+        ax.set_xlim(-0.3, w + SLANT * h + 0.3)
+        ax.set_ylim(-0.3, DEPTH * h + lift + 0.2)
+        ax.set_aspect("equal")
+        ax.axis("off")
+        fig.text(col * pw + pw / 2, top - row * ph - 0.005,
+                 f"({'abcd'[k]}) {title}: {len(sources)} resources", ha="center", va="top",
+                 fontsize=8)
+    handles = [Patch(facecolor=DATA, edgecolor=EDGE, lw=0.4, label="Data qubit"),
+               Patch(facecolor=ROUTE, edgecolor=EDGE, lw=0.4, label="Ancilla tile"),
+               Patch(facecolor=SOURCE, edgecolor=EDGE, lw=0.4, label="Magic-state resource"),
+               Line2D([], [], color=LINK, lw=1.0, label="Vertical coupling"),
+               Patch(facecolor="#F4F4F4", edgecolor=MUTED, lw=0.45, ls=(0, (3, 2)),
+                     label="Upper layer")]
+    fig.legend(handles=handles, loc="upper center", ncol=3, bbox_to_anchor=(0.5, 1.01),
+               handlelength=1.2, columnspacing=0.9)
+    save(fig, path)
+
+
 def save(fig, path):
     for p in path:
         fig.savefig(p)
@@ -521,6 +574,13 @@ CAPTIONS = {
         "coupling to the tile below it. A T gate on q2 routes over free ancilla tiles of the "
         "data layer (the T path), starting next to q2's Z boundary, to the tile below M1, and "
         "merges up through that tile's vertical coupling."),
+    "upper_layers": (
+        "The HBMS upper-layer configurations for N = 16 logical data qubits, drawn from the "
+        "simulator's layouts: (a) Dedicated, one magic-state resource above each data qubit; "
+        "(b)-(d) Shared-2, -4 and -8, one resource per 2, 4 or 8 data qubits, each above an "
+        "ancilla tile of the data layer. The upper layer holds only the resources, and each "
+        "resource has one vertical coupling to the tile below it. Shared-16 follows the same "
+        "pattern with one resource."),
     "cross_layer_merge": (
         "Lattice-surgery merge that injects a T state from the upper layer (d = 3). (a) The "
         "merged patch: data patch D, gap column G prepared in |+>, and T-state patch M; the "
@@ -544,6 +604,7 @@ def main():
     design_space(paths("design_space"))
     cross_layer_merge(paths("cross_layer_merge"))
     lower_first(paths("lower_first"))
+    upper_layers(paths("upper_layers"))
     with open(os.path.join(args.out, "captions.md"), "w") as f:
         for name, text in CAPTIONS.items():
             f.write(f"**{name}.pdf.** {text}\n\n")
