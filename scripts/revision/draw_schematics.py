@@ -30,7 +30,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
-from matplotlib.patches import Circle, Patch, Polygon  # noqa: E402
+from matplotlib.patches import Circle, Patch, Polygon, Rectangle  # noqa: E402
 
 from plot_results import COL, FULL, INK, MUTED  # noqa: E402  (also sets the rcParams)
 
@@ -409,52 +409,89 @@ def t_path(arch, q, target):
 
 
 def lower_first(path, n=4):
-    """Shared-2 for N = 4 (the simulator's layout): the upper layer holds only the two
-    resources; a T gate routes on the data layer to the ancilla tile below a resource and
-    merges up through that tile's vertical coupling."""
+    """Shared-2 for N = 4 (the simulator's layout), Lower-First: (a) both layers, the upper
+    one holding only the two resources; (b) the data layer from above, with the T path from
+    q2 to the ancilla tile below M1 and the vertical coupling there."""
     arch = build_arch(parse_design("D3-s2", d=13), n)
     arch = arch[0] if isinstance(arch, tuple) else arch
     w, h = arch["width"], arch["height"]
     data, sources = sorted(arch["alg_qubits"]), sorted(arch["magic_states"])
-    q, src = data[1], sources[0]  # the T gate's data qubit and the resource it reaches
-    route = set(t_path(arch, q, src))
-    lift = 3.2
+    q, src = data[1], sources[0]  # the T gate's data qubit (q2) and its resource (M1)
+    route = t_path(arch, q, src)
+    names = {p: f"q{i + 1}" for i, p in enumerate(data)}
+    names.update({p: f"M{i + 1}" for i, p in enumerate(sources)})
+    lift, arrow = 3.0, "#16695A"
+    head = dict(arrowstyle="-|>", color=arrow, lw=1.3, mutation_scale=7, shrinkA=0, shrinkB=0)
 
     def xy(p):
         r, c = divmod(p, w)
         return c, h - 1 - r
 
-    fig = plt.figure(figsize=(COL, 1.75))
-    ax = fig.add_axes((0.0, 0.0, 0.62, 1.0))
+    H = 2.1
+    fig = plt.figure(figsize=(COL, H))
+    # (a) both layers
+    ax = fig.add_axes((0.0, 0.0, 0.57, 0.76))
     for p in range(w * h):
         x, y = xy(p)
         tile(ax, x, y, 0, DATA if p in data else PATH if p in route else ROUTE)
-    corners = [oblique(a, b, lift) for a, b in ((0, 0), (w, 0), (w, h), (0, h))]
-    ax.add_patch(Polygon(corners, closed=True, fill=False, edgecolor=MUTED, lw=0.5,
-                         ls=(0, (3, 2)), zorder=2.5))
+    corners = [oblique(a_, b_, lift) for a_, b_ in ((0, 0), (w, 0), (w, h), (0, h))]
+    ax.add_patch(Polygon(corners, closed=True, facecolor="#F4F4F4", edgecolor=MUTED, lw=0.5,
+                         ls=(0, (3, 2)), zorder=2.2))
     for s in sources:
         x, y = xy(s)
-        (a, b), (_, c) = oblique(x + .5, y + .5, 0), oblique(x + .5, y + .5, lift)
-        ax.plot([a, a], [b, c], color=LINK, lw=1.6 if s == src else 0.8, zorder=3,
+        (a_, b_), (_, c_) = oblique(x + .5, y + .5, 0), oblique(x + .5, y + .5, lift)
+        ax.plot([a_, a_], [b_, c_], color=LINK, lw=1.4 if s == src else 0.9, zorder=2.6,
                 solid_capstyle="butt")
         tile(ax, x, y, lift, SOURCE)
-    for p, text in ((q, "q"), (src, "M")):
-        x, y = xy(p)
-        cx, cy = oblique(x + .5, y + .5, lift if p == src else 0)
-        ax.text(cx, cy, text, ha="center", va="center", fontsize=7,
-                color="white" if p == q else INK, zorder=10)
-    ax.set_xlim(-0.3, w + SLANT * h + 0.3)
-    ax.set_ylim(-0.3, DEPTH * h + lift + 0.4)
+        lx, ly = oblique(x - 0.1, y + .5, lift)
+        ax.text(lx, ly, names[s], ha="right", va="center", fontsize=8, zorder=9)
+    pts = [oblique(*(v + .5 for v in xy(p))) for p in [q] + route]
+    ax.plot([p[0] for p in pts], [p[1] for p in pts], color=arrow, lw=1.3, zorder=8,
+            solid_capstyle="round", solid_joinstyle="round")
+    x, y = xy(src)
+    ax.annotate("", xy=oblique(x + .5, y + .5, lift - 0.45), xytext=pts[-1], zorder=8,
+                arrowprops=head)
+    ax.text(*oblique(w - 0.25, h - 0.55, lift), "upper layer", fontsize=8, color=MUTED,
+            ha="right", va="center", zorder=9)
+    ax.text(*oblique(w, -0.25), "data layer", fontsize=8, color=MUTED, ha="right", va="top")
+    ax.set_xlim(-0.6, w + SLANT * h + 0.1)
+    ax.set_ylim(-0.75, DEPTH * h + lift + 0.15)
     ax.set_aspect("equal")
     ax.axis("off")
+    # (b) the data layer from above
+    bx = fig.add_axes((0.61, 0.0, 0.39, 0.74))
+    for p in range(w * h):
+        x, y = xy(p)
+        bx.add_patch(Rectangle((x, y), 1, 1, facecolor=DATA if p in data else
+                               PATH if p in route else ROUTE, edgecolor=EDGE, lw=0.4))
+        if p in data:
+            bx.text(x + .5, y + .5, names[p], ha="center", va="center", fontsize=8,
+                    color="white")
+    for s in sources:  # the resource above, drawn as an inset outline, with its coupling
+        x, y = xy(s)
+        bx.add_patch(Rectangle((x + .1, y + .1), .8, .8, facecolor="none", edgecolor=SOURCE,
+                               lw=1.3, ls=(0, (2.2, 1.2)), zorder=4))
+        bx.add_patch(Circle((x + .5, y + .7), .1, facecolor=LINK, edgecolor="none", zorder=6))
+        bx.text(x + .5, y + .33, names[s], ha="center", va="center", fontsize=8, zorder=6)
+    cs = [tuple(v + .5 for v in xy(p)) for p in [q] + route]
+    end = (cs[-1][0], cs[-1][1] + 0.2 + 0.1)
+    bx.plot([c[0] for c in cs[:-1]], [c[1] for c in cs[:-1]], color=arrow, lw=1.3, zorder=5,
+            solid_capstyle="round", solid_joinstyle="round")
+    bx.annotate("", xy=end, xytext=cs[-2], zorder=5, arrowprops=head)
+    bx.set_xlim(-0.05, w + 0.05)
+    bx.set_ylim(-0.05, h + 0.05)
+    bx.set_aspect("equal")
+    bx.axis("off")
+    for x_, text in ((0.0, "(a) Both layers"), (0.61, "(b) Data layer, top view")):
+        fig.text(x_, 0.765, text, fontsize=8, ha="left", va="bottom")
     handles = [Patch(facecolor=DATA, edgecolor=EDGE, lw=0.4, label="Data qubit"),
                Patch(facecolor=ROUTE, edgecolor=EDGE, lw=0.4, label="Ancilla tile"),
                Patch(facecolor=PATH, edgecolor=EDGE, lw=0.4, label="T path"),
-               Patch(facecolor=SOURCE, edgecolor=EDGE, lw=0.4, label="Magic-state\nresource"),
-               Line2D([], [], color=LINK, lw=1.0, label="Vertical\ncoupling"),
-               Line2D([], [], color=MUTED, lw=0.5, ls=(0, (3, 2)), label="Upper layer")]
-    fig.legend(handles=handles, loc="center left", bbox_to_anchor=(0.63, 0.5),
-               handlelength=1.1, labelspacing=0.55)
+               Patch(facecolor=SOURCE, edgecolor=EDGE, lw=0.4, label="Resource (upper layer)"),
+               Line2D([], [], color=LINK, lw=1.2, marker="o", markersize=3.5,
+                      label="Vertical coupling")]
+    fig.legend(handles=handles, loc="upper center", ncol=3, bbox_to_anchor=(0.5, 1.01),
+               handlelength=1.2, columnspacing=0.9)
     save(fig, path)
 
 
@@ -478,11 +515,12 @@ CAPTIONS = {
         "data layer to the tile below a source (Lower-First)."),
     "lower_first": (
         "Lower-First routing in a Shared-2 configuration of a Square Sparse layout with four "
-        "logical data qubits (the simulator's layout). The upper layer holds only the two "
-        "magic-state resources, each above an ancilla tile between two data qubits of a row. "
-        "A T gate on data qubit q routes over free ancilla tiles of the data layer, starting "
-        "next to q's Z boundary, to the ancilla tile below resource M, and merges up through "
-        "that tile's vertical coupling. Each resource has one vertical coupling."),
+        "logical data qubits (the simulator's layout): (a) both layers, (b) the data layer "
+        "from above. The upper layer holds only the two magic-state resources: M1 above the "
+        "ancilla tile between q1 and q2, and M2 between q3 and q4, each with one vertical "
+        "coupling to the tile below it. A T gate on q2 routes over free ancilla tiles of the "
+        "data layer (the T path), starting next to q2's Z boundary, to the tile below M1, and "
+        "merges up through that tile's vertical coupling."),
     "cross_layer_merge": (
         "Lattice-surgery merge that injects a T state from the upper layer (d = 3). (a) The "
         "merged patch: data patch D, gap column G prepared in |+>, and T-state patch M; the "
