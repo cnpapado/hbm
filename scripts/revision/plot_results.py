@@ -796,8 +796,8 @@ def plane_cost(cells, benches, path):
             "region) and 2D-Cult (one cultivation patch beside each data qubit). (a) Tiles each "
             "baseline adds to its data region (the data qubits and the routing tiles between "
             "them), as a percentage of that region: tiles that hold a resource (solid) and the "
-            "free tiles through which T states reach them (dotted). Factory bodies, outside "
-            "the plane, are not counted. (b) Timesteps divided by the circuit's ideal depth, "
+            "free tiles through which T states reach them (dotted). The factory bodies (11 "
+            "tiles each), which sit in the same plane outside the ring, are not counted. (b) Timesteps divided by the circuit's ideal depth, "
             "its critical path at one timestep per gate; log scale. All runs at the smallest "
             "odd code distance that meets the program-error target, chosen per run "
             f"(d = {ds[0]}-{ds[-1]})." + STAR)
