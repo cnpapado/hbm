@@ -26,13 +26,15 @@
 #   SHOTS       10000000       max shots per circuit
 #   ERRORS      500            stop a circuit after this many logical errors
 #   EXTRA       ""             more seam_merge.py flags, e.g. "--old-offset" or "--p 1e-3 2e-3"
+#   VENV        ~/hbm/.venv    the Python venv, e.g. VENV=$HOME/seam-venv (stim, sinter, pymatching,
+#                              numpy<2) if sinter fails with numpy 2 (AssertionError in AnonTaskStats)
 # Large d at small p will hit SHOTS with few or no errors: that is expected, the fit uses only
 # points with at least --min-errors errors. For better low-p points at small d, rerun e.g.
 #   sbatch --array=0-1 --export=ALL,DISTANCES="3 5",SHOTS=200000000,EXTRA="--p 1e-3 1.5e-3 2e-3" seam_merge.sh
 # (those tasks write the same seam_d<d>.csv names: move the first results aside before.)
 
 module load python/3.12.10
-source ~/hbm/.venv/bin/activate
+source "${VENV:-$HOME/hbm/.venv}/bin/activate"
 cd ~/hbm/lattice_surgery || exit 1
 python3 -c 'import stim, sinter, pymatching' || { echo "ERROR: pip install stim sinter pymatching" >&2; exit 1; }
 
