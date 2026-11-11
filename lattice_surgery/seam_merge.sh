@@ -20,7 +20,7 @@
 #
 # Environment overrides (pass with sbatch --export=ALL,VAR=...):
 #   DISTANCES   "3 5 7 9 11"   the array index picks one of these
-#   MODES       "seam whole"   seam: p' on the 2d - 1 cross-layer CNOTs only; whole: the old
+#   MODES       "seam"         seam: p' on the 2d - 1 cross-layer CNOTs only; whole: the old
 #                              model, p' on the whole coupler patch and bridge
 #   MS          "1 5 10"       p' = m p
 #   SHOTS       10000000       max shots per circuit
@@ -40,9 +40,9 @@ python3 -c 'import stim, sinter, pymatching' || { echo "ERROR: pip install stim 
 
 read -r -a DS <<< "${DISTANCES:-3 5 7 9 11}"
 D="${DS[$SLURM_ARRAY_TASK_ID]:?no distance for array index $SLURM_ARRAY_TASK_ID}"
-echo "Task $SLURM_ARRAY_TASK_ID | d=$D | modes ${MODES:-seam whole} | m ${MS:-1 5 10}"
+echo "Task $SLURM_ARRAY_TASK_ID | d=$D | modes ${MODES:-seam} | m ${MS:-1 5 10}"
 
 # shellcheck disable=SC2086  # word splitting of the lists is intended
-python3 seam_merge.py --d "$D" --m ${MS:-1 5 10} --mode ${MODES:-seam whole} \
+python3 seam_merge.py --d "$D" --m ${MS:-1 5 10} --mode ${MODES:-seam} \
     --max-shots "${SHOTS:-10000000}" --max-errors "${ERRORS:-500}" \
     --workers "${SLURM_CPUS_PER_TASK:-8}" --csv "results_seam/seam_d${D}.csv" ${EXTRA:-}

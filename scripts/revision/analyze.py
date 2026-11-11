@@ -20,8 +20,9 @@ Error model (per program; eps(d, p, p_th) = A * (p / p_th) ** ((d + 1) / 2) per 
   vertical seams   vertical_merges * d * eps(d, p, p_th_v(mult))   (top designs only)
   T states         T count * eps_source                  (cultivation grade or factory output)
 A vertical merge with coupling error p' = mult * p uses the lower threshold p_th_v(mult)
-measured for that merge in Stim (HBMS paper, Fig. 11: ~1e-2 at 1p, ~4e-3 at 5p, ~2e-3 at
-10p; override with --seam-pth). Only the coupler qubits along the seam see p'.
+measured for that merge in Stim (lattice_surgery/seam_merge.py, p' only on the 2d - 1
+cross-layer CNOTs per round: 1e-2 at 1p, 9.5e-3 at 5p, 8.3e-3 at 10p, as seam_merge.py --fit
+scales them to the in-plane 1e-2; override with --seam-pth).
 A run whose T-state error alone exceeds the target is infeasible for that circuit (the
 cultivation fidelity floor): it has no STV.
 
@@ -192,9 +193,9 @@ def main():
     ap.add_argument("--factory-error", type=float, default=None,
                     help="T-state error from the factory (default 35 p^3: 15-to-1, Litinski, "
                          "A Game of Surface Codes, Sec. 4.1)")
-    ap.add_argument("--seam-pth", type=parse_seam_pth, default="1:0.01,5:0.004,10:0.002",
+    ap.add_argument("--seam-pth", type=parse_seam_pth, default="1:0.01,5:0.009477,10:0.008292",
                     help="threshold of a vertical merge per p' multiple, 'mult:p_th,...' "
-                         "(default from the HBMS paper's Stim results, Fig. 11)")
+                         "(default: seam_merge.py --fit, seam-only noise)")
     ap.add_argument("--dmax", type=int, default=61)
     args = ap.parse_args()
     missing = [m for m in args.pprime if m not in args.seam_pth]

@@ -11,8 +11,7 @@ is drawn as a check of the fit). REV_CSV is analyze.py's CSV of the compiler run
               fit A (p / p_th)^((d + 1) / 2) over d = 3..11 (solid over the simulated p, dashed
               down to 1e-4), d = 13 as a check of the fit; the fitted threshold (dotted). (c) The
               geometric-mean STV ratio (planar baseline over HBMS) against p' / p, every run at
-              the smallest odd d that meets the 1% target with the seam fit (solid) or the old
-              whole-patch fit (dotted).
+              the smallest odd d that meets the 1% target with the seam fit.
 """
 
 import argparse
@@ -161,8 +160,6 @@ def seam_figure(u, fits, ratios, path):
     ax = axes[2]
     for (_, _, lab, color, mk) in PAIRS:
         ax.plot(MS, ratios["seam"][lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
-        ax.plot(MS, ratios["whole"][lab], color=color, marker=mk, ms=4, lw=0.9, ls=":",
-                mfc="white")
     ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
     ax.set_xscale("log")
     ax.xaxis.set_major_locator(mticker.FixedLocator(MS))
@@ -178,10 +175,8 @@ def seam_figure(u, fits, ratios, path):
     ax.text(0.0, 1.03, "(c) STV ratio (geometric mean)", transform=ax.transAxes, fontsize=8,
             va="bottom", ha="left")
     h, lab = ax.get_legend_handles_labels()
-    h += [plt.Line2D([], [], color=INK, lw=1.1), plt.Line2D([], [], color=INK, lw=0.9, ls=":")]
-    lab += ["noise on the seam only", "noise on the whole patch"]
-    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.84, 0.99), ncol=2, fontsize=6.5,
-               handlelength=1.6, handletextpad=0.3, columnspacing=0.8, labelspacing=0.2)
+    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.84, 0.99), ncol=1, fontsize=6.5,
+               handlelength=1.6, handletextpad=0.3, labelspacing=0.2)
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)
@@ -193,8 +188,7 @@ def seam_figure(u, fits, ratios, path):
             "the simulated p, and its prediction for d = 13 (black markers, not fitted). "
             "Dotted: the fitted threshold. Gray: the same merge with p' = p. (c) Geometric-mean "
             "STV of the planar baseline over that of HBMS against p'/p, every run at the "
-            "smallest odd code distance that meets the program-error target, with p' on the "
-            "2d - 1 cross-layer CNOTs (solid) or on the whole upper patch (dotted).")
+            "smallest odd code distance that meets the program-error target.")
 
 
 def main():
@@ -208,12 +202,12 @@ def main():
     args = ap.parse_args()
     files = [os.path.join(args.results, f"seam_d{d}.csv") for d in FIT_DS + (CHECK_D,)]
     u = union(seam_merge.load([f for f in files if os.path.exists(f)]))
-    fits = {(mode, float(m)): fit(u, mode, float(m)) for mode in ("seam", "whole") for m in MS}
+    fits = {(mode, float(m)): fit(u, mode, float(m)) for mode in ("seam",) for m in MS}
     for (mode, m), (a, t) in sorted(fits.items()):
         print(f"{mode:5s} m={m:<4g} A={a:.3g} p_th={t:.3g}  "
               f"A/A(1)={a / fits[(mode, 1.0)][0]:.2f}  p_th/p_th(1)={t / fits[(mode, 1.0)][1]:.3f}")
     rev = list(csv.DictReader(open(args.rev)))
-    ratios = {mode: stv_ratios(rev, fits, mode) for mode in ("seam", "whole")}
+    ratios = {mode: stv_ratios(rev, fits, mode) for mode in ("seam",)}
     for mode in ratios:
         for lab, v in ratios[mode].items():
             print(f"{mode:5s} {lab:22s} " + "  ".join(f"{m}p: {x:.2f}" for m, x in zip(MS, v)))
