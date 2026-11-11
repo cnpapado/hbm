@@ -338,6 +338,64 @@ def sources_cult(cells, benches, path):
             "same number of patches. Both axes are logarithmic. " + D_NOTE + STAR)
 
 
+def _mix(hex_color, t):
+    """hex_color blended towards white: t = 0 white, t = 1 the full colour."""
+    rgb = np.array([int(hex_color[i:i + 2], 16) for i in (1, 3, 5)]) / 255
+    return tuple(1 - t * (1 - rgb))
+
+
+LOSS = "#C8553D"  # cells below 1 (HBMS has the higher STV)
+
+
+def sources_table(cells, benches, path):
+    """One column: the STV ratio per circuit (rows, plus GMean) and HBMS configuration
+    (columns), factories and cultivation as separate blocks, each shaded in its own hue."""
+    blocks = [(FACT[0], FACT[1][::-1], FILL["HBM"], "(a) Factories"),
+              (CULT[0], CULT[1], FILL["HBM-Cult"], "(b) Cultivation")]
+    rows = [label(b, cells[b]) for b in benches] + ["GMean"]
+    ncols = sum(len(s) for _, s, _, _ in blocks)
+    gap = 0.45
+    fig, ax = plt.subplots(figsize=(COL, 2.8))
+    x0 = 0.0
+    for base, specs, hue, tag in blocks:
+        vals = np.array([ratios(cells, benches, base, s) for s, _ in specs]).T  # circuit x spec
+        vals = np.vstack([vals, [gmean(v) for v in vals.T]])
+        top = max(np.nanmax(np.log(vals)), np.log(2))
+        for i, row in enumerate(vals):
+            best = np.nanargmax(row)
+            for j, v in enumerate(row):
+                lv = np.log(v)
+                t = 0.1 + 0.5 * min(1, lv / top) if v >= 1 else 0.1 + 0.45 * min(1, -lv / 1.5)
+                face = _mix(hue if v >= 1 else LOSS, t)
+                y = i + (0.35 if i == len(rows) - 1 else 0)  # GMean row set apart
+                ax.add_patch(plt.Rectangle((x0 + j, y), 1, 1, facecolor=face, edgecolor="white",
+                                           lw=0.8))
+                ax.text(x0 + j + 0.5, y + 0.52, f"{v:.2f}", ha="center", va="center",
+                        fontsize=8, color=INK,
+                        fontweight="bold" if j == best else "normal")
+        for j, (_, lab) in enumerate(specs):
+            ax.text(x0 + j + 0.5, -0.15, lab, rotation=55, ha="left", va="bottom", fontsize=8,
+                    rotation_mode="anchor")
+        ax.text(x0 + len(specs) / 2, len(rows) + 0.75, tag, ha="center", va="top", fontsize=8)
+        x0 += len(specs) + gap
+    for i, name in enumerate(rows):
+        y = i + (0.35 if i == len(rows) - 1 else 0)
+        ax.text(-0.15, y + 0.52, name, ha="right", va="center", fontsize=8)
+    ax.set_xlim(-2.2, ncols + gap + 0.05)
+    ax.set_ylim(len(rows) + 0.8, -2.3)
+    ax.axis("off")
+    for p in ([path] if isinstance(path, str) else path):
+        fig.savefig(p)
+    plt.close(fig)
+    return ("STV of the planar baseline divided by that of HBMS with the same kind of "
+            "magic-state resource, per circuit (rows), as the geometric mean (GMean), and per "
+            "HBMS configuration (columns, ordered by magic-state resources per data slot): (a) "
+            "Planar-2D over HBMS Shared-16 to Dedicated, all with factories, and (b) 2D-Cult "
+            "over HBMS Dedicated to Full, all with cultivation patches. Shaded in the block's "
+            "colour: above 1, HBMS has the lower STV. Shaded red: below 1. Bold: the HBMS "
+            "configuration with the lowest STV on that row, within each block. " + D_NOTE + STAR)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -353,7 +411,7 @@ def main():
     with open(os.path.join(args.out, "eval_captions.md"), "w") as f:
         for name, fn in [("eval_stv", eval_stv), ("eval_split", eval_split), ("split", split),
                          ("split_s2", split_s2), ("sources_fact", sources_fact),
-                         ("sources_cult", sources_cult)]:
+                         ("sources_cult", sources_cult), ("sources_table", sources_table)]:
             f.write(f"**{name}.pdf.** {fn(cells, benches, paths(name))}\n\n")
     print("wrote", os.path.normpath(args.out))
 
