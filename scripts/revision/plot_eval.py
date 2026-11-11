@@ -25,6 +25,7 @@ These four replace the Upper-First real13 figures split, split_s2 and sources.
 """
 
 import argparse
+import math
 import os
 
 import matplotlib.ticker as mticker
@@ -344,56 +345,61 @@ def _mix(hex_color, t):
     return tuple(1 - t * (1 - rgb))
 
 
-LOSS = "#C8553D"  # cells below 1 (HBMS has the higher STV)
+BASE_FILL = {"D0-alt": "#808080", "D2-wide": "#F0A33A"}  # Planar-2D, 2D-Cult (plot_results)
+SPAN = {"D0-alt": math.log(4), "D2-wide": math.log(8)}  # colour scale per panel, log, centred on 1
 
 
 def sources_table(cells, benches, path):
-    """One column: the STV ratio per circuit (rows, plus GMean) and HBMS configuration
-    (columns), factories and cultivation as separate blocks, each shaded in its own hue."""
-    blocks = [(FACT[0], FACT[1][::-1], FILL["HBM"], "(a) Factories"),
-              (CULT[0], CULT[1], FILL["HBM-Cult"], "(b) Cultivation")]
-    rows = [label(b, cells[b]) for b in benches] + ["GMean"]
-    ncols = sum(len(s) for _, s, _, _ in blocks)
-    gap = 0.45
-    fig, ax = plt.subplots(figsize=(COL, 2.8))
-    x0 = 0.0
-    for base, specs, hue, tag in blocks:
-        vals = np.array([ratios(cells, benches, base, s) for s, _ in specs]).T  # circuit x spec
+    """One column: the STV ratio (baseline / HBMS) per circuit (rows, then GMean) and HBMS
+    configuration (columns), one panel per kind of magic-state resource. Each panel shades
+    towards its HBMS colour above 1 and towards its baseline's colour below 1."""
+    from matplotlib.colors import LinearSegmentedColormap, Normalize
+    blocks = [(FACT[0], FACT[1][::-1], FILL["HBM"], "(a) Factories:\nPlanar-2D / HBMS"),
+              (CULT[0], CULT[1], FILL["HBM-Cult"], "(b) Cultivation:\n2D-Cult / HBMS")]
+    names = [label(b, cells[b]) for b in benches] + ["GMean"]
+    n = len(benches)
+    edges = np.r_[np.arange(n + 1), n + 0.3, n + 1.3]  # GMean row set apart
+    fig, axes = plt.subplots(1, 2, figsize=(COL, 3.0), sharey=True,
+                             gridspec_kw=dict(width_ratios=[len(b[1]) for b in blocks],
+                                              wspace=0.08))
+    for ax, (base, specs, hue, tag) in zip(axes, blocks):
+        vals = np.array([ratios(cells, benches, base, s) for s, _ in specs]).T
         vals = np.vstack([vals, [gmean(v) for v in vals.T]])
-        top = max(np.nanmax(np.log(vals)), np.log(2))
+        grid = np.vstack([vals[:n], np.full(len(specs), np.nan), vals[n:]])
+        cmap = LinearSegmentedColormap.from_list(
+            "c", [_mix(BASE_FILL[base], 0.65), (1, 1, 1), _mix(hue, 0.65)])
+        cmap.set_bad(alpha=0)
+        ax.pcolormesh(np.arange(len(specs) + 1), edges, np.ma.masked_invalid(np.log(grid)),
+                      cmap=cmap, norm=Normalize(-SPAN[base], SPAN[base]), edgecolors="white",
+                      linewidth=0.8)
         for i, row in enumerate(vals):
+            y = (edges[i] + edges[i + 1]) / 2 if i < n else (edges[n + 1] + edges[n + 2]) / 2
             best = np.nanargmax(row)
             for j, v in enumerate(row):
-                lv = np.log(v)
-                t = 0.1 + 0.5 * min(1, lv / top) if v >= 1 else 0.1 + 0.45 * min(1, -lv / 1.5)
-                face = _mix(hue if v >= 1 else LOSS, t)
-                y = i + (0.35 if i == len(rows) - 1 else 0)  # GMean row set apart
-                ax.add_patch(plt.Rectangle((x0 + j, y), 1, 1, facecolor=face, edgecolor="white",
-                                           lw=0.8))
-                ax.text(x0 + j + 0.5, y + 0.52, f"{v:.2f}", ha="center", va="center",
-                        fontsize=8, color=INK,
-                        fontweight="bold" if j == best else "normal")
-        for j, (_, lab) in enumerate(specs):
-            ax.text(x0 + j + 0.5, -0.15, lab, rotation=55, ha="left", va="bottom", fontsize=8,
-                    rotation_mode="anchor")
-        ax.text(x0 + len(specs) / 2, len(rows) + 0.75, tag, ha="center", va="top", fontsize=8)
-        x0 += len(specs) + gap
-    for i, name in enumerate(rows):
-        y = i + (0.35 if i == len(rows) - 1 else 0)
-        ax.text(-0.15, y + 0.52, name, ha="right", va="center", fontsize=8)
-    ax.set_xlim(-2.2, ncols + gap + 0.05)
-    ax.set_ylim(len(rows) + 0.8, -2.3)
-    ax.axis("off")
+                ax.text(j + 0.5, y, f"{v:.2f}", ha="center", va="center", fontsize=8,
+                        color=INK, fontweight="bold" if j == best else "normal")
+        ax.axhline(n + 0.15, color=INK, lw=0.6)
+        ax.set_xticks(np.arange(len(specs)) + 0.5, [lab for _, lab in specs], rotation=45,
+                      ha="right", rotation_mode="anchor")
+        ax.set_ylim(edges[-1], 0)
+        ax.set_xlim(0, len(specs))
+        ax.tick_params(length=0)
+        for side in ax.spines.values():
+            side.set_visible(False)
+        ax.text(0.0, 1.02, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+    centers = list((edges[:n] + edges[1:n + 1]) / 2) + [(edges[n + 1] + edges[n + 2]) / 2]
+    axes[0].set_yticks(centers, names)
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)
     return ("STV of the planar baseline divided by that of HBMS with the same kind of "
-            "magic-state resource, per circuit (rows), as the geometric mean (GMean), and per "
-            "HBMS configuration (columns, ordered by magic-state resources per data slot): (a) "
-            "Planar-2D over HBMS Shared-16 to Dedicated, all with factories, and (b) 2D-Cult "
-            "over HBMS Dedicated to Full, all with cultivation patches. Shaded in the block's "
-            "colour: above 1, HBMS has the lower STV. Shaded red: below 1. Bold: the HBMS "
-            "configuration with the lowest STV on that row, within each block. " + D_NOTE + STAR)
+            "magic-state resource, per circuit and as the geometric mean (GMean), for every "
+            "HBMS configuration, ordered by magic-state resources per data slot: (a) Planar-2D "
+            "over HBMS Shared-16 to Dedicated, all with factories, and (b) 2D-Cult over HBMS "
+            "Dedicated to Full, all with cultivation patches. Cells shade towards the HBMS "
+            "colour above 1, where HBMS has the lower STV, and towards the baseline's colour "
+            "below 1, each panel on its own logarithmic scale. Bold: the HBMS configuration with the lowest STV on the circuit, within "
+            "each panel. " + D_NOTE + STAR)
 
 
 def main():
