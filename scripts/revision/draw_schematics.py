@@ -33,7 +33,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
-from matplotlib.patches import Circle, Patch, Polygon, Rectangle  # noqa: E402
+from matplotlib.patches import Circle, FancyBboxPatch, Patch, Polygon, Rectangle  # noqa: E402
 
 from plot_results import COL, FULL, INK, MUTED  # noqa: E402  (also sets the rcParams)
 
@@ -267,11 +267,18 @@ def merge_panel(ax, d, merged, D, G, M, links=False):
                 n += 1
             ax.add_patch(Circle((cx, cy), 0.07, facecolor=LINK, edgecolor=LINK, zorder=2.7))
         assert n == 2 * d - 1, n
+        # the gap column: ordinary upper-layer qubits (error p), not the links (error p')
+        ax.add_patch(FancyBboxPatch((d - 0.22, -0.22), 0.44, d - 1 + 0.44,
+                                    boxstyle="round,pad=0,rounding_size=0.2", fill=False,
+                                    edgecolor=MUTED, lw=0.8, ls=(0, (2.5, 1.5)), zorder=3.5))
+        low = min(cross, key=lambda c: c[1][1])  # the boundary check's ancilla, below the patch
+        ax.text(low[1][0] - 0.16, low[1][1] - 0.02, "$p'$", ha="right", va="center", fontsize=8,
+                color=LINK)
     for group, face in ((D, DATA), (G, "white"), (M, SOURCE)):
         for q in group:
             ax.add_patch(Circle(q, 0.13, facecolor=face, edgecolor=INK,
                                 lw=0.6 if face == "white" else 0.4, zorder=3))
-    for x, text in ((d / 2 - .5, "D"), (d, "G"), (1.5 * d + .5, "M")):
+    for x, text in ((d / 2 - .5, "D"), (d, "G ($p$)" if links else "G"), (1.5 * d + .5, "M")):
         ax.text(x, -0.75, text, ha="center", va="top", fontsize=8)
     ax.set_xlim(-0.8, 2 * d + 0.8)
     ax.set_ylim(-1.5, d - 0.1)
@@ -369,16 +376,19 @@ def schedule_panel(ax, merged, D, G):
 def cross_layer_merge(path, d=3, links=False):
     merged, D, G, M = merge_code(d)
     schedule(merged)
-    fig = plt.figure(figsize=(FULL, 1.9))
-    axes = [fig.add_axes(r) for r in ((0.0, 0.15, 0.36, 0.7), (0.37, 0.13, 0.31, 0.74),
-                                      (0.71, 0.13, 0.27, 0.74))]
+    height = 2.15 if links else 1.9
+    s_ = 1.9 / height  # keep the panels' size when the legend takes two rows
+    fig = plt.figure(figsize=(FULL, height))
+    axes = [fig.add_axes((x, y * s_, w, h * s_))
+            for x, y, w, h in ((0.0, 0.15, 0.36, 0.7), (0.37, 0.13, 0.31, 0.74),
+                               (0.71, 0.13, 0.27, 0.74))]
     merge_panel(axes[0], d, merged, D, G, M, links)
     fold_panel(axes[1], d, merged, D, G, M)
     schedule_panel(axes[2], merged, D, G)
     for ax, x, text in ((axes[0], 0.18, "(a) Merged patch"),
                         (axes[1], 0.525, "(b) Folded across the layers"),
                         (axes[2], 0.855, "(c) CNOT order of a cross-layer check")):
-        fig.text(x, 0.02, text, ha="center", va="bottom", fontsize=8)
+        fig.text(x, 0.02 * s_, text, ha="center", va="bottom", fontsize=8)
     handles = [Patch(facecolor=XCHK, edgecolor=EDGE, lw=0.4, label="X check"),
                Patch(facecolor=ZCHK, edgecolor=EDGE, lw=0.4, label="Z check"),
                Patch(facecolor="white", edgecolor=LINK, lw=1.3, label="Cross-layer check"),
@@ -388,12 +398,15 @@ def cross_layer_merge(path, d=3, links=False):
                       markeredgewidth=0.6, markersize=5, label="Gap G (upper)"),
                Line2D([], [], marker="o", ls="", markerfacecolor=SOURCE, markeredgecolor=INK,
                       markeredgewidth=0.4, markersize=5, label="T-state patch M (upper)")]
-    if links:
+    if links:  # physical qubits, and where the coupling error p' sits
+        for h_, lab in zip(handles[3:], ("Physical qubit of D (lower)",
+                                         "Physical qubit of G (upper), error $p$",
+                                         "Physical qubit of M (upper)")):
+            h_.set_label(lab)
         handles.append(Line2D([], [], color=LINK, lw=1.4, marker="o", markersize=2.5,
-                              markevery=[0], label="Cross-layer CNOT"))
-    fig.legend(handles=handles, loc="upper center", ncol=len(handles),
-               bbox_to_anchor=(0.5, 1.0), handlelength=1.1,
-               columnspacing=1.0 if not links else 0.7)
+                              markevery=[0], label="Inter-layer link (CNOT), error $p'$"))
+    fig.legend(handles=handles, loc="upper center", ncol=4 if links else len(handles),
+               bbox_to_anchor=(0.5, 1.0), handlelength=1.1, columnspacing=1.0)
     save(fig, path)
 
 
