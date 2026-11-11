@@ -13,6 +13,13 @@ Configurations (mati's Lower-First specs):
   eval_split   (one column) per configuration, ordered by the number of magic-state
                resources: geometric means of the qubit, rounds and STV ratios (baseline over
                HBMS), with the STV range over the circuits.
+  split        (one column) per circuit, qubit ratio (x) against rounds ratio (y), HBMS
+               Dedicated: Planar-2D / Dedicated (factories), 2D-Cult / Dedicated (cultivation).
+  split_s2     (one column) the same for the routed layouts, one panel per kind: (a) Planar-2D
+               / Shared-2 (factories), (b) 2D-Cult / Rows (cultivation).
+  sources      (full width) one panel per circuit: STV ratio against the number of
+               magic-state resources in HBMS over that in the baseline, a line per kind.
+split, split_s2 and sources replace the Upper-First figures of the same names (real13).
 """
 
 import argparse
@@ -20,9 +27,10 @@ import os
 
 import matplotlib.ticker as mticker
 import numpy as np
+from matplotlib.lines import Line2D
 
-from plot_results import (COL, FILL, GRID, INK, MUTED, STAR, gmean, label, load, num, plt,
-                          shade)
+from plot_results import (COL, FILL, FULL, GRID, INK, MUTED, STAR, circuit, gmean, label,
+                          load, num, plain_log, plt, shade)
 
 FACT = ("D0-alt", [("D3-k1-fact", "Dedicated"), ("D3-s2-fact-bottom", "Shared-2"),
                    ("D3-s4-fact-bottom", "Shared-4"), ("D3-s8-fact-bottom", "Shared-8"),
@@ -142,6 +150,170 @@ def eval_split(cells, benches, path):
             "odd code distance that meets the program-error target.")
 
 
+MARK = {"D3-k1-fact": "o", "D3-s2-fact-bottom": "s", "D3-s4-fact-bottom": "^",
+        "D3-s8-fact-bottom": "D", "D3-s16-fact-bottom": "v",
+        "D3-k1": "o", "D3-rows-bottom": "s", "D3-ancilla-bottom": "^", "D3-full-bottom": "D"}
+D_NOTE = "Every run at the smallest odd code distance that meets the program-error target."
+
+
+def split_points(ax, cells, benches, base, spec, color, marker, tol, place, legend=None):
+    """Scatter qubit ratio (x) against rounds ratio (y), one marker per circuit, and label
+    them. Points closer than tol = (dx, dy) share a label. place: label text -> (dx, dy, ha)
+    offset in points, for labels that would collide (default: right of the marker)."""
+    pts = [(num(cells[b][base]["Q"]) / num(cells[b][spec]["Q"]),
+            num(cells[b][base]["rounds"]) / num(cells[b][spec]["rounds"]), b)
+           for b in benches if base in cells[b] and spec in cells[b]]
+    ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=20, marker=marker, facecolor=color,
+               edgecolor=INK, linewidth=0.4, zorder=3, label=legend)
+    groups = []
+    for p in sorted(pts, key=lambda p: (p[1], p[0])):
+        for g in groups:
+            if abs(g[0][0] - p[0]) < tol[0] and abs(g[0][1] - p[1]) < tol[1]:
+                g.append(p)
+                break
+        else:
+            groups.append([p])
+    for g in groups:
+        ns = [circuit(p[2])[1] for p in g]
+        if len(g) == len(benches):
+            text = f"all {len(g)} circuits"
+        elif len(g) > 2 and max(ns) <= 16:
+            text = f"{len(g)} circuits, n ≤ 16"
+        else:  # compact: "Heis-25, -49*, -64*"
+            out, last = [], None
+            for p in sorted(g, key=lambda p: circuit(p[2])):
+                fam, rest = label(p[2], cells[p[2]]).split("-", 1)
+                out.append(f"-{rest}" if fam == last else f"{fam}-{rest}")
+                last = fam
+            text = ", ".join(out)
+        x, y = max(p[0] for p in g), float(np.mean([p[1] for p in g]))
+        dx, dy, ha = place.get(text, (4, 0, "left"))
+        if ha == "right":
+            x = min(p[0] for p in g)
+        ax.annotate(text, (x, y), xytext=(dx, dy), textcoords="offset points", fontsize=8,
+                    ha=ha, va="center", color=MUTED)
+    return pts
+
+
+def split_frame(ax, xs, ys, xlabel=True, pad=(0.08, 0.25, 0.08, 0.1)):
+    lo, hi = min(xs + [1]) - pad[0], max(xs) + pad[1]
+    xx = np.linspace(lo, hi, 200)
+    ax.plot(xx, 1 / xx, color=INK, lw=0.7, ls="--", zorder=1)
+    ax.axvline(1, color=GRID, lw=0.6, zorder=0)
+    ax.axhline(1, color=GRID, lw=0.6, zorder=0)
+    ax.set_xlim(lo, hi)
+    ax.set_ylim(min(ys + [1]) - pad[2], max(ys) + pad[3])
+    if xlabel:
+        ax.set_xlabel("Qubit ratio (baseline / HBMS)")
+    ax.set_ylabel("Rounds ratio")
+
+
+def split(cells, benches, path):
+    fig, ax = plt.subplots(figsize=(COL, 2.1))
+    pf = split_points(ax, cells, benches, "D0-alt", "D3-k1-fact", FILL["HBM"], "o",
+                      (0.03, 0.05), {"Ising-26": (-4, 0, "right")},
+                      "Planar-2D / HBMS Dedicated (factories)")
+    pc = split_points(ax, cells, benches, "D2-wide", "D3-k1", FILL["HBM-Cult"], "s",
+                      (0.03, 0.05), {"all 11 circuits": (-6, -9, "left")},
+                      "2D-Cult / HBMS Dedicated (cultivation)")
+    xs, ys = [p[0] for p in pf + pc], [p[1] for p in pf + pc]
+    split_frame(ax, xs, ys, pad=(0.08, 0.3, 0.1, 0.1))
+    ax.text(0.745, 1.2, "equal STV", fontsize=8, ha="center", va="center", color=INK,
+            rotation=-38)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=1, handletextpad=0.3)
+    for p in ([path] if isinstance(path, str) else path):
+        fig.savefig(p)
+    plt.close(fig)
+    return ("Physical qubits ($x$) and rounds ($y$) of the planar baseline divided by those "
+            "of HBMS Dedicated, one marker per circuit: Planar-2D over HBMS Dedicated, both "
+            "with factories (circles), and 2D-Cult over HBMS Dedicated, both with cultivation "
+            "patches (squares). Beyond 1 on an axis, HBMS uses fewer qubits or rounds. Above "
+            "the dashed curve ($xy = 1$), HBMS has the lower STV. Circuits whose markers "
+            "coincide share one label. " + D_NOTE + STAR)
+
+
+def split_s2(cells, benches, path):
+    fig, axes = plt.subplots(2, 1, figsize=(COL, 3.4), gridspec_kw=dict(hspace=0.55))
+    panels = [(axes[0], "D0-alt", "D3-s2-fact-bottom", FILL["HBM"], "o",
+               "(a) Factories: Planar-2D / HBMS Shared-2", (0.06, 0.05),
+               {"Ising-26": (4, 2, "left"), "Heis-16, Ising-16": (4, 5, "left")}),
+              (axes[1], "D2-wide", "D3-rows-bottom", FILL["HBM-Cult"], "s",
+               "(b) Cultivation: 2D-Cult / HBMS Rows", (0.03, 0.8), {})]
+    for ax, base, spec, color, marker, tag, tol, place in panels:
+        pts = split_points(ax, cells, benches, base, spec, color, marker, tol, place)
+        split_frame(ax, [p[0] for p in pts], [p[1] for p in pts], pad=(0.1, 0.45, 0.1, 0.3))
+        ax.text(0.0, 1.03, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+    for p in ([path] if isinstance(path, str) else path):
+        fig.savefig(p)
+    plt.close(fig)
+    return ("As Fig. split, for the HBMS configurations whose T gates route with Lower-First: "
+            "(a) Planar-2D over HBMS Shared-2, both with factories, and (b) 2D-Cult over HBMS "
+            "Rows, both with cultivation patches. One marker per circuit. Beyond 1 on an axis, "
+            "HBMS uses fewer qubits or rounds. Above the dashed curve ($xy = 1$), HBMS has the "
+            "lower STV. " + D_NOTE + STAR)
+
+
+def sources(cells, benches, path):
+    kinds = [(FACT, FILL["HBM"], "-", "factories"), (CULT, FILL["HBM-Cult"], "--", "cultivation")]
+    ncol = 6
+    nrow = int(np.ceil((len(benches) + 1) / ncol))
+    fig, axes = plt.subplots(nrow, ncol, figsize=(FULL, 1.2 * nrow + 0.25), sharex=True,
+                             sharey=True, squeeze=False,
+                             gridspec_kw=dict(wspace=0.1, hspace=0.38))
+    xs, ys = [], []
+    for ax, b in zip(axes.flat, benches):
+        cs = cells[b]
+        for (base, specs), color, ls, _ in kinds:
+            if base not in cs:
+                continue
+            pts = sorted((num(cs[s]["n_sources"]) / num(cs[base]["n_sources"]),
+                          num(cs[base]["STV"]) / num(cs[s]["STV"]), s)
+                         for s, _ in specs if s in cs)
+            ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color, ls=ls, lw=0.9,
+                    zorder=2)
+            for x, y, s in pts:
+                ax.scatter(x, y, s=18, marker=MARK[s], color=color, edgecolor=INK, lw=0.3,
+                           zorder=3)
+                xs.append(x)
+                ys.append(y)
+        ax.axhline(1, color=INK, lw=0.6, ls="--")
+        ax.axvline(1, color=INK, lw=0.6, ls=":")
+        ax.set_title(label(b, cs), fontsize=8, pad=2)
+        ax.grid(True, color=GRID, lw=0.4)
+        ax.set_axisbelow(True)
+    ax0 = axes.flat[0]
+    ax0.set_xscale("log")
+    ax0.set_yscale("log")
+    ax0.set_xlim(min(xs) / 1.5, max(xs) * 1.5)
+    ax0.set_ylim(min(ys) / 1.6, max(ys) * 1.6)
+    plain_log(ax0, "x", minor="")
+    plain_log(ax0, "y", minor="")
+    for ax in axes.flat[len(benches):]:
+        ax.axis("off")
+    for k, ((base, specs), color, ls, kind) in enumerate(kinds):  # one legend row per kind
+        handles = [Line2D([], [], color=color, ls=ls, lw=1.1, label=kind.capitalize() + ":")]
+        handles += [Line2D([], [], ls="", marker=MARK[s], ms=4.5, color=color, mec=INK,
+                           mew=0.3, label=lab) for s, lab in specs]
+        fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=8,
+                   bbox_to_anchor=(0.5, 1.0 - 0.05 * k), handlelength=1.6,
+                   columnspacing=1.0, borderaxespad=0)
+    fig.supxlabel("Magic-state resources in HBMS / in the planar baseline", fontsize=9,
+                  y=-0.05)
+    fig.supylabel("STV ratio (baseline / HBMS)", fontsize=9, x=0.06)
+    for p in ([path] if isinstance(path, str) else path):
+        fig.savefig(p)
+    plt.close(fig)
+    return ("STV of the planar baseline divided by that of HBMS with the same kind of "
+            "magic-state resource, against the number of magic-state resources in HBMS over "
+            "that in the baseline, one panel per circuit: Planar-2D against HBMS Shared-16 to "
+            "Dedicated, all with factories (solid), and 2D-Cult against HBMS Dedicated, Rows, "
+            "Ancilla and Full, all with cultivation patches (dashed). Markers give the HBMS "
+            "configuration. Above the dashed line (1), HBMS has the lower STV. On the dotted "
+            "line, both use the same number of magic-state resources. Both axes are "
+            "logarithmic. The two lines use different baselines, so their heights are not "
+            "comparable with each other. " + D_NOTE + STAR)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -155,7 +327,8 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     paths = lambda n: [os.path.join(args.out, f"{n}.{f}") for f in args.fmt.split(",")]  # noqa
     with open(os.path.join(args.out, "eval_captions.md"), "w") as f:
-        for name, fn in [("eval_stv", eval_stv), ("eval_split", eval_split)]:
+        for name, fn in [("eval_stv", eval_stv), ("eval_split", eval_split), ("split", split),
+                         ("split_s2", split_s2), ("sources", sources)]:
             f.write(f"**{name}.pdf.** {fn(cells, benches, paths(name))}\n\n")
     print("wrote", os.path.normpath(args.out))
 
