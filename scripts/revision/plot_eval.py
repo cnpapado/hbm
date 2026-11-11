@@ -17,9 +17,11 @@ Configurations (mati's Lower-First specs):
                Dedicated: Planar-2D / Dedicated (factories), 2D-Cult / Dedicated (cultivation).
   split_s2     (one column) the same for the routed layouts, one panel per kind: (a) Planar-2D
                / Shared-2 (factories), (b) 2D-Cult / Rows (cultivation).
-  sources      (full width) one panel per circuit: STV ratio against the number of
-               magic-state resources in HBMS over that in the baseline, a line per kind.
-split, split_s2 and sources replace the Upper-First figures of the same names (real13).
+  sources_fact (full width) one panel per circuit: STV ratio (Planar-2D / HBMS) against the
+               number of factories in HBMS over that in Planar-2D, Shared-16 to Dedicated.
+  sources_cult (full width) the same with cultivation patches: 2D-Cult / HBMS Dedicated, Rows,
+               Ancilla, Full.
+These four replace the Upper-First real13 figures split, split_s2 and sources.
 """
 
 import argparse
@@ -253,65 +255,87 @@ def split_s2(cells, benches, path):
             "lower STV. " + D_NOTE + STAR)
 
 
-def sources(cells, benches, path):
-    kinds = [(FACT, FILL["HBM"], "-", "factories"), (CULT, FILL["HBM-Cult"], "--", "cultivation")]
+KINDS = {  # kind: (baseline and HBMS configurations, colour, x label, resource name)
+    "fact": (FACT, FILL["HBM"], "Factories in HBMS / in Planar-2D", "factories"),
+    "cult": (CULT, FILL["HBM-Cult"], "Cultivation patches in HBMS / in 2D-Cult", "patches"),
+}
+
+
+def source_grid(cells, benches, path, kind):
+    """One panel per circuit: STV ratio (baseline / HBMS) against the resource-count ratio
+    (HBMS / baseline), a marker per HBMS configuration, for one kind of magic-state resource."""
+    (base, specs), color, xlabel, _ = KINDS[kind]
     ncol = 6
-    nrow = int(np.ceil((len(benches) + 1) / ncol))
+    nrow = int(np.ceil(len(benches) / ncol))
     fig, axes = plt.subplots(nrow, ncol, figsize=(FULL, 1.2 * nrow + 0.25), sharex=True,
                              sharey=True, squeeze=False,
                              gridspec_kw=dict(wspace=0.1, hspace=0.38))
     xs, ys = [], []
     for ax, b in zip(axes.flat, benches):
         cs = cells[b]
-        for (base, specs), color, ls, _ in kinds:
-            if base not in cs:
-                continue
-            pts = sorted((num(cs[s]["n_sources"]) / num(cs[base]["n_sources"]),
-                          num(cs[base]["STV"]) / num(cs[s]["STV"]), s)
-                         for s, _ in specs if s in cs)
-            ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color, ls=ls, lw=0.9,
-                    zorder=2)
-            for x, y, s in pts:
-                ax.scatter(x, y, s=18, marker=MARK[s], color=color, edgecolor=INK, lw=0.3,
-                           zorder=3)
-                xs.append(x)
-                ys.append(y)
+        pts = sorted((num(cs[s]["n_sources"]) / num(cs[base]["n_sources"]),
+                      num(cs[base]["STV"]) / num(cs[s]["STV"]), s)
+                     for s, _ in specs if s in cs and base in cs)
+        ax.plot([p[0] for p in pts], [p[1] for p in pts], color=color, lw=0.9, zorder=2)
+        for x, y, s in pts:
+            ax.scatter(x, y, s=18, marker=MARK[s], color=color, edgecolor=INK, lw=0.3,
+                       zorder=3)
+            xs.append(x)
+            ys.append(y)
         ax.axhline(1, color=INK, lw=0.6, ls="--")
         ax.axvline(1, color=INK, lw=0.6, ls=":")
-        ax.set_title(label(b, cs), fontsize=8, pad=2)
+        title = label(b, cs)  # the * marks the slower cultivation grade
+        ax.set_title(title if kind == "cult" else title.rstrip("*"), fontsize=8, pad=2)
         ax.grid(True, color=GRID, lw=0.4)
         ax.set_axisbelow(True)
     ax0 = axes.flat[0]
     ax0.set_xscale("log")
     ax0.set_yscale("log")
-    ax0.set_xlim(min(xs) / 1.5, max(xs) * 1.5)
-    ax0.set_ylim(min(ys) / 1.6, max(ys) * 1.6)
+    ax0.set_xlim(min(xs + [1]) / 1.5, max(xs + [1]) * 1.5)
+    ax0.set_ylim(min(ys + [1]) / 1.6, max(ys + [1]) * 1.6)
     plain_log(ax0, "x", minor="")
     plain_log(ax0, "y", minor="")
+    if kind == "cult":  # less than a decade on x: label 1, 2, 5 (and 2, 5 on y)
+        fmt = mticker.FuncFormatter(lambda v, _: f"{v:g}")
+        ax0.xaxis.set_major_locator(mticker.FixedLocator([1, 2, 5]))
+        ax0.yaxis.set_major_locator(mticker.FixedLocator([1, 2, 5, 10]))
+        ax0.xaxis.set_major_formatter(fmt)
+        ax0.yaxis.set_major_formatter(fmt)
+        ax0.xaxis.set_minor_formatter(mticker.NullFormatter())
+        ax0.yaxis.set_minor_formatter(mticker.NullFormatter())
     for ax in axes.flat[len(benches):]:
         ax.axis("off")
-    for k, ((base, specs), color, ls, kind) in enumerate(kinds):  # one legend row per kind
-        handles = [Line2D([], [], color=color, ls=ls, lw=1.1, label=kind.capitalize() + ":")]
-        handles += [Line2D([], [], ls="", marker=MARK[s], ms=4.5, color=color, mec=INK,
-                           mew=0.3, label=lab) for s, lab in specs]
-        fig.legend(handles=handles, loc="lower center", ncol=len(handles), fontsize=8,
-                   bbox_to_anchor=(0.5, 1.0 - 0.05 * k), handlelength=1.6,
-                   columnspacing=1.0, borderaxespad=0)
-    fig.supxlabel("Magic-state resources in HBMS / in the planar baseline", fontsize=9,
-                  y=-0.05)
-    fig.supylabel("STV ratio (baseline / HBMS)", fontsize=9, x=0.06)
+    order = specs if kind == "cult" else specs[::-1]  # fewest resources first
+    handles = [Line2D([], [], ls="", marker=MARK[s], ms=4.5, color=color, mec=INK, mew=0.3,
+                      label=lab) for s, lab in order]
+    head = Line2D([], [], ls="", label="HBMS:")  # a text-only first entry
+    fig.legend(handles=[head] + handles, loc="lower center", ncol=len(handles) + 1,
+               fontsize=8, bbox_to_anchor=(0.5, 0.95), handletextpad=0.2, columnspacing=1.2,
+               borderaxespad=0, handlelength=0.8)
+    fig.supxlabel(xlabel, fontsize=9, y=-0.05)
+    fig.supylabel("STV ratio (" + ("Planar-2D" if kind == "fact" else "2D-Cult") + " / HBMS)",
+                  fontsize=9, x=0.06)
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)
-    return ("STV of the planar baseline divided by that of HBMS with the same kind of "
-            "magic-state resource, against the number of magic-state resources in HBMS over "
-            "that in the baseline, one panel per circuit: Planar-2D against HBMS Shared-16 to "
-            "Dedicated, all with factories (solid), and 2D-Cult against HBMS Dedicated, Rows, "
-            "Ancilla and Full, all with cultivation patches (dashed). Markers give the HBMS "
-            "configuration. Above the dashed line (1), HBMS has the lower STV. On the dotted "
-            "line, both use the same number of magic-state resources. Both axes are "
-            "logarithmic. The two lines use different baselines, so their heights are not "
-            "comparable with each other. " + D_NOTE + STAR)
+
+
+def sources_fact(cells, benches, path):
+    source_grid(cells, benches, path, "fact")
+    return ("STV of Planar-2D divided by that of HBMS, both with factories, against the "
+            "number of factories in HBMS over that in Planar-2D, one panel per circuit. "
+            "Markers give the HBMS configuration, from Shared-16 to Dedicated. Above the "
+            "dashed line (1), HBMS has the lower STV. On the dotted line, both use the same "
+            "number of factories. Both axes are logarithmic. " + D_NOTE)
+
+
+def sources_cult(cells, benches, path):
+    source_grid(cells, benches, path, "cult")
+    return ("STV of 2D-Cult divided by that of HBMS, both with cultivation patches, against "
+            "the number of patches in HBMS over that in 2D-Cult, one panel per circuit. "
+            "Markers give the HBMS configuration: Dedicated, Rows, Ancilla and Full. Above "
+            "the dashed line (1), HBMS has the lower STV. On the dotted line, both use the "
+            "same number of patches. Both axes are logarithmic. " + D_NOTE + STAR)
 
 
 def main():
@@ -328,7 +352,8 @@ def main():
     paths = lambda n: [os.path.join(args.out, f"{n}.{f}") for f in args.fmt.split(",")]  # noqa
     with open(os.path.join(args.out, "eval_captions.md"), "w") as f:
         for name, fn in [("eval_stv", eval_stv), ("eval_split", eval_split), ("split", split),
-                         ("split_s2", split_s2), ("sources", sources)]:
+                         ("split_s2", split_s2), ("sources_fact", sources_fact),
+                         ("sources_cult", sources_cult)]:
             f.write(f"**{name}.pdf.** {fn(cells, benches, paths(name))}\n\n")
     print("wrote", os.path.normpath(args.out))
 
