@@ -10,8 +10,10 @@ is drawn as a check of the fit). REV_CSV is analyze.py's CSV of the compiler run
               cross-layer CNOTs only: points with binomial error bars, the
               fit A (p / p_th)^((d + 1) / 2) over d = 3..11 (solid over the simulated p, dashed
               down to 1e-4), d = 13 as a check of the fit; the fitted threshold (dotted). (c) The
-              geometric-mean STV ratio (planar baseline over HBMS) against p' / p, every run at
-              the smallest odd d that meets the 1% target with the seam fit.
+              geometric-mean STV ratio (planar baseline over HBMS) against p' / p = 1..100,
+              every run at the smallest odd d that meets the 1% target, each vertical merge at
+              r_m(d) times its in-plane error, r_m from the simulations at p = 1e-3 (fitted over
+              d = 5..11); triangles where the ratio crosses 1.
 """
 
 import argparse
@@ -35,7 +37,8 @@ import seam_merge  # noqa: E402
 D_STYLE = {3: ("#0072B2", "o"), 5: ("#E69F00", "s"), 7: ("#009E73", "^"), 9: ("#CC79A7", "D"),
            11: ("#D55E00", "v"), 13: ("#000000", "o")}
 FIT_DS, CHECK_D = (3, 5, 7, 9, 11), 13
-MS = (1, 5, 10)
+MS = (1, 5, 10)  # p' / p in the threshold fits
+MS_STV = (1, 5, 10, 20, 50, 100)  # p' / p in the STV panel
 PAIRS = [("D0-alt", "D3-k1-fact", "Factories, Dedicated", FILL["HBM"], "o"),
          ("D0-alt", "D3-s2-fact-bottom", "Factories, Shared-2", shade(FILL["HBM"], 1, 2), "s"),
          ("D2-wide", "D3-full-bottom", "Cultivation, Full", FILL["HBM-Cult"], "D")]
@@ -72,31 +75,39 @@ def fit(u, mode, m, pmax=5e-3, min_errors=20):
     return math.exp(b0), math.exp(-b1)
 
 
-def d_need(r, pth_v, a_v):
-    """analyze.py's smallest odd d under the 1% target, with the seam at (a_v, pth_v)."""
+def ratio_fit(u, ms, ds=(5, 7, 9, 11)):
+    """{m: r_m}, r_m(d) = merge error at p' = m p over that at p' = p, both at the operating
+    point p = 1e-3: log P = a_m + b_m (d + 1) / 2 fitted over d = 5..11 for each m."""
+    ab = {}
+    for m in ms:
+        pts = [((d + 1) / 2, math.log(u[("seam", float(m), d, P)][0])) for d in ds]
+        ab[m] = seam_merge.fit_line(pts)
+    return {m: (lambda d, m=m: math.exp(ab[m][0] - ab[1][0]
+                                        + (ab[m][1] - ab[1][1]) * (d + 1) / 2)) for m in ms}
+
+
+def d_need(r, rm):
+    """analyze.py's smallest odd d under the 1% target, the vertical merges at r_m(d) times
+    their in-plane error (Eq. 3)."""
     e_src = float(r["e_source"])
     if e_src > TARGET:
         return ""
-    eps = lambda d, x, a=A0: a * (P / x) ** ((d + 1) / 2)  # noqa: E731
+    eps = lambda d: A0 * (P / PTH0) ** ((d + 1) / 2)  # noqa: E731
     n, steps = float(r["N"]), float(r["steps"])
     tiles = float(r["t_path_tiles"]) + float(r["cx_path_tiles"])
     v = float(r["vertical_merges"])
-    for d in range(3, 101, 2):
-        if (n * steps + tiles) * d * eps(d, PTH0) + v * d * eps(d, pth_v, a_v) + e_src <= TARGET:
+    for d in range(3, 201, 2):
+        if (n * steps + tiles + v * rm(d)) * d * eps(d) + e_src <= TARGET:
             return str(d)
     return ""
 
 
-def stv_ratios(rev, fits, mode):
-    """{label: [geomean STV ratio at each m]}, the seam scaled as seam_merge.py --fit does:
-    analyze.py's in-plane (A, p_th) at m = 1, moved by the fitted ratios at m > 1."""
-    a1, t1 = fits[(mode, 1.0)]
+def stv_ratios(rev, rms):
+    """{label: [geomean STV ratio at each m]} with every run at its own d."""
     out = {lab: [] for _, _, lab, _, _ in PAIRS}
-    for m in MS:
-        a, t = fits[(mode, float(m))]
-        col = f"d_need_{m}p"
-        rows = [dict(r, **{col: d_need(r, PTH0 * t / t1, A0 * a / a1)}) for r in rev]
-        cells = {(r["bench"], r["spec"]): r for r in refit(rows, m)}
+    for m in MS_STV:
+        rows = [dict(r, d_need_1p=d_need(r, rms[m])) for r in rev]
+        cells = {(r["bench"], r["spec"]): r for r in refit(rows, 1)}
         benches = sorted({b for b, _ in cells})
         for base, spec, lab, _, _ in PAIRS:
             v = [float(cells[(b, base)]["STV"]) / float(cells[(b, spec)]["STV"]) for b in benches]
@@ -104,7 +115,19 @@ def stv_ratios(rev, fits, mode):
     return out
 
 
-def seam_figure(u, fits, ratios, path):
+def break_even(ratios):
+    """{label: p'/p where the ratio crosses 1}, log-log interpolation between sampled m."""
+    out = {}
+    for lab, v in ratios.items():
+        for (m0, r0), (m1, r1) in zip(zip(MS_STV, v), zip(MS_STV[1:], v[1:])):
+            if r0 >= 1 > r1:
+                f = math.log(r0) / (math.log(r0) - math.log(r1))
+                out[lab] = math.exp(math.log(m0) + f * (math.log(m1) - math.log(m0)))
+                break
+    return out
+
+
+def seam_figure(u, fits, ratios, be, path):
     fig, axes = plt.subplots(1, 3, figsize=(FULL, 2.15),
                              gridspec_kw=dict(width_ratios=[1, 1, 1.1], wspace=0.38))
     ds = sorted({k[2] for k in u})
@@ -149,13 +172,15 @@ def seam_figure(u, fits, ratios, path):
                handletextpad=0.3, columnspacing=0.9, labelspacing=0.25)
     ax = axes[2]
     for (_, _, lab, color, mk) in PAIRS:
-        ax.plot(MS, ratios["seam"][lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
+        ax.plot(MS_STV, ratios[lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
+        if lab in be:  # where HBMS stops winning
+            ax.plot(be[lab], 1, marker="v", ms=5, color=color, mec=INK, mew=0.4, zorder=5)
     ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
     ax.set_xscale("log")
-    ax.xaxis.set_major_locator(mticker.FixedLocator(MS))
+    ax.xaxis.set_major_locator(mticker.FixedLocator(MS_STV))
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
     ax.xaxis.set_minor_locator(mticker.NullLocator())
-    ax.set_xlim(0.8, 12.5)
+    ax.set_xlim(0.8, 125)
     ax.set_ylim(0, 5)
     ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
     ax.grid(True, axis="y", color=GRID, lw=0.5)
@@ -178,7 +203,9 @@ def seam_figure(u, fits, ratios, path):
             "the simulated p, and its prediction for d = 13 (black markers, not fitted). "
             "Dotted: the fitted threshold. (c) Geometric-mean "
             "STV of the planar baseline over that of HBMS against p'/p, every run at the "
-            "smallest odd code distance that meets the program-error target.")
+            "smallest odd code distance that meets the program-error target, with each merge "
+            "across a vertical coupling at the error simulated at p = 10^-3 relative to "
+            "p' = p. Triangles: where the ratio crosses 1.")
 
 
 def main():
@@ -197,13 +224,14 @@ def main():
         print(f"{mode:5s} m={m:<4g} A={a:.3g} p_th={t:.3g}  "
               f"A/A(1)={a / fits[(mode, 1.0)][0]:.2f}  p_th/p_th(1)={t / fits[(mode, 1.0)][1]:.3f}")
     rev = list(csv.DictReader(open(args.rev)))
-    ratios = {mode: stv_ratios(rev, fits, mode) for mode in ("seam",)}
-    for mode in ratios:
-        for lab, v in ratios[mode].items():
-            print(f"{mode:5s} {lab:22s} " + "  ".join(f"{m}p: {x:.2f}" for m, x in zip(MS, v)))
+    ratios = stv_ratios(rev, ratio_fit(u, MS_STV))
+    be = break_even(ratios)
+    for lab, v in ratios.items():
+        print(f"{lab:22s} " + "  ".join(f"{m}p: {x:.2f}" for m, x in zip(MS_STV, v))
+              + (f"  break-even {be[lab]:.0f}p" if lab in be else ""))
     os.makedirs(args.out, exist_ok=True)
     paths = [os.path.join(args.out, f"seam_merge.{f}") for f in args.fmt.split(",")]
-    caption = seam_figure(u, fits, ratios, paths)
+    caption = seam_figure(u, fits, ratios, be, paths)
     with open(os.path.join(args.out, "seam_caption.md"), "w") as f:
         f.write(f"**seam_merge.pdf.** {caption}\n")
     print("wrote", paths[0])
