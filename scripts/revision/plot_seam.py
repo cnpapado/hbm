@@ -153,7 +153,7 @@ def seam_figure(u, fits, ratios, be, path):
             ax.plot(lo, law(lo), color=color, lw=0.8, ls="--", zorder=2)
         ax.axvline(pth, color=MUTED, lw=0.7, ls=":", zorder=1)
         ax.text(pth * 1.08, 2e-12, f"$p_{{th}} = {pth * 1e3:.1f}\\times10^{{-3}}$",
-                ha="left", va="bottom", fontsize=7, color=MUTED, rotation=90)
+                ha="left", va="bottom", fontsize=8, color=MUTED, rotation=90)
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlim(1e-4, 1.6e-2)
@@ -162,13 +162,13 @@ def seam_figure(u, fits, ratios, be, path):
         ax.set_xlabel("Physical error rate $p$")
         ax.grid(True, which="major", color=GRID, lw=0.5)
         ax.set_axisbelow(True)
-        ax.text(0.0, 1.03, f"({tag}) coupling error $p' = {m}p$", transform=ax.transAxes,
+        ax.text(0.0, 1.03, f"({tag}) Coupling error $p' = {m}p$", transform=ax.transAxes,
                 fontsize=8, va="bottom", ha="left")
     axes[0].set_ylabel("Logical error per merge")
     h, lab = axes[0].get_legend_handles_labels()
     h += [plt.Line2D([], [], color=INK, lw=1.0), plt.Line2D([], [], color=INK, lw=0.8, ls="--")]
     lab += ["fit", "fit, beyond the data"]
-    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.35, 0.99), ncol=5, fontsize=7,
+    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.35, 0.99), ncol=4, fontsize=8,
                handletextpad=0.3, columnspacing=0.9, labelspacing=0.25)
     ax = axes[2]
     for (_, _, lab, color, mk) in PAIRS:
@@ -181,17 +181,16 @@ def seam_figure(u, fits, ratios, be, path):
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
     ax.xaxis.set_minor_locator(mticker.NullLocator())
     ax.set_xlim(0.8, 125)
-    ax.set_ylim(0, 5)
+    ax.set_ylim(0, 6)
     ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
     ax.grid(True, axis="y", color=GRID, lw=0.5)
     ax.set_axisbelow(True)
     ax.set_xlabel("Coupling error $p'/p$")
-    ax.set_ylabel("STV ratio, planar / HBMS")
-    ax.text(0.0, 1.03, "(c) STV ratio (geometric mean)", transform=ax.transAxes, fontsize=8,
+    ax.set_ylabel("STV ratio")
+    ax.text(0.0, 1.03, "(c) Baseline / HBMS, GMean", transform=ax.transAxes, fontsize=8,
             va="bottom", ha="left")
-    h, lab = ax.get_legend_handles_labels()
-    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.84, 0.99), ncol=1, fontsize=6.5,
-               handlelength=1.6, handletextpad=0.3, labelspacing=0.2)
+    ax.legend(loc="upper right", fontsize=8, handlelength=1.6, handletextpad=0.3,
+              labelspacing=0.2)  # inside, as in the other evaluation figures
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)

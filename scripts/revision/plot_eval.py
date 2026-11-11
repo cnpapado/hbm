@@ -107,10 +107,10 @@ def eval_stv(cells, benches, path):
 
 def eval_split(cells, benches, path):
     fig, axes = plt.subplots(2, 1, figsize=(COL, 2.9), gridspec_kw=dict(hspace=0.75))
-    bars = [("Q", "Qubits", "#D4D4D4"), ("rounds", "Rounds", "#8C8C8C")]
     for ax, ((base, specs), color, marker, (top, step), tag) in zip(
-            axes, [(FACT, FILL["HBM"], "D", (3, 0.5), "(a) Factories: Planar-2D / HBMS"),
-                   (CULT, FILL["HBM-Cult"], "s", (8, 2), "(b) Cultivation: 2D-Cult / HBMS")]):
+            axes, [(FACT, FILL["HBM"], "D", (3.2, 0.5), "(a) Factories: Planar-2D / HBMS"),
+                   (CULT, FILL["HBM-Cult"], "s", (9, 2), "(b) Cultivation: 2D-Cult / HBMS")]):
+        bars = [("Q", "Qubits", _mix(color, 0.3)), ("rounds", "Rounds", _mix(color, 0.6))]
         order = specs[::-1] if base == "D0-alt" else specs  # fewest resources first
         x = np.arange(len(order))
         w = 0.3
@@ -123,7 +123,7 @@ def eval_split(cells, benches, path):
         lo, hi = g - np.array([np.nanmin(v) for v in r]), np.array([np.nanmax(v) for v in r]) - g
         ax.errorbar(x, g, yerr=[lo, hi], fmt=marker, color=color, mec=INK, mew=0.4, ms=4.5,
                     ecolor=INK, elinewidth=0.6, capsize=1.5, zorder=4,
-                    label="STV, " + ("factories" if base == "D0-alt" else "cultivation"))
+                    label="STV")
         ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
         ticks = [f"{lab}\n{per_slot(cells, benches, spec, base)}" for spec, lab in order]
         ax.set_xticks(x, ticks)
@@ -134,16 +134,14 @@ def eval_split(cells, benches, path):
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
         ax.grid(True, axis="y", color=GRID, lw=0.5)
         ax.set_axisbelow(True)
-        ax.set_ylabel("Baseline / HBMS")
+        ax.set_ylabel("Ratio")
         ax.text(0.0, 1.04, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
-    h0, l0 = axes[0].get_legend_handles_labels()
-    h1, l1 = axes[1].get_legend_handles_labels()
-    fig.legend(h0 + h1[2:], l0 + l1[2:], loc="lower center", bbox_to_anchor=(0.5, 0.97),
-               ncol=4, handlelength=1.0, columnspacing=0.7, handletextpad=0.3)
+    for ax, loc in zip(axes, ("upper right", "upper left")):  # inside, as in eval_stv
+        ax.legend(loc=loc, ncol=3, handlelength=1.0, columnspacing=0.8, handletextpad=0.3)
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)
-    return ("Physical qubits and rounds (bars) and STV (markers) of the planar baseline "
+    return ("Physical qubits and rounds (light and dark bars) and STV (markers) of the planar baseline "
             "divided by those of HBMS, as geometric means over the circuits, per HBMS "
             "configuration ordered by its number of magic-state resources per data slot "
             "(below each name): (a) Planar-2D over HBMS Shared-16 to Dedicated, with "
@@ -207,8 +205,10 @@ def split_frame(ax, xs, ys, xlabel=True, pad=(0.08, 0.25, 0.08, 0.1)):
     ax.set_xlim(lo, hi)
     ax.set_ylim(min(ys + [1]) - pad[2], max(ys) + pad[3])
     if xlabel:
-        ax.set_xlabel("Qubit ratio (baseline / HBMS)")
+        ax.set_xlabel("Qubit ratio")
     ax.set_ylabel("Rounds ratio")
+    for axis in (ax.xaxis, ax.yaxis):  # 1, 1.5 as in eval_split, not 1.00, 1.50
+        axis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
 
 
 def split(cells, benches, path):
@@ -220,10 +220,10 @@ def split(cells, benches, path):
                       (0.03, 0.05), {"all 11 circuits": (-6, -9, "left")},
                       "2D-Cult / HBMS Dedicated (cultivation)")
     xs, ys = [p[0] for p in pf + pc], [p[1] for p in pf + pc]
-    split_frame(ax, xs, ys, pad=(0.08, 0.3, 0.1, 0.1))
+    split_frame(ax, xs, ys, pad=(0.08, 0.3, 0.17, 0.5))
     ax.text(0.745, 1.2, "equal STV", fontsize=8, ha="center", va="center", color=INK,
             rotation=-38)
-    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=1, handletextpad=0.3)
+    ax.legend(loc="upper right", ncol=1, handletextpad=0.3)
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)
@@ -239,7 +239,7 @@ def split_s2(cells, benches, path):
     fig, axes = plt.subplots(2, 1, figsize=(COL, 3.4), gridspec_kw=dict(hspace=0.55))
     panels = [(axes[0], "D0-alt", "D3-s2-fact-bottom", FILL["HBM"], "o",
                "(a) Factories: Planar-2D / HBMS Shared-2", (0.06, 0.05),
-               {"Ising-26": (4, 2, "left"), "Heis-16, Ising-16": (4, 5, "left")}),
+               {"Ising-26": (0, 7, "center"), "Heis-16, Ising-16": (4, 5, "left")}),
               (axes[1], "D2-wide", "D3-rows-bottom", FILL["HBM-Cult"], "s",
                "(b) Cultivation: 2D-Cult / HBMS Rows", (0.03, 0.8), {})]
     for ax, base, spec, color, marker, tag, tol, place in panels:
