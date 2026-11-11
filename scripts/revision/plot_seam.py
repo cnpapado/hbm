@@ -31,7 +31,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
                                 "lattice_surgery"))
 import seam_merge  # noqa: E402
 
-LINK = "#C51B7D"  # the vertical-coupling colour of the schematics
+# Per code distance, the colours and markers of the earlier LER figure (Okabe-Ito); the d = 13
+# check in black, the in-plane reference (p' = p) in gray, as that figure's "planar 2D".
+D_STYLE = {3: ("#0072B2", "o"), 5: ("#E69F00", "s"), 7: ("#009E73", "^"), 9: ("#CC79A7", "D"),
+           11: ("#D55E00", "v"), 13: ("#000000", "o")}
+REF = "#999999"
 FIT_DS, CHECK_D = (3, 5, 7, 9, 11), 13
 MS = (1, 5, 10)
 PAIRS = [("D0-alt", "D3-k1-fact", "Factories, Dedicated", FILL["HBM"], "o"),
@@ -106,11 +110,17 @@ def seam_figure(u, fits, ratios, path):
     fig, axes = plt.subplots(1, 4, figsize=(FULL, 2.05),
                              gridspec_kw=dict(width_ratios=[1, 1, 1, 1.05], wspace=0.42))
     ds = sorted({k[2] for k in u})
-    colors = {d: shade(LINK, len(FIT_DS) - 1 - k, len(FIT_DS)) for k, d in enumerate(FIT_DS)}
-    colors[CHECK_D] = INK
     for ax, m, tag in zip(axes, MS, "abc"):
         a, pth = fits[("seam", float(m))]
         pgrid = np.logspace(-3, math.log10(pth), 40)  # the fit, up to the threshold
+        if m > 1:  # the in-plane merge (p' = p) for reference
+            a1, t1 = fits[("seam", 1.0)]
+            for d in FIT_DS:
+                pts = sorted((p, v[0]) for (md, mm, dd, p), v in u.items()
+                             if md == "seam" and mm == 1 and dd == d and v[0] > 0)
+                ax.plot([p for p, _ in pts], [y for _, y in pts], ls="--", lw=0.7, color=REF,
+                        marker=D_STYLE[d][1], ms=2.6, mfc="white", mec=REF, mew=0.5, zorder=1,
+                        label="$p' = p$ (in-plane)" if d == FIT_DS[0] else None)
         for d in ds:
             pts = sorted((p, v) for (md, mm, dd, p), v in u.items()
                          if md == "seam" and mm == m and dd == d and v[0] > 0)
@@ -120,11 +130,11 @@ def seam_figure(u, fits, ratios, path):
             y = np.array([v[0] for _, v in pts])
             e = np.array([v[1] for _, v in pts])
             check = d == CHECK_D
-            ax.errorbar(x, y, yerr=[np.minimum(e, y * 0.9), e], fmt="o", ms=3.2,
-                        mfc="white" if check else colors[d], mec=colors[d], mew=0.7,
-                        ecolor=colors[d], elinewidth=0.6, capsize=0, zorder=3,
+            color, mk = D_STYLE[d]
+            ax.errorbar(x, y, yerr=[np.minimum(e, y * 0.9), e], fmt=mk, ms=3.4, mfc="white",
+                        mec=color, mew=0.9, ecolor=color, elinewidth=0.6, capsize=0, zorder=3,
                         label=f"$d = {d}$" + (" (check)" if check else ""))
-            ax.plot(pgrid, a * (pgrid / pth) ** ((d + 1) / 2), color=colors[d], lw=0.8,
+            ax.plot(pgrid, a * (pgrid / pth) ** ((d + 1) / 2), color=color, lw=1.0,
                     ls="--" if check else "-", zorder=2)
         ax.axvline(pth, color=MUTED, lw=0.7, ls=":", zorder=1)
         ax.text(pth * 1.08, 3e-9, f"$p_{{th}} = {pth * 1e3:.1f}\\times10^{{-3}}$",
@@ -140,8 +150,10 @@ def seam_figure(u, fits, ratios, path):
                 fontsize=8, va="bottom", ha="left")
     axes[0].set_ylabel("Logical error per merge")
     h, lab = axes[0].get_legend_handles_labels()
-    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.39, 1.0), ncol=6, fontsize=7.5,
-               handletextpad=0.2, columnspacing=1.0)
+    hr, lr = axes[1].get_legend_handles_labels()
+    k = lr.index("$p' = p$ (in-plane)")
+    fig.legend(h + [hr[k]], lab + [lr[k]], loc="lower center", bbox_to_anchor=(0.39, 1.0),
+               ncol=7, fontsize=7, handletextpad=0.2, columnspacing=0.8)
     ax = axes[3]
     for (_, _, lab, color, mk) in PAIRS:
         ax.plot(MS, ratios["seam"][lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
