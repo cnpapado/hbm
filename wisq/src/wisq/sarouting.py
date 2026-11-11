@@ -13,6 +13,11 @@ HBM_CONFIG = os.getenv("HBM_CONFIG", "NO_CONFIG")
 # HBM_DESIGN (revision designs #0-#5) takes precedence over HBM_CONFIG; see designs.py.
 DESIGN = get_design()
 
+# Within a step the router tries orders of the executable gates, routing each greedily. The
+# default (as in DASCOT) starts from a random mix and searches CNOTs-then-T orders for small
+# steps; HBM_GATE_ORDER=t_first always routes the step's T gates before its CNOTs.
+T_FIRST = os.getenv("HBM_GATE_ORDER", "") == "t_first"
+
 
 # shared_2-route_bottom
 # shared_2-route_upper
@@ -94,8 +99,13 @@ def _build_3d_graph(grid_len, grid_height, to_remove_lower, to_remove_upper):
     return g, payload_to_idx, N
 
 def route_gate(
-    indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms
+    indexed_gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms,
+    used_ms=None,
 ):
+    # used_ms: magic states already consumed by a T gate in this timestep. A magic state
+    # serves at most one T gate per timestep, even though it can be reached from several sides.
+    if used_ms is None:
+        used_ms = set()
     print("trying gate...", indexed_gate, f"({mapping[indexed_gate[1][0]]})")
     device_graph = rx.generators.grid_graph(rows=grid_height, cols=grid_len)
     for idx in device_graph.node_indices():
@@ -171,7 +181,7 @@ def route_gate(
         return [(id, gate, path_payloads)], to_remove, to_remove_hbm
     elif len(gate) == 2:
         pairs = [
-            (vn, hn)
+            (vn, hn, None)
             for vn in vertical_neighbors(
                 mapping[gate[0]], grid_len, grid_height, omitted_edges=[]
             )
@@ -197,15 +207,18 @@ def route_gate(
             ) + horizontal_neighbors(
                 mapping[gate[0]], grid_len, grid_height, omitted_edges=[]
             )
-            tgt_payloads = []
+            tgt_payloads = []  # (upper-plane payload, magic state it reaches)
             for m in msf_faces:
+                if m in used_ms:
+                    continue
                 for hn in horizontal_neighbors(m, grid_len, grid_height, omitted_edges=[]):
-                    tgt_payloads.append(hn + N)
+                    tgt_payloads.append((hn + N, m))
                 for vn in vertical_neighbors(m, grid_len, grid_height, omitted_edges=[]):
-                    tgt_payloads.append(vn + N)
+                    tgt_payloads.append((vn + N, m))
 
             shortest_path_len = 2**31 - 1
             shortest_route = None
+            shortest_ms = None
             for s_pl in src_payloads:
                 if s_pl not in payload_to_idx:
                     continue
@@ -214,7 +227,7 @@ def route_gate(
                     g3d, edge_cost_fn=lambda w: w, node=s_idx,
                     goal=None,
                 )
-                for t_pl in tgt_payloads:
+                for t_pl, m in tgt_payloads:
                     if t_pl not in payload_to_idx:
                         continue
                     t_idx = payload_to_idx[t_pl]
@@ -222,6 +235,7 @@ def route_gate(
                     if d < shortest_path_len:
                         shortest_path_len = d
                         shortest_route = (s_idx, t_idx)
+                        shortest_ms = m
                         if take_first_ms:
                             break
                 if take_first_ms and shortest_route is not None:
@@ -230,6 +244,7 @@ def route_gate(
             if shortest_route is None:
                 return [], to_remove, to_remove_hbm
 
+            used_ms.add(shortest_ms)
             s_idx, t_idx = shortest_route
             if s_idx == t_idx:
                 path_payloads = [g3d.get_node_data(s_idx)]
@@ -258,8 +273,9 @@ def route_gate(
                 ),
             )
             pairs = [
-                (mapping[gate[0]], hn) if vn in sorted_msf else (vn, hn)
+                ((mapping[gate[0]], hn, magic_state) if vn in sorted_msf else (vn, hn, magic_state))
                 for magic_state in sorted_msf
+                if magic_state not in used_ms
                 for vn in vertical_neighbors(
                     mapping[gate[0]], grid_len, grid_height, omitted_edges=[]
                 )
@@ -271,13 +287,13 @@ def route_gate(
     # filter pairs by checking payload existence
     if HBM_ARCH == "ARCH_C" and len(gate) == 1: # for T gates in ARCH_C:
         pairs = [
-            (s, t) for s, t in pairs
+            (s, t, m) for s, t, m in pairs
             if hbm_graph.find_node_by_weight(s) is not None
             and hbm_graph.find_node_by_weight(t) is not None
         ]
     else:
         pairs = [
-            (s, t) for s, t in pairs
+            (s, t, m) for s, t, m in pairs
             if device_graph.find_node_by_weight(s) is not None
             and device_graph.find_node_by_weight(t) is not None
         ]
@@ -290,7 +306,8 @@ def route_gate(
     print("Pairs before filter:", pairs_before_filter)
     print("Pairs after filter:", pairs)
     
-    for s_payload, t_payload in pairs:
+    shortest_ms = None
+    for s_payload, t_payload, ms_payload in pairs:
         # convert payload -> internal index
         s = graph_to_use.find_node_by_weight(s_payload)
         t = graph_to_use.find_node_by_weight(t_payload)
@@ -307,11 +324,14 @@ def route_gate(
         if dist < shortest_path_len:
             shortest_path_len = dist
             shortest_pair = s, t
+            shortest_ms = ms_payload
             if take_first_ms and len(gate) == 1:
                 break
 
     if shortest_pair is not None:
         s, t = shortest_pair
+        if shortest_ms is not None:
+            used_ms.add(shortest_ms)
         # print(s,t)
         # print(graph_to_use.nodes())
         # print(graph_to_use.node_indices())
@@ -349,10 +369,12 @@ def try_order(
         return design_routing.try_order(order, executable)
     step = []
     to_remove, to_remove_hbm = initialize_to_remove(msf_faces, mapping)
+    used_ms = set()
     for i in range(len(executable)):
         gate = list(executable.items())[order[i]]
         route, to_remove, to_remove_hbm = route_gate(
-            gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms
+            gate, grid_len, grid_height, msf_faces, mapping, to_remove, to_remove_hbm, take_first_ms,
+            used_ms,
         )
         step.extend(route)
     return step
@@ -505,8 +527,10 @@ def best_realizable_set_found(
     cnot_indices = [
         i for (i, (id, gate)) in enumerate(executable.items()) if len(gate) == 2
     ]
+    # the two groups of an order, each permuted on its own below
+    first, second = (t_indices, cnot_indices) if T_FIRST else (cnot_indices, t_indices)
     if initial_order == "naive":
-        best_order = cnot_indices + t_indices
+        best_order = first + second
         best_step = try_order(
             best_order,
             executable,
@@ -519,8 +543,11 @@ def best_realizable_set_found(
         current_order = best_order
         current_step = best_step
     elif initial_order == "random":
-        best_order = cnot_indices + t_indices
-        random.shuffle(best_order)
+        if T_FIRST:
+            best_order = random.sample(first, len(first)) + random.sample(second, len(second))
+        else:
+            best_order = cnot_indices + t_indices
+            random.shuffle(best_order)
         best_step = try_order(
             best_order,
             executable,
@@ -590,7 +617,7 @@ def best_realizable_set_found(
 
         orders_to_explore = orders[:sample_size]
         for cnot_order, t_order in orders_to_explore:
-            order = list(cnot_order) + list(t_order)
+            order = list(t_order) + list(cnot_order) if T_FIRST else list(cnot_order) + list(t_order)
             new_step = try_order(
                 order,
                 executable,
@@ -615,15 +642,15 @@ def best_realizable_set_found(
     else:
         while temperature > termination_temp:
             new_order = current_order.copy()
-            cnots, ts = new_order[: len(cnot_indices)], new_order[len(cnot_indices) :]
+            cnots, ts = new_order[: len(first)], new_order[len(first) :]
             if len(cnots) > 1:
                 ind1, ind2 = np.random.choice(
-                    range(len(cnot_indices)), size=2, replace=False
+                    range(len(first)), size=2, replace=False
                 )
                 cnots[ind1], cnots[ind2] = cnots[ind2], cnots[ind1]
             if len(ts) > 1:
                 ind1, ind2 = np.random.choice(
-                    range(len(t_indices)), size=2, replace=False
+                    range(len(second)), size=2, replace=False
                 )
                 ts[ind1], ts[ind2] = ts[ind2], ts[ind1]
             new_order = cnots + ts

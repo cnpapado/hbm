@@ -13,7 +13,9 @@ from wisq.designs import (SHARED, build_arch, d0_ring_capacity, direct_sources, 
 SPECS = ["D0-S4", "D0-S8", "D1-band-S4", "D1-band-S8", "D1-mesh-S4", "D1-mesh-S8",
          "D2-wide", "D2-tight", "D2-wide-borrow", "D3-k1", "D3-khalf", "D3-k2", "D3-kquarter",
          "D3-k1-route", "D4-k1", "D4-k1p5", "D5-S4", "D5-S8", "D5-S16", "D5-S8-3d",
-         "D0-alt", "D3-s2", "D3-s4", "D3-s8", "D3-s16", "D3-k1-fact", "D3-s4-fact"]
+         "D0-alt", "D3-s2", "D3-s4", "D3-s8", "D3-s16", "D3-k1-fact", "D3-s4-fact", "D3-s4-fact-bottom",
+         "D3-s4-fact-active", "D3-s8-fact-bottom-active", "D3-rows", "D3-rows-bottom",
+         "D3-ancilla-bottom", "D3-full-bottom"]
 SIZES = [16, 25, 49, 100]
 
 
@@ -35,7 +37,10 @@ def neighbors(p, w, h):
                                  "D1-band-mesh-S4", "D2-medium", "D3-k3", "D5-S0", "D5-X0",
                                  "D2-wide-route", "D3-k1-borrow", "D5-S4-route",
                                  "D1-band-Xmax", "D5-Xmax", "D0-Xmax-S4", "D1-band-alt",
-                                 "D0-alt-X1", "D3-s3", "D2-wide-fact"])
+                                 "D0-alt-X1", "D3-s3", "D2-wide-fact",
+                                 "D3-k1-fact-bottom", "D2-wide-bottom",
+                                 "D3-k1-fact-active", "D3-kquarter-active", "D2-wide-active",
+                                 "D3-ancilla", "D3-rows-active", "D3-full"])
 def test_invalid_specs_rejected(bad):
     with pytest.raises(ValueError):
         design(bad)
@@ -115,10 +120,13 @@ def test_layout_invariants(spec, n):
         assert any(v not in lower_taken for v in vert), (spec, n, q, "no free vertical side")
         assert any(x not in lower_taken for x in horiz), (spec, n, q, "no free horizontal side")
 
-    # Every source can be reached: a free neighbour on its own layer.
+    # Every source can be reached: a free neighbour on its own layer (bottom routing: some
+    # source has a free tile below it to merge down into).
     taken = (set(data) | blocked | set(sources)) if des.placement == "plane" else (
         blocked_top | set(sources))
-    if des.allow_route:
+    if des.allow_route and des.routing == "BOTTOM":
+        assert any(p not in lower_taken for p in sources), (spec, n, "no source above a free tile")
+    elif des.allow_route:
         for p in sources:
             vert, horiz = neighbors(p, w, h)
             assert any(x not in taken for x in vert + horiz), (spec, n, p, "unreachable source")
@@ -182,6 +190,122 @@ def test_d3_fact_sources_are_factories():
     assert acct["source"] == "factory" and acct["n_factories"] == 4 == acct["top_factory_tiles"]
     assert acct["n_patches"] == 0 and acct["factory_qubits"] == 3718
     assert build_arch(design("D3-k1-fact"), 16)["design"]["n_factories"] == 16
+
+
+@pytest.mark.parametrize("knob", ["s2", "s4", "s8", "s16"])
+@pytest.mark.parametrize("n", SIZES)
+def test_d3_bottom_drops_the_top_routing_layer(knob, n):
+    # Same factories as Shared-S, but routed in the data plane: the top layer is factories only.
+    top = build_arch(design(f"D3-{knob}-fact"), n)
+    arch = build_arch(design(f"D3-{knob}-fact-bottom"), n)
+    acct = arch["design"]
+    assert arch["magic_states"] == top["magic_states"]
+    assert acct["routing"] == "BOTTOM" and acct["allow_route"]
+    assert not acct["top_routing_layer"] and acct["top_tiles"] == len(arch["magic_states"])
+
+
+def test_bottom_routes_in_plane_to_the_tile_below_a_factory():
+    from wisq import design_routing as dr
+
+    des = design("D3-s16-fact-bottom", factory_rounds=0)
+    arch = build_arch(des, 16)
+    (f,) = arch["magic_states"]
+    far = max(arch["alg_qubits"], key=lambda q: abs(q - f))
+    dr.begin(des, arch, {0: far})
+    step = dr.try_order([0], {7: (0,)})
+    (_, _, path), = step
+    assert path and path[-1] == f and all(p < arch["width"] * arch["height"] for p in path)
+    dr.commit(step, {7: (0,)})
+    s = dr.stats()
+    assert s["t_routed"] == 1 and s["vertical_merges"] == 1 and s["t_path_tiles"] == len(path)
+
+
+
+@pytest.mark.parametrize("knob", ["s2", "s4", "s8", "s16"])
+@pytest.mark.parametrize("n", [10, 13, 16, 20, 25, 26, 34, 49, 64, 66, 100])
+def test_d3_active_counts_sources_per_qubit_in_use(knob, n):
+    # ceil(N / S) distinct sources for the N qubits in use, on top, wherever the grid pads N.
+    arch = build_arch(design(f"D3-{knob}-fact-active"), n)
+    ms = arch["magic_states"]
+    assert len(ms) == len(set(ms)) == math.ceil(n / int(knob[1:]))
+    assert all(0 <= p < arch["width"] * arch["height"] for p in ms)
+    assert arch["design"]["n_factories"] == len(ms)
+    full = build_arch(design(f"D3-{knob}-fact"), n)
+    assert (arch["width"], arch["height"], arch["alg_qubits"]) == (
+        full["width"], full["height"], full["alg_qubits"])
+
+
+@pytest.mark.parametrize("spec", ["D3-rows", "D3-rows-bottom"])
+def test_d3_rows_routes_to_a_neighbouring_patch_while_its_own_recharges(spec):
+    from wisq import design_routing as dr
+
+    des = design(spec)
+    arch = build_arch(des, 16)
+    q = arch["alg_qubits"][5]
+    dr.begin(des, arch, {0: q})
+    for t, mode in ((0, "direct"), (1, "routed")):
+        dr.CTX.t = t
+        step = dr.try_order([0], {7: (0,)})
+        assert len(step) == 1 and step.state.mode[7] == mode
+        dr.commit(step, {7: (0,)})
+    (_, _, path), = step
+    n = arch["width"] * arch["height"]
+    assert path and (all(p >= n for p in path) if spec == "D3-rows" else all(p < n for p in path))
+
+
+@pytest.mark.parametrize("n", [10, 16, 26, 49, 66])
+def test_d3_rows_fills_the_data_rows_on_top(n):
+    # A patch on every top tile of the odd (data) rows: one above each data qubit plus the
+    # tiles between, ~2 per qubit; the even rows are the top routing layer.
+    arch = build_arch(design("D3-rows"), n)
+    w, h = arch["width"], arch["height"]
+    ms = set(arch["magic_states"])
+    assert ms == {r * w + c for r in range(1, h, 2) for c in range(w)}
+    assert set(arch["alg_qubits"]) <= ms
+    assert arch["design"]["n_patches"] == len(ms) == (h // 2) * w
+    assert arch["design"]["top_tiles"] == w * h
+    assert build_arch(design("D3-rows-bottom"), n)["design"]["top_tiles"] == len(ms)
+
+
+@pytest.mark.parametrize("n", [10, 16, 26, 49, 66])
+def test_d3_ancilla_puts_a_patch_above_every_routing_tile(n):
+    arch = build_arch(design("D3-ancilla-bottom"), n)
+    w, h = arch["width"], arch["height"]
+    ms = set(arch["magic_states"])
+    assert ms == set(range(w * h)) - set(arch["alg_qubits"])
+    assert arch["design"]["routing"] == "BOTTOM" and arch["design"]["top_tiles"] == len(ms)
+
+
+def test_d3_full_patch_above_a_data_qubit_serves_only_that_qubit():
+    from wisq import design_routing as dr
+
+    des = design("D3-full-bottom")
+    arch = build_arch(des, 16)
+    assert set(arch["magic_states"]) == set(range(arch["width"] * arch["height"]))
+    q, other = arch["alg_qubits"][5], arch["alg_qubits"][6]
+    dr.begin(des, arch, {0: q, 1: other})
+    seen = set()
+    for t in range(12):  # keep qubit 1 consuming; it must never take the patch above q
+        dr.CTX.t = t
+        step = dr.try_order([0], {7: (1,)})
+        dr.commit(step, {7: (1,)})
+        if step:
+            seen.add(step.state.face_of[7])
+    assert q not in seen and other in seen
+
+
+def test_d3_ancilla_uses_both_vertical_sides_then_routes():
+    # Patches above both vertical neighbours are direct; with both recharging, route in-plane.
+    from wisq import design_routing as dr
+
+    des = design("D3-ancilla-bottom")
+    arch = build_arch(des, 16)
+    dr.begin(des, arch, {0: arch["alg_qubits"][5]})
+    for t, mode in ((0, "direct"), (1, "direct"), (2, "routed")):
+        dr.CTX.t = t
+        step = dr.try_order([0], {7: (0,)})
+        assert len(step) == 1 and step.state.mode[7] == mode
+        dr.commit(step, {7: (0,)})
 
 
 @pytest.mark.parametrize("variant", ["band", "mesh"])

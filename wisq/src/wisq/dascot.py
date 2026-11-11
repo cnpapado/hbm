@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from .phased_graph import build_phased_map
 from .sarouting import sim_anneal_route, get_last_stats
@@ -78,14 +79,22 @@ def run_dascot(circ, gates, arch, output_path, timeout):
         sim_anneal_params[1] / depth,
         10 * sim_anneal_params[2] / depth,
     ]
-    phased_map, _ = build_phased_map(
-        extract_qubits_from_gates(gates),
-        circ,
-        arch,
-        include_t=True,
-        timeout=timeout // 2,
-        *scaled_sim_anneal_params,
-    )
+    map_from = os.getenv("HBM_MAP_FROM")  # reuse another run's placement, route only
+    if map_from:
+        with open(map_from) as f:
+            prev = json.load(f)
+        if prev["arch"]["alg_qubits"] != arch["alg_qubits"]:
+            raise ValueError(f"HBM_MAP_FROM={map_from}: different layout")
+        phased_map = [(int(q), p) for q, p in prev["map"].items()]
+    else:
+        phased_map, _ = build_phased_map(
+            extract_qubits_from_gates(gates),
+            circ,
+            arch,
+            include_t=True,
+            timeout=timeout // 2,
+            *scaled_sim_anneal_params,
+        )
 
     signal.signal(signal.SIGALRM, timeout_handler)
     signal.alarm(timeout // 2)

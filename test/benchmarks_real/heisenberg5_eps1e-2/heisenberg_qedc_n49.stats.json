@@ -1,0 +1,24 @@
+{
+  "input": "/scratch/zt1/project/xiaodiwu-prj/user/mehatamm/hbm/quantum-compiler-benchmark-circuits/qedc_heisenberg/heisenberg_qedc_n49.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 2650,
+  "num_rz_synthesized": 2295,
+  "distinct_angles": 47,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 40,
+  "t_count": 25815,
+  "t_per_rotation_mean": 11.248366013071895,
+  "t_per_rotation_min": 0,
+  "t_per_rotation_max": 23,
+  "seconds": 14.7,
+  "ops": {
+    "h": 47970,
+    "t": 25815,
+    "s": 21430,
+    "sdg": 8390,
+    "x": 3345,
+    "cx": 720
+  }
+}

@@ -1,4 +1,4 @@
-Generator for the Heisenberg-model Hamiltonian-simulation circuits of the QED-C application-oriented benchmarks
+Heisenberg-model Hamiltonian-simulation circuits from the QED-C application-oriented benchmarks
 ([SRI-International/QC-App-Oriented-Benchmarks](https://github.com/SRI-International/QC-App-Oriented-Benchmarks),
 Apache-2.0, license in [LICENSE.QED-C](LICENSE.QED-C)).
 
@@ -11,8 +11,7 @@ benchmark's own parameters from `_common/precalculated_data.json`:
 - each step: rx and rz field rotations on every qubit, then the 3-CX `xxyyzz_opt_gate` on even bonds, then odd bonds
 - final measurements omitted (DASCOT ignores them)
 
-For n ≤ 20 the output is exactly what the benchmark builds. QED-C only publishes 20 field values, so for larger n
-the fields are cycled (`hx[i % 20]`); this is the only deviation.
+`heisenberg_qedc_n{16,20}.qasm` are exactly what the benchmark builds. QED-C only publishes 20 field values, so for
+`n25, n49, n64, n100` the fields are cycled (`hx[i % 20]`); this is the only deviation.
 
-`--steps 1` emits only the first Trotter step (τ stays t / K). The synthesized one-step circuits are in
-`test/benchmarks_real/heisenberg_eps1e-2/`.
+Regenerate with `python gen_qedc_heisenberg.py --batch`. Rotations are not yet synthesized to Clifford+T.

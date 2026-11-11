@@ -6,19 +6,28 @@
 #   Planar-2D   D0-alt                   DASCOT's perimeter: every other ring tile a factory
 #                                        port, 4 sqrt(N) + 4 factories (always ready, 22 d^2)
 #   HBM         D3-k1-fact .. s16-fact   HBMS paper's Dedicated / Shared-S, factories on top
-#                                        (always ready)
-#   HBM-Cult    D3-k1 .. D3-s16          the same layouts with cultivation patches on top,
-#                                        which pay the recharge time like 2D-Cult
+#                                        (always ready); -bottom: Lower-First routing
+#   HBM-Cult    D3-k1, D3-rows, D3-ancilla-bottom, D3-full-bottom, D3-s<S>: cultivation
+#                                        patches on top, which pay the recharge time like 2D-Cult
 #
 #   ./submit_revision.sh mini  [--dry-run]   quick: N=16 p10 and p50, short partition (< 4 h)
 #   ./submit_revision.sh pilot [--dry-run]   N = 16, 25, 49, 64 (12 circuits)
 #   ./submit_revision.sh core  [--dry-run]   all 33 synthetic circuits
 #   ./submit_revision.sh full  [--dry-run]   core + the JKU suite + the D2 -borrow variants
-#   ./submit_revision.sh ising [--dry-run]   the Ising circuits of benchmarks_real/ising_eps1e-2/
-#                                            (n10, n13, n16, n26, n34, n66), Clifford+T at eps 1e-2
-#                                            per rotation
-#   ./submit_revision.sh real  [--dry-run]   ising + QED-C Heisenberg n16..n64
-#                                            (benchmarks_real/heisenberg_eps1e-2/): 11 circuits
+#   ./submit_revision.sh ising [--dry-run]   QASMBench Ising n26, n34, n66, Clifford+T at eps 1e-2
+#                                            per rotation (benchmarks_real/ising_eps1e-2/)
+#   ./submit_revision.sh real  [--dry-run]   Ising n10-n66 and QED-C Heisenberg n16-n64 (11 circuits),
+#                                            Clifford+T at eps 1e-2 (benchmarks_real/)
+#   ./submit_revision.sh probe [--dry-run]   timing probe for tint: bench_n400_p90 (the largest,
+#                                            9,900 T gates) on the 6 tint configurations, 6 jobs
+#   ./submit_revision.sh tint  [--dry-run]   T-intensity set (paper Sec. 5.4): the 21 synthetic
+#                                            circuits with n >= 100 (n = 100, 144, 225, 256, 289,
+#                                            361, 400; T fraction 10, 50, 90%) on 6 configurations,
+#                                            Lower-First where a T gate routes (126 jobs):
+#                                              factories    D0-alt, D3-k1-fact, D3-s2-fact-bottom
+#                                              cultivation  D2-wide, D3-k1, D3-full-bottom
+#                                            Use the same REV_DIR and TIME for probe and tint: the
+#                                            probe's 6 runs then count as finished tint runs.
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
@@ -41,7 +50,8 @@
 #   e.g.  PART=short TIME=04:00:00 MEM=2G bash revision/submit_revision.sh pilot
 # wisq's own timeout (TMR) is set to TIME minus 30 min, so a run that is too slow writes a
 # timeout file (retried by the next submission) instead of being killed with no trace.
-# Top-layer designs route T gates with Upper-First only (routing "TOP").
+# Top-layer designs route T gates with Upper-First (routing "TOP"), or with Lower-First
+# (routing "BOTTOM") for the -bottom specs and D3-ancilla / D3-full (designs.py).
 # Runs are simulated at HBM_D=13 (what the small/medium circuits need at p=1e-3 and a 1%
 # target) unless you export HBM_D first; analyze.py computes STV at that d for every design.
 #
@@ -100,9 +110,16 @@ RUNNING="$(running_runs || true)"  # "<bench> <tag>" lines, left out below
 ls benchmarks_bursty_cx/bench_n16_p{10,50}.qasm > revision/lists/synth_n16.txt
 ls benchmarks_bursty_cx/bench_n{16,25,49,64}_p*.qasm > revision/lists/synth_small.txt
 ls benchmarks_bursty_cx/*.qasm > revision/lists/synth_all.txt
+ls benchmarks_bursty_cx/bench_n{100,144,225,256,289,361,400}_p*.qasm > revision/lists/synth_large.txt
+ls benchmarks_bursty_cx/bench_n400_p90.qasm > revision/lists/synth_probe.txt
 ls ../quantum-compiler-benchmark-circuits/jku_suite/*.qasm > revision/lists/jku.txt
-ls benchmarks_real/ising_eps1e-2/*.qasm > revision/lists/real_ising.txt
-ls benchmarks_real/{ising,heisenberg}_eps1e-2/*.qasm > revision/lists/real.txt
+ls benchmarks_real/ising_eps1e-2/ising_n{26,34,66}.qasm > revision/lists/real_ising.txt
+# real: Ising n10/13/16/26/34/66 and QED-C Heisenberg n16-n64, Clifford+T at eps 1e-2
+if [ "$PHASE" = real ]; then
+    ls benchmarks_real/ising_eps1e-2/ising_n{10,13,16,26,34,66}.qasm \
+        benchmarks_real/heisenberg_eps1e-2/heisenberg_qedc_n{16,20,25,49,64}.qasm \
+        > revision/lists/real.txt
+fi
 
 cult_error() {  # T error per state at R rounds (analyze.py --cult-grades)
     case "$1" in 60) echo 3e-6 ;; 360) echo 2e-9 ;; esac
@@ -117,7 +134,7 @@ feasible() {  # feasible <qasm> <R>: the circuit's T states alone meet the targe
 wanted() {  # wanted <qasm> <design> <R>: whether the run can change the results
     case "$2" in
         D0*) [ -z "$PLAN" ] || grep -qxF "$1 $2" "$PLAN"; return ;;  # fits on the ring
-        *-fact) return 0 ;;  # factories on top: no recharge grade to check
+        *-fact|*-fact-*) return 0 ;;  # factories on top: no recharge grade to check
         D2*|D3*|D4*) ;;
         *) return 0 ;;
     esac
@@ -159,9 +176,8 @@ submit() {  # submit <bench_list> <design> [cultivation_rounds]: the wanted runs
 
 # Override with CULT_SPECS / FACT_SPECS (space-separated) to leave knob values out.
 # HBM (D3 -fact): the HBMS paper's Dedicated (k1) and Shared-2/4/8/16 (s2..s16) with
-# factories on top, compared with both 2D-Cult (D2) and Planar-2D (D0-alt). HBM-Cult (D3
-# without -fact): the same layouts with cultivation patches on top, compared with 2D-Cult.
-read -r -a CULT <<< "${CULT_SPECS:-D2-wide D2-tight D3-k1 D3-s2 D3-s4 D3-s8 D3-s16}"
+# factories on top, compared with both 2D-Cult (D2) and Planar-2D (D0-alt).
+read -r -a CULT <<< "${CULT_SPECS:-D2-wide D2-tight}"
 read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact D3-s4-fact D3-s8-fact D3-s16-fact}"
 EXTRA=(D2-wide-borrow D2-tight-borrow)
 
@@ -193,6 +209,15 @@ case "$PHASE" in
     real)
         run_set revision/lists/real.txt
         ;;
+    probe|tint)  # the T-intensity configurations (CULT_SPECS / FACT_SPECS still override)
+        read -r -a CULT <<< "${CULT_SPECS:-D2-wide D3-k1 D3-full-bottom}"
+        read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact-bottom}"
+        if [ "$PHASE" = probe ]; then
+            run_set revision/lists/synth_probe.txt
+        else
+            run_set revision/lists/synth_large.txt
+        fi
+        ;;
     core|full)
         lists=(revision/lists/synth_all.txt)
         [ "$PHASE" = "full" ] && lists+=(revision/lists/jku.txt)
@@ -204,7 +229,7 @@ case "$PHASE" in
         done
         ;;
     *)
-        echo "usage: $0 mini|pilot|core|full|ising|real [--dry-run]" >&2
+        echo "usage: $0 mini|pilot|core|full|ising|real|probe|tint [--dry-run]" >&2
         exit 1
         ;;
 esac

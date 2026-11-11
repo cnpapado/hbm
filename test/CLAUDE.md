@@ -73,14 +73,16 @@ lives at `~/hbm` on the cluster and that a venv exists at `~/hbm/.venv`.
 ### Revision sweep (`revision/`)
 
 `revision/run_design.sh` (one benchmark x one `HBM_DESIGN` spec per array task),
-`revision/submit_revision.sh mini|pilot|core|full|ising|real [--dry-run]` (builds benchmark lists in
+`revision/submit_revision.sh mini|pilot|core|full|ising|real|probe|tint [--dry-run]` (builds benchmark lists in
 `revision/lists/`, submits only unfinished runs; `PART`/`TIME`/`MEM` set the request),
 `revision/common.sh` (run tag and finished-run check shared by both), `revision/plan_d0.py` (D0 factory counts that fit on the ring, per circuit), and `revision/smoke_test.sh` (non-Slurm end-to-end check), `revision/publish_results.sh` (analyze a campaign into `runs/<name>/analysis/`, commit that folder and push), and `revision/run_qre.sh` (PPM cross-check against the Microsoft resource estimator, inside an Apptainer container).
 Each campaign goes to `runs/<name>/{outs,results,logs,lists}` (`REV_DIR=runs/<name>`, required by
 `submit_revision.sh`; `REV_DIR=.` for the old `outs_rev/`, `results_rev/`, `logs_rev/`). The `real`
 phase runs the 11 circuits of `benchmarks_real/` (Ising n10–n66 and QED-C Heisenberg n16–n64, one
 Trotter step, Clifford+T at ε = 10⁻²); `ising` only the Ising ones. Each phase runs 13 configurations
-(2D-Cult ×2, Planar-2D, HBM ×5 with factories, HBM-Cult ×5). See `../REVISION.md`.
+(2D-Cult ×2, Planar-2D, HBM ×5 with factories, HBM-Cult ×5). `tint` runs the T-intensity set (the 21
+`benchmarks_bursty_cx` circuits with n ≥ 100) on 6 configurations, Lower-First where a T gate routes;
+`probe` runs only its largest circuit (n400, p90) to size `TIME`. See `../REVISION.md`.
 
 ## Analysis scripts under `test/`
 
