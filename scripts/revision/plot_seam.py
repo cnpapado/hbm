@@ -7,7 +7,7 @@ is drawn as a check of the fit). REV_CSV is analyze.py's CSV of the compiler run
 
   seam_merge  (two columns) (a), (b) logical error per merge (zz or xx failure) against the
               physical error rate p, for coupling error p' = 5p and 10p on the 2d - 1
-              cross-layer CNOTs only, with p' = p in gray: points with binomial error bars, the
+              cross-layer CNOTs only: points with binomial error bars, the
               fit A (p / p_th)^((d + 1) / 2) over d = 3..11 (solid over the simulated p, dashed
               down to 1e-4), d = 13 as a check of the fit; the fitted threshold (dotted). (c) The
               geometric-mean STV ratio (planar baseline over HBMS) against p' / p, every run at
@@ -31,10 +31,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import seam_merge  # noqa: E402
 
 # Per code distance, the colours and markers of the earlier LER figure (Okabe-Ito); the d = 13
-# check in black, the in-plane reference (p' = p) in gray, as that figure's "planar 2D".
+# check in black.
 D_STYLE = {3: ("#0072B2", "o"), 5: ("#E69F00", "s"), 7: ("#009E73", "^"), 9: ("#CC79A7", "D"),
            11: ("#D55E00", "v"), 13: ("#000000", "o")}
-REF = "#999999"
 FIT_DS, CHECK_D = (3, 5, 7, 9, 11), 13
 MS = (1, 5, 10)
 PAIRS = [("D0-alt", "D3-k1-fact", "Factories, Dedicated", FILL["HBM"], "o"),
@@ -113,12 +112,6 @@ def seam_figure(u, fits, ratios, path):
         a, pth = fits[("seam", float(m))]
         lo = np.logspace(-4, -3, 20)  # the fit below the simulated p: a prediction
         hi = np.logspace(-3, math.log10(pth), 30)  # the fit over the simulated p
-        for d in FIT_DS:  # the in-plane merge (p' = p) for reference
-            pts = sorted((p, v[0]) for (md, mm, dd, p), v in u.items()
-                         if md == "seam" and mm == 1 and dd == d and v[0] > 0)
-            ax.plot([p for p, _ in pts], [y for _, y in pts], ls="--", lw=0.7, color=REF,
-                    marker=D_STYLE[d][1], ms=2.6, mfc="white", mec=REF, mew=0.5, zorder=1,
-                    label="$p' = p$ (in-plane)" if d == FIT_DS[0] else None)
         for d in ds:
             pts = sorted((p, v) for (md, mm, dd, p), v in u.items()
                          if md == "seam" and mm == m and dd == d and v[0] > 0)
@@ -150,11 +143,8 @@ def seam_figure(u, fits, ratios, path):
                 fontsize=8, va="bottom", ha="left")
     axes[0].set_ylabel("Logical error per merge")
     h, lab = axes[0].get_legend_handles_labels()
-    ref = lab.index("$p' = p$ (in-plane)")  # d first, then the fit, then the reference
-    h, lab = h[:ref] + h[ref + 1:], lab[:ref] + lab[ref + 1:]
-    h += [plt.Line2D([], [], color=INK, lw=1.0), plt.Line2D([], [], color=INK, lw=0.8, ls="--"),
-          axes[0].get_legend_handles_labels()[0][ref]]
-    lab += ["fit", "fit, beyond the data", "$p' = p$ (in-plane)"]
+    h += [plt.Line2D([], [], color=INK, lw=1.0), plt.Line2D([], [], color=INK, lw=0.8, ls="--")]
+    lab += ["fit", "fit, beyond the data"]
     fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.35, 0.99), ncol=5, fontsize=7,
                handletextpad=0.3, columnspacing=0.9, labelspacing=0.25)
     ax = axes[2]
@@ -186,7 +176,7 @@ def seam_figure(u, fits, ratios, path):
             "per round and p everywhere else. Markers: simulation, with binomial error bars. "
             "Solid lines: the fit A (p/p_th)^((d+1)/2) over d = 3 to 11. Dashed: the fit below "
             "the simulated p, and its prediction for d = 13 (black markers, not fitted). "
-            "Dotted: the fitted threshold. Gray: the same merge with p' = p. (c) Geometric-mean "
+            "Dotted: the fitted threshold. (c) Geometric-mean "
             "STV of the planar baseline over that of HBMS against p'/p, every run at the "
             "smallest odd code distance that meets the program-error target.")
 
