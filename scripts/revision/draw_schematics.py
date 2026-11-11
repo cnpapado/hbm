@@ -249,14 +249,24 @@ def draw_check(ax, check, page, color, edge=None, lw=0.4, z=1):
                          linewidth=lw, zorder=z))
 
 
-def merge_panel(ax, d, merged, D, G, M):
-    """(a) The merged patch, flat."""
+def merge_panel(ax, d, merged, D, G, M, links=False):
+    """(a) The merged patch, flat. With links, each cross-layer check's ancilla (at its
+    centre, on the lower layer) and its CNOTs to G qubits (the 2d - 1 vertical links)."""
     cross = [c for c in merged if c[2] & set(D) and c[2] & set(G)]
     page = lambda x, y: (x, y)  # noqa: E731
     for c in merged:
         draw_check(ax, c, page, XCHK if c[0] == "X" else ZCHK)
     for c in cross:
         draw_check(ax, c, page, XCHK if c[0] == "X" else ZCHK, edge=LINK, lw=1.3, z=1.5)
+    if links:
+        n = 0
+        for _, (cx, cy), qs in cross:
+            for q in sorted(qs & set(G)):
+                ax.plot([cx, q[0]], [cy, q[1]], color=LINK, lw=1.4, zorder=2.6,
+                        solid_capstyle="round")
+                n += 1
+            ax.add_patch(Circle((cx, cy), 0.07, facecolor=LINK, edgecolor=LINK, zorder=2.7))
+        assert n == 2 * d - 1, n
     for group, face in ((D, DATA), (G, "white"), (M, SOURCE)):
         for q in group:
             ax.add_patch(Circle(q, 0.13, facecolor=face, edgecolor=INK,
@@ -356,13 +366,13 @@ def schedule_panel(ax, merged, D, G):
     ax.axis("off")
 
 
-def cross_layer_merge(path, d=3):
+def cross_layer_merge(path, d=3, links=False):
     merged, D, G, M = merge_code(d)
     schedule(merged)
     fig = plt.figure(figsize=(FULL, 1.9))
     axes = [fig.add_axes(r) for r in ((0.0, 0.15, 0.36, 0.7), (0.37, 0.13, 0.31, 0.74),
                                       (0.71, 0.13, 0.27, 0.74))]
-    merge_panel(axes[0], d, merged, D, G, M)
+    merge_panel(axes[0], d, merged, D, G, M, links)
     fold_panel(axes[1], d, merged, D, G, M)
     schedule_panel(axes[2], merged, D, G)
     for ax, x, text in ((axes[0], 0.18, "(a) Merged patch"),
@@ -378,8 +388,12 @@ def cross_layer_merge(path, d=3):
                       markeredgewidth=0.6, markersize=5, label="Gap G (upper)"),
                Line2D([], [], marker="o", ls="", markerfacecolor=SOURCE, markeredgecolor=INK,
                       markeredgewidth=0.4, markersize=5, label="T-state patch M (upper)")]
-    fig.legend(handles=handles, loc="upper center", ncol=6, bbox_to_anchor=(0.5, 1.0),
-               handlelength=1.1, columnspacing=1.0)
+    if links:
+        handles.append(Line2D([], [], color=LINK, lw=1.4, marker="o", markersize=2.5,
+                              markevery=[0], label="Cross-layer CNOT"))
+    fig.legend(handles=handles, loc="upper center", ncol=len(handles),
+               bbox_to_anchor=(0.5, 1.0), handlelength=1.1,
+               columnspacing=1.0 if not links else 0.7)
     save(fig, path)
 
 
