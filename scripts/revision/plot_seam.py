@@ -5,14 +5,14 @@
 RESULTS_DIR holds lattice_surgery/seam_merge.py's seam_d<d>.csv (d = 3..11 are fitted, d = 13
 is drawn as a check of the fit). REV_CSV is analyze.py's CSV of the compiler runs.
 
-  seam_merge  (two columns) (a)-(c) logical error per merge (zz or xx failure) against the
-              physical error rate p, for coupling error p' = p, 5p and 10p on the 2d - 1
-              cross-layer CNOTs only: points with binomial error bars, the fit
-              A (p / p_th)^((d + 1) / 2) over d = 3..11 (lines), d = 13 as open points with the
-              fit's prediction (dashed); the fitted threshold (dotted). (d) The geometric-mean
-              STV ratio (planar baseline over HBMS) against p' / p, every run at the smallest
-              odd d that meets the 1% target with the seam fit (solid) or the old whole-patch
-              fit (dotted).
+  seam_merge  (two columns) (a), (b) logical error per merge (zz or xx failure) against the
+              physical error rate p, for coupling error p' = 5p and 10p on the 2d - 1
+              cross-layer CNOTs only, with p' = p in gray: points with binomial error bars, the
+              fit A (p / p_th)^((d + 1) / 2) over d = 3..11 (solid over the simulated p, dashed
+              down to 1e-4), d = 13 as a check of the fit; the fitted threshold (dotted). (c) The
+              geometric-mean STV ratio (planar baseline over HBMS) against p' / p, every run at
+              the smallest odd d that meets the 1% target with the seam fit (solid) or the old
+              whole-patch fit (dotted).
 """
 
 import argparse
@@ -107,54 +107,58 @@ def stv_ratios(rev, fits, mode):
 
 
 def seam_figure(u, fits, ratios, path):
-    fig, axes = plt.subplots(1, 4, figsize=(FULL, 2.05),
-                             gridspec_kw=dict(width_ratios=[1, 1, 1, 1.05], wspace=0.42))
+    fig, axes = plt.subplots(1, 3, figsize=(FULL, 2.15),
+                             gridspec_kw=dict(width_ratios=[1, 1, 1.1], wspace=0.38))
     ds = sorted({k[2] for k in u})
-    for ax, m, tag in zip(axes, MS, "abc"):
+    for ax, m, tag in zip(axes, MS[1:], "ab"):
         a, pth = fits[("seam", float(m))]
-        pgrid = np.logspace(-3, math.log10(pth), 40)  # the fit, up to the threshold
-        if m > 1:  # the in-plane merge (p' = p) for reference
-            a1, t1 = fits[("seam", 1.0)]
-            for d in FIT_DS:
-                pts = sorted((p, v[0]) for (md, mm, dd, p), v in u.items()
-                             if md == "seam" and mm == 1 and dd == d and v[0] > 0)
-                ax.plot([p for p, _ in pts], [y for _, y in pts], ls="--", lw=0.7, color=REF,
-                        marker=D_STYLE[d][1], ms=2.6, mfc="white", mec=REF, mew=0.5, zorder=1,
-                        label="$p' = p$ (in-plane)" if d == FIT_DS[0] else None)
+        lo = np.logspace(-4, -3, 20)  # the fit below the simulated p: a prediction
+        hi = np.logspace(-3, math.log10(pth), 30)  # the fit over the simulated p
+        for d in FIT_DS:  # the in-plane merge (p' = p) for reference
+            pts = sorted((p, v[0]) for (md, mm, dd, p), v in u.items()
+                         if md == "seam" and mm == 1 and dd == d and v[0] > 0)
+            ax.plot([p for p, _ in pts], [y for _, y in pts], ls="--", lw=0.7, color=REF,
+                    marker=D_STYLE[d][1], ms=2.6, mfc="white", mec=REF, mew=0.5, zorder=1,
+                    label="$p' = p$ (in-plane)" if d == FIT_DS[0] else None)
         for d in ds:
             pts = sorted((p, v) for (md, mm, dd, p), v in u.items()
                          if md == "seam" and mm == m and dd == d and v[0] > 0)
             if not pts:
                 continue
+            color, mk = D_STYLE[d]
+            check = d == CHECK_D
             x = [p for p, _ in pts]
             y = np.array([v[0] for _, v in pts])
             e = np.array([v[1] for _, v in pts])
-            check = d == CHECK_D
-            color, mk = D_STYLE[d]
             ax.errorbar(x, y, yerr=[np.minimum(e, y * 0.9), e], fmt=mk, ms=3.4, mfc="white",
                         mec=color, mew=0.9, ecolor=color, elinewidth=0.6, capsize=0, zorder=3,
                         label=f"$d = {d}$" + (" (check)" if check else ""))
-            ax.plot(pgrid, a * (pgrid / pth) ** ((d + 1) / 2), color=color, lw=1.0,
-                    ls="--" if check else "-", zorder=2)
+            law = lambda q: a * (q / pth) ** ((d + 1) / 2)  # noqa: E731
+            ax.plot(hi, law(hi), color=color, lw=1.0, ls="--" if check else "-", zorder=2)
+            ax.plot(lo, law(lo), color=color, lw=0.8, ls="--", zorder=2)
         ax.axvline(pth, color=MUTED, lw=0.7, ls=":", zorder=1)
-        ax.text(pth * 1.08, 3e-9, f"$p_{{th}} = {pth * 1e3:.1f}\\times10^{{-3}}$",
+        ax.text(pth * 1.08, 2e-12, f"$p_{{th}} = {pth * 1e3:.1f}\\times10^{{-3}}$",
                 ha="left", va="bottom", fontsize=7, color=MUTED, rotation=90)
         ax.set_xscale("log")
         ax.set_yscale("log")
-        ax.set_xlim(9e-4, 1.6e-2)
-        ax.set_ylim(1e-9, 1)
+        ax.set_xlim(1e-4, 1.6e-2)
+        ax.set_ylim(1e-12, 1)
+        ax.yaxis.set_major_locator(mticker.LogLocator(numticks=7))
         ax.set_xlabel("Physical error rate $p$")
         ax.grid(True, which="major", color=GRID, lw=0.5)
         ax.set_axisbelow(True)
-        ax.text(0.0, 1.03, f"({tag}) $p' = {m if m > 1 else ''}p$", transform=ax.transAxes,
+        ax.text(0.0, 1.03, f"({tag}) coupling error $p' = {m}p$", transform=ax.transAxes,
                 fontsize=8, va="bottom", ha="left")
     axes[0].set_ylabel("Logical error per merge")
     h, lab = axes[0].get_legend_handles_labels()
-    hr, lr = axes[1].get_legend_handles_labels()
-    k = lr.index("$p' = p$ (in-plane)")
-    fig.legend(h + [hr[k]], lab + [lr[k]], loc="lower center", bbox_to_anchor=(0.39, 1.0),
-               ncol=7, fontsize=7, handletextpad=0.2, columnspacing=0.8)
-    ax = axes[3]
+    ref = lab.index("$p' = p$ (in-plane)")  # d first, then the fit, then the reference
+    h, lab = h[:ref] + h[ref + 1:], lab[:ref] + lab[ref + 1:]
+    h += [plt.Line2D([], [], color=INK, lw=1.0), plt.Line2D([], [], color=INK, lw=0.8, ls="--"),
+          axes[0].get_legend_handles_labels()[0][ref]]
+    lab += ["fit", "fit, beyond the data", "$p' = p$ (in-plane)"]
+    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.35, 0.99), ncol=5, fontsize=7,
+               handletextpad=0.3, columnspacing=0.9, labelspacing=0.25)
+    ax = axes[2]
     for (_, _, lab, color, mk) in PAIRS:
         ax.plot(MS, ratios["seam"][lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
         ax.plot(MS, ratios["whole"][lab], color=color, marker=mk, ms=4, lw=0.9, ls=":",
@@ -170,26 +174,27 @@ def seam_figure(u, fits, ratios, path):
     ax.grid(True, axis="y", color=GRID, lw=0.5)
     ax.set_axisbelow(True)
     ax.set_xlabel("Coupling error $p'/p$")
-    ax.set_ylabel("STV ratio (geo. mean)")
-    ax.text(0.0, 1.03, "(d) STV ratio, planar / HBMS", transform=ax.transAxes, fontsize=8,
+    ax.set_ylabel("STV ratio, planar / HBMS")
+    ax.text(0.0, 1.03, "(c) STV ratio (geometric mean)", transform=ax.transAxes, fontsize=8,
             va="bottom", ha="left")
     h, lab = ax.get_legend_handles_labels()
     h += [plt.Line2D([], [], color=INK, lw=1.1), plt.Line2D([], [], color=INK, lw=0.9, ls=":")]
-    lab += ["seam only", "whole patch (old)"]
-    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.875, 0.995), ncol=2, fontsize=6.5,
+    lab += ["noise on the seam only", "noise on the whole patch"]
+    fig.legend(h, lab, loc="lower center", bbox_to_anchor=(0.84, 0.99), ncol=2, fontsize=6.5,
                handlelength=1.6, handletextpad=0.3, columnspacing=0.8, labelspacing=0.2)
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)
-    return ("(a)-(c) Logical error per lattice-surgery merge across a vertical coupling "
-            "(either a wrong merge outcome or a logical flip of the merged patch) against the "
-            "physical error rate p, with error p' = p, 5p or 10p on the 2d - 1 cross-layer "
-            "CNOTs per round and p everywhere else. Points: simulation, with binomial error "
-            "bars. Lines: the fit A (p/p_th)^((d+1)/2) over d = 3 to 11. Open points and "
-            "dashed line: d = 13 and the fit's prediction. Dotted: the fitted threshold. (d) "
-            "Geometric-mean STV of the planar baseline over that of HBMS against p'/p, every "
-            "run at the smallest odd code distance that meets the program-error target with "
-            "the seam-only fit (solid) or with p' on the whole coupler patch (dotted).")
+    return ("(a), (b) Logical error per lattice-surgery merge across a vertical coupling "
+            "(a wrong merge outcome or a logical flip of the merged patch) against the "
+            "physical error rate p, with error p' = 5p or 10p on the 2d - 1 cross-layer CNOTs "
+            "per round and p everywhere else. Markers: simulation, with binomial error bars. "
+            "Solid lines: the fit A (p/p_th)^((d+1)/2) over d = 3 to 11. Dashed: the fit below "
+            "the simulated p, and its prediction for d = 13 (black markers, not fitted). "
+            "Dotted: the fitted threshold. Gray: the same merge with p' = p. (c) Geometric-mean "
+            "STV of the planar baseline over that of HBMS against p'/p, every run at the "
+            "smallest odd code distance that meets the program-error target, with p' on the "
+            "2d - 1 cross-layer CNOTs (solid) or on the whole upper patch (dotted).")
 
 
 def main():
