@@ -207,6 +207,79 @@ def seam_figure(u, fits, ratios, be, path):
             "p' = p. Triangles: where the ratio crosses 1.")
 
 
+M_STYLE = {1: ("#B0B0B0", "o"), 5: ("#8C8C8C", "s"), 10: ("#6A6A6A", "^"),  # p'/p, light to dark
+           20: ("#484848", "D"), 50: ("#262626", "v"), 100: ("#000000", "P")}
+
+
+def seam_column(u, ratios, be, path, dmax=25):
+    """One column, two panels. (a) Merge error at p = 1e-3 against d for each p'/p: simulation
+    and the fit of log error against (d + 1) / 2 over d = 5..11, dashed beyond. (b) The
+    geometric-mean STV ratio against p'/p, with its crossings of 1."""
+    fig, axes = plt.subplots(2, 1, figsize=(COL, 3.6), gridspec_kw=dict(hspace=0.55))
+    ax = axes[0]
+    for m in MS_STV:
+        color, mk = M_STYLE[m]
+        pts = sorted((d, u[("seam", float(m), d, P)]) for d in range(3, 12, 2)
+                     if ("seam", float(m), d, P) in u and u[("seam", float(m), d, P)][0] > 0)
+        x = [d for d, _ in pts]
+        y = np.array([v[0] for _, v in pts])
+        e = np.array([v[1] for _, v in pts])
+        ax.errorbar(x, y, yerr=[np.minimum(e, y * 0.9), e], fmt=mk, ms=3.4, mfc="white",
+                    mec=color, mew=0.9, ecolor=color, elinewidth=0.6, capsize=0, zorder=3,
+                    label=f"$p' = {m if m > 1 else ''}p$")
+        b0, b1 = seam_merge.fit_line([((d + 1) / 2, math.log(v[0])) for d, v in pts if d >= 5])
+        law = lambda d: np.exp(b0 + b1 * (np.asarray(d) + 1) / 2)  # noqa: E731
+        ax.plot([5, 11], law([5, 11]), color=color, lw=1.0, zorder=2)
+        ax.plot([11, dmax], law([11, dmax]), color=color, lw=0.8, ls="--", zorder=2)
+    ax.set_yscale("log")
+    ax.set_xlim(2, dmax + 1)
+    ax.set_ylim(1e-12, 1)
+    ax.set_xticks(range(3, dmax + 1, 4))
+    ax.yaxis.set_major_locator(mticker.FixedLocator([1e-12, 1e-9, 1e-6, 1e-3, 1]))
+    ax.yaxis.set_minor_locator(mticker.NullLocator())
+    ax.grid(True, which="major", color=GRID, lw=0.5)
+    ax.set_axisbelow(True)
+    ax.set_xlabel("Code distance $d$")
+    ax.set_ylabel("Error per merge")
+    ax.text(0.0, 1.03, "(a) Merge error at $p = 10^{-3}$", transform=ax.transAxes, fontsize=8,
+            va="bottom", ha="left")
+    ax.legend(loc="lower left", ncol=2, fontsize=8, handletextpad=0.2, columnspacing=0.8,
+              labelspacing=0.2, borderaxespad=0.3)
+    ax = axes[1]
+    for (_, _, lab, color, mk) in PAIRS:
+        ax.plot(MS_STV, ratios[lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
+        if lab in be:  # where HBMS stops winning
+            ax.plot(be[lab], 1, marker="v", ms=5, color=color, mec=INK, mew=0.4, zorder=5)
+    ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
+    ax.set_xscale("log")
+    ax.xaxis.set_major_locator(mticker.FixedLocator(MS_STV))
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.xaxis.set_minor_locator(mticker.NullLocator())
+    ax.set_xlim(0.8, 125)
+    ax.set_ylim(0, 6)
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
+    ax.grid(True, axis="y", color=GRID, lw=0.5)
+    ax.set_axisbelow(True)
+    ax.set_xlabel("Coupling error $p'/p$")
+    ax.set_ylabel("STV ratio")
+    ax.text(0.0, 1.03, "(b) Baseline / HBMS, GMean", transform=ax.transAxes, fontsize=8,
+            va="bottom", ha="left")
+    ax.legend(loc="upper right", fontsize=8, handlelength=1.6, handletextpad=0.3,
+              labelspacing=0.2)
+    for p_ in ([path] if isinstance(path, str) else path):
+        fig.savefig(p_)
+    plt.close(fig)
+    return ("(a) Logical error per lattice-surgery merge across a vertical coupling at "
+            "$p = 10^{-3}$ against the code distance, with error $p'$ on the $2d - 1$ "
+            "cross-layer CNOTs per round and $p$ everywhere else, for $p' = p$ to $100p$. "
+            "Markers: simulation, with binomial error bars. Solid lines: the fit of the log "
+            "error against $(d+1)/2$ over $d = 5$ to 11. Dashed: the fit beyond $d = 11$. "
+            "(b) STV of the planar baseline divided by that of HBMS, geometric mean over the "
+            "circuits, against $p'/p$, every run at the smallest odd code distance that meets "
+            "the program-error target with the merge error of (a). Triangles: where the ratio "
+            "crosses 1.")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -231,8 +304,10 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     paths = [os.path.join(args.out, f"seam_merge.{f}") for f in args.fmt.split(",")]
     caption = seam_figure(u, fits, ratios, be, paths)
+    col = [os.path.join(args.out, f"seam_stv.{f}") for f in args.fmt.split(",")]
+    col_caption = seam_column(u, ratios, be, col)
     with open(os.path.join(args.out, "seam_caption.md"), "w") as f:
-        f.write(f"**seam_merge.pdf.** {caption}\n")
+        f.write(f"**seam_merge.pdf.** {caption}\n\n**seam_stv.pdf.** {col_caption}\n")
     print("wrote", paths[0])
 
 

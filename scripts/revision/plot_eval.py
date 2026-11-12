@@ -402,6 +402,51 @@ def sources_table(cells, benches, path):
             "each panel. " + D_NOTE + STAR)
 
 
+def split_size(cells, benches, path):
+    """One column, two panels (Dedicated, Shared-2, both with factories): qubit, rounds and STV
+    ratios (Planar-2D / HBMS) against the grid's data slots N, one marker per circuit and a
+    line through the geometric mean at each N."""
+    side = {b: math.ceil(math.sqrt(int(cells[b]["D0-alt"]["N"]))) for b in benches}
+    sizes = sorted(set(side.values()))
+    color = FILL["HBM"]
+    series = [("Q", "Qubits", _mix(color, 0.35), "o"), ("rounds", "Rounds", _mix(color, 0.7), "s"),
+              ("STV", "STV", color, "D")]
+    fig, axes = plt.subplots(1, 2, figsize=(COL, 2.05), sharey=True,
+                             gridspec_kw=dict(wspace=0.12))
+    for ax, spec, tag in zip(axes, ("D3-k1-fact", "D3-s2-fact-bottom"),
+                             ("(a) Dedicated:\nPlanar-2D / HBMS", "(b) Shared-2:\nPlanar-2D / HBMS")):
+        for key, lab, c, mk in series:
+            r = dict(zip(benches, ratios(cells, benches, "D0-alt", spec, key)))
+            ax.scatter([side[b] for b in benches], [r[b] for b in benches], s=14, marker=mk,
+                       facecolor=c, edgecolor=INK, linewidth=0.3, zorder=3 if key == "STV" else 2)
+            g = [gmean([r[b] for b in benches if side[b] == k]) for k in sizes]
+            ax.plot(sizes, g, color=c, lw=1.2 if key == "STV" else 1.0, zorder=1,
+                    marker=mk, ms=0, label=lab)
+        ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=0)
+        ax.set_xticks(sizes, [str(k * k) for k in sizes])
+        ax.set_xlim(sizes[0] - 0.5, sizes[-1] + 0.5)
+        ax.set_ylim(0.4, 2.3)
+        ax.yaxis.set_major_locator(mticker.MultipleLocator(0.5))
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.grid(True, axis="y", color=GRID, lw=0.5)
+        ax.set_axisbelow(True)
+        ax.set_xlabel("Data slots $N$")
+        ax.text(0.0, 1.02, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+    axes[0].set_ylabel("Ratio")
+    handles = [Line2D([], [], color=c, marker=mk, ms=4, mfc=c, mec=INK, mew=0.3,
+                      lw=1.2 if key == "STV" else 1.0, label=lab) for key, lab, c, mk in series]
+    axes[1].legend(handles=handles, loc="upper right", handlelength=1.4, handletextpad=0.3,
+                   labelspacing=0.25)
+    for p in ([path] if isinstance(path, str) else path):
+        fig.savefig(p)
+    plt.close(fig)
+    return ("Physical qubits, rounds and STV of Planar-2D divided by those of HBMS, all with "
+            "factories, against the number of data slots $N$ of the circuit's grid: (a) HBMS "
+            "Dedicated, (b) HBMS Shared-2. Markers: one per circuit. Lines: the geometric mean "
+            "over the circuits of each $N$. Above the dashed line (1), HBMS uses fewer qubits or "
+            "rounds, or has the lower STV. " + D_NOTE)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -417,7 +462,7 @@ def main():
     with open(os.path.join(args.out, "eval_captions.md"), "w") as f:
         for name, fn in [("eval_stv", eval_stv), ("eval_split", eval_split), ("split", split),
                          ("split_s2", split_s2), ("sources_fact", sources_fact),
-                         ("sources_cult", sources_cult), ("sources_table", sources_table)]:
+                         ("sources_cult", sources_cult), ("sources_table", sources_table), ("split_size", split_size)]:
             f.write(f"**{name}.pdf.** {fn(cells, benches, paths(name))}\n\n")
     print("wrote", os.path.normpath(args.out))
 
