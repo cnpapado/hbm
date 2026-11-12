@@ -405,6 +405,64 @@ def rq4_map(rev, u, path):
     return grid
 
 
+# ---------------------------------------------------------------- where the timesteps go
+
+SHARES = [("dep", "Dependencies", "#5E5E5E", None),
+          ("supply", "Magic-state supply", "#FFFFFF", "//////"),
+          ("route", "Routing", "#B4B4B4", None)]
+
+
+def timeshare(cells13, benches, tq, path):
+    """One column: each configuration's timesteps split into the ideal depth (dependencies), the
+    supply bound beyond it (magic-state supply) and the rest (routing and contention), mean
+    shares over the circuits, with the geometric-mean slowdown over the ideal depth on top."""
+    specs = []
+    for fam, (base, sp), _ in KINDS:
+        specs += [(base, "Planar-2D" if base == "D0-alt" else "2D-Cult")] + list(sp)
+    share = {k: [] for k, *_ in SHARES}
+    slow = []
+    for spec, _ in specs:
+        acc = {k: [] for k in share}
+        sl = []
+        for b in benches:
+            c = cells13[b][spec]
+            st, ideal = num(c["steps"]), num(c["ideal_depth"])
+            bd = supply_bound(c, tq[b])
+            acc["dep"].append(ideal / st)
+            acc["supply"].append(max(0.0, bd - ideal) / st)
+            acc["route"].append((st - max(ideal, bd)) / st)
+            sl.append(st / ideal)
+        for k in share:
+            share[k].append(np.mean(acc[k]))
+        slow.append(gmean(sl))
+    fig, ax = plt.subplots(figsize=(COL, 2.2))
+    x = np.arange(len(specs)) + np.array([0] * 5 + [0.6] * 5)  # a gap between the kinds
+    bottom = np.zeros(len(specs))
+    for k, lab, colour, hatch in SHARES:
+        v = np.array(share[k])
+        ax.bar(x, v, 0.7, bottom=bottom, color=colour, edgecolor=INK, linewidth=0.3,
+               hatch=hatch, label=lab)
+        bottom += v
+    for xi, sl in zip(x, slow):
+        ax.text(xi, 1.015, f"{sl:.1f}", ha="center", va="bottom", fontsize=8, color=INK)
+    ax.set_ylim(0, 1.22)
+    ax.yaxis.set_major_locator(mticker.FixedLocator([0, 0.25, 0.5, 0.75, 1]))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.set_ylabel("Share of timesteps")
+    ax.set_xticks(x, [lab for _, lab in specs], rotation=45, ha="right", rotation_mode="anchor")
+    ax.tick_params(axis="x", length=0)
+    ax.spines["left"].set_bounds(0, 1)
+    ax.text(2.0, 1.125, "Factories", ha="center", va="bottom", fontsize=8, color=INK)
+    ax.text(7.6, 1.125, "Cultivation", ha="center", va="bottom", fontsize=8, color=INK)
+    ax.legend(loc="lower center", bbox_to_anchor=(0.5, 1.0), ncol=3, fontsize=8,
+              handlelength=1.2, handletextpad=0.3, columnspacing=0.8, frameon=False,
+              borderaxespad=0.1)
+    save(fig, path)
+    return ("Timesteps split into the ideal depth (dependencies), the supply bound beyond it "
+            "(magic-state supply) and the rest (routing), mean over the circuits. On top: "
+            "timesteps over the ideal depth, geometric mean.")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -415,7 +473,8 @@ def main():
                                                   "figures", "revision"))
     ap.add_argument("--fmt", default="pdf,png")
     ap.add_argument("--only", nargs="+",
-                    default=["tradeoff", "roofline", "budget", "tornado", "rq4map"])
+                    default=["tradeoff", "roofline", "timeshare", "budget", "tornado",
+                             "rq4map"])
     args = ap.parse_args()
     out = lambda n: [os.path.join(args.out, f"{n}.{f}") for f in args.fmt.split(",")]  # noqa
     os.makedirs(args.out, exist_ok=True)
@@ -429,6 +488,9 @@ def main():
     if "roofline" in args.only:
         cells13, b13 = load(args.rev)
         roofline(cells13, b13, t_per_qubit(args.qasm), out("roofline"))
+    if "timeshare" in args.only:
+        cells13, b13 = load(args.rev)
+        timeshare(cells13, b13, t_per_qubit(args.qasm), out("timeshare"))
     if "budget" in args.only:
         budget(rev, rms, out("budget"))
     if "tornado" in args.only:
