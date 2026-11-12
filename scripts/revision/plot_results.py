@@ -762,7 +762,7 @@ def plane_cost(cells, benches, path):
                                                   "(b) Cultivation: 2D-Cult")):
         ratio = [num(cells[b][spec]["steps"]) / num(cells[b][spec]["ideal_depth"])
                  if spec in cells[b] else math.nan for b in benches]
-        ax.bar(x, ratio, width=0.6, color=ramp(fam, 3, 4), edgecolor=INK, linewidth=0.3)  # as eval_split's qubit bars
+        ax.bar(x, ratio, width=0.6, color=ramp(fam, 2, 4), edgecolor=INK, linewidth=0.3)  # the tone of eval_split's rounds bars
         ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
         ax.set_ylim(0, top)
         ax.yaxis.set_major_locator(mticker.MultipleLocator(step))
