@@ -463,12 +463,10 @@ def seam_thresholds(u, fits, path):
 
 
 def seam_stv(ratios, be, path):
-    """One column: the geometric-mean STV ratio against p'/p, with its crossings of 1."""
+    """One column: the geometric-mean STV ratio against p'/p."""
     fig, ax = plt.subplots(figsize=(COL, 1.9))
     for (_, _, lab, color, mk) in PAIRS:
         ax.plot(MS_STV, ratios[lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
-        if lab in be:  # where HBMS stops winning
-            ax.plot(be[lab], 1, marker="v", ms=5, color=color, mec=INK, mew=0.4, zorder=5)
     ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
     ax.set_xscale("log")
     ax.xaxis.set_major_locator(mticker.FixedLocator(MS_STV))
@@ -490,8 +488,7 @@ def seam_stv(ratios, be, path):
             "magic-state resource, geometric mean over the circuits, against the error $p'$ of "
             "the cross-layer CNOTs relative to the in-plane error $p$. Every run at the smallest "
             "odd code distance that meets the program-error target, with each merge across a "
-            "vertical coupling at the error simulated at $p = 10^{-3}$. Triangles: where the "
-            "ratio crosses 1.")
+            "vertical coupling at the error simulated at $p = 10^{-3}$.")
 
 
 def main():
