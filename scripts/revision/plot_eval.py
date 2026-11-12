@@ -103,9 +103,9 @@ def eval_stv(cells, benches, path):
         ax.set_axisbelow(True)
         ax.set_ylabel("STV ratio")
         ax.text(0.0, 1.04, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
-        ax.legend(loc="upper right", ncol=ncol, handlelength=1.0, columnspacing=0.7,
-                  handletextpad=0.3, borderaxespad=0.1, frameon=True, facecolor="white",
-                  edgecolor="none", framealpha=1)
+        ax.legend(loc="upper right", ncol=ncol, handlelength=0.9, columnspacing=0.5,
+                  handletextpad=0.25, borderaxespad=0.1, borderpad=0.2, frameon=True,
+                  facecolor="white", edgecolor="none", framealpha=1)
     axes[-1].set_xticks(x, names, rotation=45, ha="right", rotation_mode="anchor")
     axes[-1].set_xlim(-0.6, len(names) - 0.4)
     axes[-1].tick_params(axis="x", length=0)
