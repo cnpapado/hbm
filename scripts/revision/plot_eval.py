@@ -95,7 +95,7 @@ def eval_stv(cells, benches, path):
                    linewidth=0.3, hatch=HATCHES[k], label=lab[spec],
                    hatchcolor="white" if k == 1 else INK)
         ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
-        ax.axvline(len(benches) - 0.5, color=MUTED, lw=0.5)
+        ax.axvline(len(benches) - 0.5, ymax=0.78, color=MUTED, lw=0.5)  # stops below the legend
         ax.set_ylim(0, top)
         ax.yaxis.set_major_locator(mticker.MultipleLocator(step))
         ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
@@ -104,8 +104,7 @@ def eval_stv(cells, benches, path):
         ax.set_ylabel("STV ratio")
         ax.text(0.0, 1.04, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
         ax.legend(loc="upper right", ncol=ncol, handlelength=0.9, columnspacing=0.5,
-                  handletextpad=0.25, borderaxespad=0.1, borderpad=0.2, frameon=True,
-                  facecolor="white", edgecolor="none", framealpha=1)
+                  handletextpad=0.25, borderaxespad=0.1, borderpad=0.2)
     axes[-1].set_xticks(x, names, rotation=45, ha="right", rotation_mode="anchor")
     axes[-1].set_xlim(-0.6, len(names) - 0.4)
     axes[-1].tick_params(axis="x", length=0)

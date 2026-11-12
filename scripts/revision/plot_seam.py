@@ -238,7 +238,7 @@ def seam_column(u, fits, ratios, be, path, m=10):
         ax.plot(hi, law(hi), color=color, lw=1.0, ls="--" if check else "-", zorder=2)
         ax.plot(lo, law(lo), color=color, lw=0.8, ls="--", zorder=2)
     for t, c, lab in ((pth, INK, f"$p_{{th}}$, ${m}p$"), (pth1, "#9A9A9A", "$p_{th}$, $p$")):
-        ax.axvline(t, color=c, lw=0.8, ls=":", zorder=1, label=lab)
+        ax.axvline(t, ymin=0.58, color=c, lw=0.8, ls=":", zorder=1, label=lab)  # above the legend
     ax.set_xscale("log")
     ax.set_yscale("log")
     ax.set_xlim(1e-4, 1.6e-2)
@@ -256,8 +256,7 @@ def seam_column(u, fits, ratios, be, path, m=10):
         [lab.index(x) for x in lab if x.startswith("$p_")]
     ax.legend([h[i] for i in order], [lab[i] for i in order], loc="lower right", ncol=2,
               fontsize=8, handletextpad=0.2, columnspacing=0.6, labelspacing=0.15,
-              borderaxespad=0.2, handlelength=1.1, frameon=True, facecolor="white",
-              edgecolor="none", framealpha=1)
+              borderaxespad=0.2, handlelength=1.1)
     ax = axes[1]
     for (_, _, lab, color, mk) in PAIRS:
         ax.plot(MS_STV, ratios[lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
