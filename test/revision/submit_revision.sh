@@ -19,15 +19,16 @@
 #   ./submit_revision.sh real  [--dry-run]   Ising n10-n66 and QED-C Heisenberg n16-n64 (11 circuits),
 #                                            Clifford+T at eps 1e-2 (benchmarks_real/)
 #   ./submit_revision.sh probe [--dry-run]   timing probe for tint: bench_n400_p90 (the largest,
-#                                            9,900 T gates) on the 6 tint configurations, 6 jobs
+#                                            9,900 T gates) on the 10 tint configurations, 10 jobs
 #   ./submit_revision.sh tint  [--dry-run]   T-intensity set (paper Sec. 5.4): the 21 synthetic
 #                                            circuits with n >= 100 (n = 100, 144, 225, 256, 289,
-#                                            361, 400; T fraction 10, 50, 90%) on 6 configurations,
-#                                            Lower-First where a T gate routes (126 jobs):
-#                                              factories    D0-alt, D3-k1-fact, D3-s2-fact-bottom
-#                                              cultivation  D2-wide, D3-k1, D3-full-bottom
+#                                            361, 400; T fraction 10, 50, 90%) on the paper's 10
+#                                            configurations, Lower-First where a T gate routes
+#                                            (210 jobs):
+#                                              factories    D0-alt, D3-k1-fact, D3-s{2,4,8}-fact-bottom
+#                                              cultivation  D2-wide, D3-k1, D3-{rows,ancilla,full}-bottom
 #                                            Use the same REV_DIR and TIME for probe and tint: the
-#                                            probe's 6 runs then count as finished tint runs.
+#                                            probe's runs then count as finished tint runs.
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
@@ -210,8 +211,8 @@ case "$PHASE" in
         run_set revision/lists/real.txt
         ;;
     probe|tint)  # the T-intensity configurations (CULT_SPECS / FACT_SPECS still override)
-        read -r -a CULT <<< "${CULT_SPECS:-D2-wide D3-k1 D3-full-bottom}"
-        read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact-bottom}"
+        read -r -a CULT <<< "${CULT_SPECS:-D2-wide D3-k1 D3-rows-bottom D3-ancilla-bottom D3-full-bottom}"
+        read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact-bottom D3-s4-fact-bottom D3-s8-fact-bottom}"
         if [ "$PHASE" = probe ]; then
             run_set revision/lists/synth_probe.txt
         else
