@@ -117,7 +117,7 @@ def eval_split(cells, benches, path):
                    (CULT, FILL["HBM-Cult"], "s", (9, 2), "(b) Cultivation: 2D-Cult / HBMS")]):
         fam = "HBM" if base == "D0-alt" else "HBM-Cult"
         bars = [("Q", "Qubits", ramp(fam, 3, 4), None), ("rounds", "Rounds", ramp(fam, 2, 4), "//////")]
-        order = specs[::-1] if base == "D0-alt" else specs  # fewest resources first
+        order = specs  # Dedicated first in both panels, as in eval_stv
         x = np.arange(len(order))
         w = 0.3
         for k, (key, mlab, fill, hatch) in enumerate(bars):
@@ -142,16 +142,16 @@ def eval_split(cells, benches, path):
         ax.set_axisbelow(True)
         ax.set_ylabel("Ratio")
         ax.text(0.0, 1.04, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
-    for ax, loc in zip(axes, ("upper right", "upper left")):  # inside, as in eval_stv
+    for ax, loc in zip(axes, ("upper left", "upper left")):  # inside, above the Dedicated bars
         ax.legend(loc=loc, ncol=3, handlelength=1.0, columnspacing=0.8, handletextpad=0.3)
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)
     return ("Physical qubits (plain bars) and rounds (hatched bars) and STV (markers) of the planar baseline "
             "divided by those of HBMS, as geometric means over the circuits, per HBMS "
-            "configuration ordered by its number of magic-state resources per data slot "
-            "(below each name): (a) Planar-2D over HBMS Shared-8 to Dedicated, with "
-            "factories, and (b) 2D-Cult over HBMS Dedicated to Full, with cultivation patches. "
+            "configuration, with its number of magic-state resources per data slot below its "
+            "name: (a) Planar-2D over HBMS Dedicated to Shared-8, with factories, and (b) "
+            "2D-Cult over HBMS Dedicated to Full, with cultivation patches. "
             "Whiskers: the STV ratio's range over the circuits. Above the dashed line (1), "
             "HBMS uses fewer qubits or rounds, or has the lower STV. Every run at the smallest "
             "odd code distance that meets the program-error target.")
@@ -360,7 +360,7 @@ def sources_table(cells, benches, path):
     configuration (columns), one panel per kind of magic-state resource. Each panel shades
     towards its HBMS colour above 1 and towards its baseline's colour below 1."""
     from matplotlib.colors import LinearSegmentedColormap, Normalize
-    blocks = [(FACT[0], FACT[1][::-1], FILL["HBM"], "(a) Factories:\nPlanar-2D / HBMS"),
+    blocks = [(FACT[0], FACT[1], FILL["HBM"], "(a) Factories:\nPlanar-2D / HBMS"),
               (CULT[0], CULT[1], FILL["HBM-Cult"], "(b) Cultivation:\n2D-Cult / HBMS")]
     names = [label(b, cells[b]) for b in benches] + ["GMean"]
     n = len(benches)
@@ -400,8 +400,8 @@ def sources_table(cells, benches, path):
     plt.close(fig)
     return ("STV of the planar baseline divided by that of HBMS with the same kind of "
             "magic-state resource, per circuit and as the geometric mean (GMean), for every "
-            "HBMS configuration, ordered by magic-state resources per data slot: (a) Planar-2D "
-            "over HBMS Shared-8 to Dedicated, all with factories, and (b) 2D-Cult over HBMS "
+            "HBMS configuration, starting from Dedicated: (a) Planar-2D over HBMS Dedicated to "
+            "Shared-8, all with factories, and (b) 2D-Cult over HBMS "
             "Dedicated to Full, all with cultivation patches. Cells shade towards the HBMS "
             "colour above 1, where HBMS has the lower STV, and towards the baseline's colour "
             "below 1, each panel on its own logarithmic scale. Bold: the HBMS configuration with the lowest STV on the circuit, within "
