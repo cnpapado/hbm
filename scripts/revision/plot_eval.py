@@ -23,6 +23,9 @@ Configurations (mati's Lower-First specs):
   sources_cult (full width) the same with cultivation patches: 2D-Cult / HBMS Dedicated, Rows,
                Ancilla, Full.
 These four replace the Upper-First real13 figures split, split_s2 and sources.
+  tint_table   (one column) the synthetic circuits (test/runs/tint1): STV ratio per T fraction
+               and configuration, geometric mean over the sizes. Draw it alone with
+               --only tint_table on that campaign's rev.csv.
 """
 
 import argparse
@@ -422,6 +425,51 @@ MISSING = (" Dash: no run, the grid too small for one magic-state source at that
            "ratio; GMean is over the circuits that have one.")
 
 
+TINT = ("10", "50", "90")  # T fraction of the synthetic circuits, % of all gates
+
+
+def tint_table(cells, benches, path):
+    """One column: the STV ratio (baseline / HBMS) on the synthetic circuits, geometric mean over
+    their sizes, per T fraction (rows) and HBMS configuration (columns), one panel per kind of
+    magic-state resource. Shading and bold as in sources_table."""
+    from matplotlib.colors import LinearSegmentedColormap, Normalize
+    blocks = [(FACT[0], FACT[1], FILL["HBM"], "(a) Factories:\nPlanar-2D / HBMS"),
+              (CULT[0], CULT[1], FILL["HBM-Cult"], "(b) Cultivation:\n2D-Cult / HBMS")]
+    frac = lambda b: b.rsplit("_p", 1)[1]  # noqa: E731
+    rows = [t for t in TINT if any(frac(b) == t for b in benches)]
+    fig, axes = plt.subplots(1, 2, figsize=(COL, 1.5), sharey=True,
+                             gridspec_kw=dict(width_ratios=[len(b[1]) for b in blocks],
+                                              wspace=0.08))
+    for ax, (base, specs, hue, tag) in zip(axes, blocks):
+        vals = np.array([[gmean(ratios(cells, [b for b in benches if frac(b) == t], base, s))
+                          for s, _ in specs] for t in rows])
+        cmap = LinearSegmentedColormap.from_list(
+            "c", [_mix(BASE_FILL[base], 0.65), (1, 1, 1), _mix(hue, 0.65)])
+        ax.pcolormesh(np.arange(len(specs) + 1), np.arange(len(rows) + 1), np.log(vals),
+                      cmap=cmap, norm=Normalize(-SPAN[base], SPAN[base]), edgecolors="white",
+                      linewidth=0.8)
+        for i, row in enumerate(vals):
+            best = np.nanargmax(row)
+            for j, v in enumerate(row):
+                ax.text(j + 0.5, i + 0.5, f"{v:.2f}", ha="center", va="center", fontsize=8,
+                        color=INK, fontweight="bold" if j == best else "normal")
+        ax.set_xticks(np.arange(len(specs)) + 0.5, [lab for _, lab in specs], rotation=45,
+                      ha="right", rotation_mode="anchor")
+        ax.set_ylim(len(rows), 0)
+        ax.set_xlim(0, len(specs))
+        ax.tick_params(length=0)
+        for side in ax.spines.values():
+            side.set_visible(False)
+        ax.text(0.0, 1.04, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+    axes[0].set_yticks(np.arange(len(rows)) + 0.5, [f"{t}% T" for t in rows])
+    for p in ([path] if isinstance(path, str) else path):
+        fig.savefig(p)
+    plt.close(fig)
+    return ("STV of the planar baseline over that of HBMS on the synthetic circuits, geometric "
+            "mean over the seven sizes, per T fraction: (a) with factories, (b) with cultivation "
+            "patches. Bold: best configuration per row and panel.")
+
+
 def split_size(cells, benches, path):
     """One column, two panels (Dedicated, Shared-2, both with factories): qubit, rounds and STV
     ratios (Planar-2D / HBMS) against the grid's data slots N, one marker per circuit and a
@@ -475,6 +523,9 @@ def main():
                                                   "figures", "revision"))
     ap.add_argument("--fmt", default="pdf,png")
     ap.add_argument("--pprime", type=float, default=1, help="vertical links at p' = m p")
+    ap.add_argument("--only", nargs="+", metavar="FIG",
+                    help="figures to draw (default: all but tint_table, which needs the "
+                         "synthetic circuits)")
     ap.add_argument("--exclude", nargs="+", default=[], metavar="BENCH",
                     help="circuits to leave out (e.g. h2o, whose 2D-Cult run timed out)")
     args = ap.parse_args()
@@ -483,9 +534,13 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     paths = lambda n: [os.path.join(args.out, f"{n}.{f}") for f in args.fmt.split(",")]  # noqa
     with open(os.path.join(args.out, "eval_captions.md"), "w") as f:
-        for name, fn in [("eval_stv", eval_stv), ("eval_split", eval_split), ("split", split),
-                         ("split_s2", split_s2), ("sources_fact", sources_fact),
-                         ("sources_cult", sources_cult), ("sources_table", sources_table), ("split_size", split_size)]:
+        figs = [("eval_stv", eval_stv), ("eval_split", eval_split), ("split", split),
+                ("split_s2", split_s2), ("sources_fact", sources_fact),
+                ("sources_cult", sources_cult), ("sources_table", sources_table),
+                ("split_size", split_size), ("tint_table", tint_table)]
+        for name, fn in figs:
+            if (args.only and name not in args.only) or (not args.only and name == "tint_table"):
+                continue
             f.write(f"**{name}.pdf.** {fn(cells, benches, paths(name))}\n\n")
     print("wrote", os.path.normpath(args.out))
 
