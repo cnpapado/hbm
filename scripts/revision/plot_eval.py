@@ -61,11 +61,24 @@ def per_slot(cells, benches, spec, base):
     return f"{np.mean(v):.1f}".rstrip("0").rstrip(".")
 
 
+RAMP = {"HBM": (-0.15, 0.75), "HBM-Cult": (-0.45, 0.7)}  # dark to light, >= 15 L* per step
+HATCHES = (None, "//////", "\\\\\\\\\\\\", "xxxx")  # the same order in both panels, for grayscale prints
+
+
+def ramp(fam, k, n):
+    """k-th of n bar fills for an HBMS family, from a darkened hue (k = 0) to a light tint."""
+    hex_color = FILL[fam]
+    dark, light = RAMP[fam]
+    rgb = np.array([int(hex_color[i:i + 2], 16) for i in (1, 3, 5)]) / 255
+    t = dark + (light - dark) * k / max(1, n - 1)
+    return tuple(rgb * (1 + t)) if t < 0 else tuple(rgb + (1 - rgb) * t)
+
+
 def eval_stv(cells, benches, path):
     names = [label(b, cells[b]) for b in benches] + ["GMean"]
-    panels = [(FACT, [s for s, _ in FACT[1]], FILL["HBM"], None, (3, 0.5),
+    panels = [(FACT, [s for s, _ in FACT[1]], "HBM", None, (3, 0.5),
                "(a) Factories: Planar-2D / HBMS", 4),
-              (CULT, [s for s, _ in CULT[1]], FILL["HBM-Cult"], None, (10, 2),
+              (CULT, [s for s, _ in CULT[1]], "HBM-Cult", None, (10, 2),
                "(b) Cultivation: 2D-Cult / HBMS", 4)]
     fig, axes = plt.subplots(2, 1, figsize=(COL, 2.9), sharex=True,
                              gridspec_kw=dict(hspace=0.55))
@@ -77,8 +90,10 @@ def eval_stv(cells, benches, path):
         for k, spec in enumerate(show):
             r = ratios(cells, benches, base, spec)
             vals = np.append(r, gmean(r))
-            ax.bar(x - 0.4 + w * (k + 0.5), vals, width=w, color=shade(color, k, n),
-                   edgecolor=INK, linewidth=0.3, hatch=hatch, label=lab[spec])
+            fill = ramp(color, k, n)
+            ax.bar(x - 0.4 + w * (k + 0.5), vals, width=w, color=fill, edgecolor=INK,
+                   linewidth=0.3, hatch=HATCHES[k], label=lab[spec],
+                   hatchcolor="white" if k == 1 else INK)
         ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
         ax.axvline(len(benches) - 0.5, color=MUTED, lw=0.5)
         ax.set_ylim(0, top)
@@ -111,18 +126,19 @@ def eval_split(cells, benches, path):
     for ax, ((base, specs), color, marker, (top, step), tag) in zip(
             axes, [(FACT, FILL["HBM"], "D", (3.2, 0.5), "(a) Factories: Planar-2D / HBMS"),
                    (CULT, FILL["HBM-Cult"], "s", (9, 2), "(b) Cultivation: 2D-Cult / HBMS")]):
-        bars = [("Q", "Qubits", _mix(color, 0.3)), ("rounds", "Rounds", _mix(color, 0.6))]
+        fam = "HBM" if base == "D0-alt" else "HBM-Cult"
+        bars = [("Q", "Qubits", ramp(fam, 3, 4), None), ("rounds", "Rounds", ramp(fam, 2, 4), "//////")]
         order = specs[::-1] if base == "D0-alt" else specs  # fewest resources first
         x = np.arange(len(order))
         w = 0.3
-        for k, (key, mlab, fill) in enumerate(bars):
+        for k, (key, mlab, fill, hatch) in enumerate(bars):
             vals = [gmean(ratios(cells, benches, base, spec, key)) for spec, _ in order]
             ax.bar(x + (k - 0.5) * w, vals, width=w, color=fill, edgecolor=INK,
-                   linewidth=0.3, label=mlab)
+                   linewidth=0.3, label=mlab, hatch=hatch, hatchcolor=INK)
         r = [ratios(cells, benches, base, spec) for spec, _ in order]
         g = np.array([gmean(v) for v in r])
         lo, hi = g - np.array([np.nanmin(v) for v in r]), np.array([np.nanmax(v) for v in r]) - g
-        ax.errorbar(x, g, yerr=[lo, hi], fmt=marker, color=color, mec=INK, mew=0.4, ms=4.5,
+        ax.errorbar(x, g, yerr=[lo, hi], fmt=marker, color=ramp(fam, 0, 4), mec=INK, mew=0.4, ms=4.5,
                     ecolor=INK, elinewidth=0.6, capsize=1.5, zorder=4,
                     label="STV")
         ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
@@ -142,7 +158,7 @@ def eval_split(cells, benches, path):
     for p in ([path] if isinstance(path, str) else path):
         fig.savefig(p)
     plt.close(fig)
-    return ("Physical qubits and rounds (light and dark bars) and STV (markers) of the planar baseline "
+    return ("Physical qubits (plain bars) and rounds (hatched bars) and STV (markers) of the planar baseline "
             "divided by those of HBMS, as geometric means over the circuits, per HBMS "
             "configuration ordered by its number of magic-state resources per data slot "
             "(below each name): (a) Planar-2D over HBMS Shared-8 to Dedicated, with "
