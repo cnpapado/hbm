@@ -725,7 +725,7 @@ def split(cells, benches, path, knob="k1", curve_label=(0.81, 1.25),
             f"share one label. All runs at {d_note(cells)}." + STAR)
 
 
-PLANE = [("D0-alt", "Planar-2D"), ("D2-wide", "2D-Cult")]  # baseline spec, fill family
+PLANE = [("D0-alt", "HBM"), ("D2-wide", "HBM-Cult")]  # baseline spec, colour of its kind
 
 
 def plane_cost(cells, benches, path):
@@ -737,11 +737,11 @@ def plane_cost(cells, benches, path):
                              gridspec_kw=dict(hspace=0.35))
     x = np.arange(len(benches))
     for ax, (spec, fam), (top, step), tag in zip(axes, PLANE, ((2, 0.5), (30, 10)),
-                                                 ("(a) Planar-2D, factories",
-                                                  "(b) 2D-Cult, cultivation patches")):
+                                                 ("(a) Factories: Planar-2D",
+                                                  "(b) Cultivation: 2D-Cult")):
         ratio = [num(cells[b][spec]["steps"]) / num(cells[b][spec]["ideal_depth"])
                  if spec in cells[b] else math.nan for b in benches]
-        ax.bar(x, ratio, width=0.6, color=FILL[fam], edgecolor=INK, linewidth=0.4)
+        ax.bar(x, ratio, width=0.6, color=FILL[fam], edgecolor=INK, linewidth=0.3)
         ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
         ax.set_ylim(0, top)
         ax.yaxis.set_major_locator(mticker.MultipleLocator(step))

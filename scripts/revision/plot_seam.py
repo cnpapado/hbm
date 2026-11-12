@@ -297,6 +297,102 @@ def seam_column(u, fits, ratios, be, path):
             "crosses 1.")
 
 
+def seam_row(u, fits, ratios, be, path):
+    """Full width, four panels. (a)-(c) Merge error against p at p' = p, 5p, 10p, a colour per d:
+    simulation, the fit A (p / p_th)^((d + 1) / 2) over d = 3..11 (dashed below the simulated
+    p), the d = 13 check, the panel's fitted threshold (black) and, in (b) and (c), that of
+    p' = p (gray). (d) The geometric-mean STV ratio against p'/p, with its crossings of 1."""
+    fig, axes = plt.subplots(1, 5, figsize=(FULL, 2.2),
+                             gridspec_kw=dict(width_ratios=[1, 1, 1, 0.3, 1.15], wspace=0.12))
+    axes[3].axis("off")  # a spacer: (d) carries its own y axis on the left
+    axes = [axes[0], axes[1], axes[2], axes[4]]
+    ds = sorted({k[2] for k in u})
+    pth1 = fits[("seam", 1.0)][1]
+    lo = np.logspace(-4, -3, 20)  # the fit below the simulated p: a prediction
+    for ax, m, tag in zip(axes[:3], MS, "abc"):
+        a, pth = fits[("seam", float(m))]
+        hi = np.logspace(-3, math.log10(pth), 30)  # the fit over the simulated p
+        for d in ds:
+            pts = sorted((q, v) for (md, mm, dd, q), v in u.items()
+                         if md == "seam" and mm == m and dd == d and v[0] > 0)
+            if not pts:
+                continue
+            color, mk = D_STYLE[d]
+            check = d == CHECK_D
+            y = np.array([v[0] for _, v in pts])
+            e = np.array([v[1] for _, v in pts])
+            ax.errorbar([q for q, _ in pts], y, yerr=[np.minimum(e, y * 0.9), e], fmt=mk,
+                        ms=3.2, mfc="white", mec=color, mew=0.9, ecolor=color, elinewidth=0.6,
+                        capsize=0, zorder=3, label=f"$d = {d}$" + (" (check)" if check else ""))
+            law = lambda q: a * (q / pth) ** ((d + 1) / 2)  # noqa: E731
+            ax.plot(hi, law(hi), color=color, lw=1.0, ls="--" if check else "-", zorder=2)
+            ax.plot(lo, law(lo), color=color, lw=0.8, ls="--", zorder=2)
+        if m != 1:  # the in-plane threshold, for reference
+            ax.axvline(pth1, color="#9A9A9A", lw=0.8, ls=":", zorder=1)
+        ax.axvline(pth, color=INK, lw=0.8, ls=":", zorder=1)
+        ax.text(pth * 0.9, 2e-12, f"$p_{{th}} = {pth * 1e3:.1f}\\times10^{{-3}}$", ha="right",
+                va="bottom", fontsize=8, color=INK, rotation=90)
+        ax.set_xscale("log")
+        ax.set_yscale("log")
+        ax.set_xlim(1e-4, 1.6e-2)
+        ax.set_ylim(1e-12, 1)
+        ax.yaxis.set_major_locator(mticker.FixedLocator([1e-12, 1e-9, 1e-6, 1e-3, 1]))
+        ax.yaxis.set_minor_locator(mticker.NullLocator())
+        ax.xaxis.set_major_locator(mticker.FixedLocator([1e-3, 1e-2]))
+        ax.set_xlabel("Physical error rate $p$")
+        ax.grid(True, which="major", color=GRID, lw=0.5)
+        ax.set_axisbelow(True)
+        label = "p" if m == 1 else f"{m}p"
+        ax.text(0.0, 1.03, f"({tag}) $p' = {label}$", transform=ax.transAxes, fontsize=8,
+                va="bottom", ha="left")
+        if ax is not axes[0]:
+            ax.tick_params(labelleft=False)
+    axes[0].set_ylabel("Logical error per merge")
+    h, lab = axes[0].get_legend_handles_labels()
+    h += [plt.Line2D([], [], color=INK, lw=1.0), plt.Line2D([], [], color=INK, lw=0.8, ls="--"),
+          plt.Line2D([], [], color=INK, lw=0.8, ls=":"),
+          plt.Line2D([], [], color="#9A9A9A", lw=0.8, ls=":")]
+    lab += ["fit", "fit, beyond the data", "threshold", "threshold at $p' = p$"]
+    x0, x1 = axes[0].get_position().x0, axes[2].get_position().x1
+    fig.legend(h, lab, loc="lower center", bbox_to_anchor=((x0 + x1) / 2, 0.99), ncol=5,
+               fontsize=8, handletextpad=0.3, columnspacing=0.9, labelspacing=0.25,
+               handlelength=1.5)
+    ax = axes[3]
+    for (_, _, lab_, color, mk) in PAIRS:
+        ax.plot(MS_STV, ratios[lab_], color=color, marker=mk, ms=4, lw=1.1, label=lab_)
+        if lab_ in be:  # where HBMS stops winning
+            ax.plot(be[lab_], 1, marker="v", ms=5, color=color, mec=INK, mew=0.4, zorder=5)
+    ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
+    ax.set_xscale("log")
+    ax.xaxis.set_major_locator(mticker.FixedLocator(MS_STV))
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+    ax.xaxis.set_minor_locator(mticker.NullLocator())
+    ax.set_xlim(0.8, 125)
+    ax.set_ylim(0, 7)
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
+    ax.grid(True, axis="y", color=GRID, lw=0.5)
+    ax.set_axisbelow(True)
+    ax.set_xlabel("Coupling error $p'/p$")
+    ax.set_ylabel("STV ratio")
+    ax.text(0.0, 1.03, "(d) Baseline / HBMS, GMean", transform=ax.transAxes, fontsize=8,
+            va="bottom", ha="left")
+    ax.legend(loc="upper right", fontsize=8, handlelength=1.4, handletextpad=0.3,
+              labelspacing=0.2, borderaxespad=0.3)
+    for p_ in ([path] if isinstance(path, str) else path):
+        fig.savefig(p_)
+    plt.close(fig)
+    return ("(a)-(c) Logical error per lattice-surgery merge across a vertical coupling against "
+            "the physical error rate $p$, with error $p' = p$, $5p$ or $10p$ on the $2d - 1$ "
+            "cross-layer CNOTs per round and $p$ everywhere else. Markers: simulation, with "
+            "binomial error bars. Solid lines: the fit $A\\,(p/p_{\\mathrm{th}})^{(d+1)/2}$ over "
+            "$d = 3$ to 11. Dashed: the fit below the simulated $p$, and its prediction for "
+            "$d = 13$ (black markers, not fitted). Dotted: the fitted threshold (black) and, in "
+            "(b) and (c), that of $p' = p$ (gray). (d) STV of the planar baseline divided by "
+            "that of HBMS, geometric mean over the circuits, against $p'/p$, every run at the "
+            "smallest odd code distance that meets the program-error target with the simulated "
+            "merge error at $p = 10^{-3}$. Triangles: where the ratio crosses 1.")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -322,7 +418,7 @@ def main():
     paths = [os.path.join(args.out, f"seam_merge.{f}") for f in args.fmt.split(",")]
     caption = seam_figure(u, fits, ratios, be, paths)
     col = [os.path.join(args.out, f"seam_stv.{f}") for f in args.fmt.split(",")]
-    col_caption = seam_column(u, fits, ratios, be, col)
+    col_caption = seam_row(u, fits, ratios, be, col)
     with open(os.path.join(args.out, "seam_caption.md"), "w") as f:
         f.write(f"**seam_merge.pdf.** {caption}\n\n**seam_stv.pdf.** {col_caption}\n")
     print("wrote", paths[0])
