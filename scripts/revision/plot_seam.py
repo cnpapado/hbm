@@ -102,14 +102,15 @@ def d_need(r, rm):
     return ""
 
 
-def stv_ratios(rev, rms):
+def stv_ratios(rev, rms, pairs=None):
     """{label: [geomean STV ratio at each m]} with every run at its own d."""
-    out = {lab: [] for _, _, lab, _, _ in PAIRS}
+    pairs = pairs or PAIRS
+    out = {lab: [] for _, _, lab, _, _ in pairs}
     for m in MS_STV:
         rows = [dict(r, d_need_1p=d_need(r, rms[m])) for r in rev]
         cells = {(r["bench"], r["spec"]): r for r in refit(rows, 1)}
         benches = sorted({b for b, _ in cells})
-        for base, spec, lab, _, _ in PAIRS:
+        for base, spec, lab, _, _ in pairs:
             v = [float(cells[(b, base)]["STV"]) / float(cells[(b, spec)]["STV"]) for b in benches]
             out[lab].append(math.exp(sum(map(math.log, v)) / len(v)))
     return out
@@ -462,33 +463,67 @@ def seam_thresholds(u, fits, path):
             "(c), that of $p' = p$ (gray).")
 
 
-def seam_stv(ratios, be, path):
-    """One column: the geometric-mean STV ratio against p'/p."""
-    fig, ax = plt.subplots(figsize=(COL, 1.9))
-    for (_, _, lab, color, mk) in PAIRS:
-        ax.plot(MS_STV, ratios[lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
-    ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
-    ax.set_xscale("log")
-    ax.xaxis.set_major_locator(mticker.FixedLocator(MS_STV))
-    ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
-    ax.xaxis.set_minor_locator(mticker.NullLocator())
-    ax.set_xlim(0.8, 125)
-    ax.set_ylim(0, 6)
-    ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
-    ax.grid(True, axis="y", color=GRID, lw=0.5)
-    ax.set_axisbelow(True)
-    ax.set_xlabel("Coupling error $p'/p$")
-    ax.set_ylabel("STV ratio")
-    ax.legend(loc="upper right", fontsize=8, handlelength=1.4, handletextpad=0.3,
-              labelspacing=0.2, borderaxespad=0.3)
+KIND_PAIRS = {  # baseline, HBMS spec, legend; per kind, ordered as in eval_stv
+    "HBM": [("D0-alt", "D3-k1-fact", "Dedicated"), ("D0-alt", "D3-s2-fact-bottom", "Shared-2"),
+            ("D0-alt", "D3-s4-fact-bottom", "Shared-4"), ("D0-alt", "D3-s8-fact-bottom", "Shared-8")],
+    "HBM-Cult": [("D2-wide", "D3-k1", "Dedicated"), ("D2-wide", "D3-rows-bottom", "Rows"),
+                 ("D2-wide", "D3-ancilla-bottom", "Ancilla"), ("D2-wide", "D3-full-bottom", "Full")],
+}
+LINE_MARKS = ("o", "s", "^", "D")
+
+
+def line_tone(fam, k, n, light=0.55):
+    """k-th of n line colours for a kind: the paper colour (k = 0) to a tint still dark enough
+    to read as a line on white."""
+    rgb = np.array([int(FILL[fam][i:i + 2], 16) for i in (1, 3, 5)]) / 255
+    return tuple(rgb + (1 - rgb) * light * k / max(1, n - 1))
+
+
+def kind_ratios(rev, rms):
+    """{kind: {legend: [geomean STV ratio at each m]}} for every configuration of each kind."""
+    return {fam: stv_ratios(rev, rms, [(b, s, lab, None, None) for b, s, lab in pairs])
+            for fam, pairs in KIND_PAIRS.items()}
+
+
+def seam_stv(ratios_by_kind, path):
+    """One column, two panels: the geometric-mean STV ratio against p'/p for every HBMS
+    configuration, (a) with factories, (b) with cultivation patches."""
+    fig, axes = plt.subplots(2, 1, figsize=(COL, 3.3), sharex=True,
+                             gridspec_kw=dict(hspace=0.35))
+    for ax, fam, top, tag in zip(axes, ("HBM", "HBM-Cult"), (2, 6),
+                                 ("(a) Factories: Planar-2D / HBMS",
+                                  "(b) Cultivation: 2D-Cult / HBMS")):
+        pairs = KIND_PAIRS[fam]
+        for k, (_, _, lab) in enumerate(pairs):
+            ax.plot(MS_STV, ratios_by_kind[fam][lab], color=line_tone(fam, k, len(pairs)),
+                    marker=LINE_MARKS[k], ms=4, mec=INK, mew=0.3, lw=1.1, label=lab,
+                    zorder=3 - 0.1 * k)
+        ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=1)
+        ax.set_xscale("log")
+        ax.xaxis.set_major_locator(mticker.FixedLocator(MS_STV))
+        ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.xaxis.set_minor_locator(mticker.NullLocator())
+        ax.set_xlim(0.8, 125)
+        ax.set_ylim(0, top)
+        ax.yaxis.set_major_locator(mticker.MultipleLocator(0.5 if top <= 2 else 1))
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.grid(True, axis="y", color=GRID, lw=0.5)
+        ax.set_axisbelow(True)
+        ax.set_ylabel("STV ratio")
+        ax.text(0.0, 1.03, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+        ax.legend(loc="upper right", ncol=2, fontsize=8, handlelength=1.4, handletextpad=0.3,
+                  labelspacing=0.2, columnspacing=0.8, borderaxespad=0.3)
+    axes[-1].set_xlabel("Coupling error $p'/p$")
     for p_ in ([path] if isinstance(path, str) else path):
         fig.savefig(p_)
     plt.close(fig)
     return ("STV of the planar baseline divided by that of HBMS with the same kind of "
             "magic-state resource, geometric mean over the circuits, against the error $p'$ of "
-            "the cross-layer CNOTs relative to the in-plane error $p$. Every run at the smallest "
-            "odd code distance that meets the program-error target, with each merge across a "
-            "vertical coupling at the error simulated at $p = 10^{-3}$.")
+            "the cross-layer CNOTs relative to the in-plane error $p$: (a) Planar-2D over HBMS "
+            "Dedicated and Shared-2 to Shared-8, all with factories, and (b) 2D-Cult over HBMS "
+            "Dedicated, Rows, Ancilla and Full, all with cultivation patches. Every run at the "
+            "smallest odd code distance that meets the program-error target, with each merge "
+            "across a vertical coupling at the error simulated at $p = 10^{-3}$.")
 
 
 def main():
@@ -517,7 +552,7 @@ def main():
     caption = seam_figure(u, fits, ratios, be, paths)
     out = lambda name: [os.path.join(args.out, f"{name}.{f}") for f in args.fmt.split(",")]  # noqa
     caps = {"seam_threshold": seam_thresholds(u, fits, out("seam_threshold")),
-            "seam_stv": seam_stv(ratios, be, out("seam_stv"))}
+            "seam_stv": seam_stv(kind_ratios(rev, ratio_fit(u, MS_STV)), out("seam_stv"))}
     with open(os.path.join(args.out, "seam_caption.md"), "w") as f:
         f.write(f"**seam_merge.pdf.** {caption}\n\n")
         f.write("\n\n".join(f"**{k}.pdf.** {v}" for k, v in caps.items()) + "\n")
