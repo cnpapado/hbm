@@ -61,8 +61,16 @@ def per_slot(cells, benches, spec, base):
     return f"{np.mean(v):.1f}".rstrip("0").rstrip(".")
 
 
-RAMP = {"HBM": (-0.15, 0.75), "HBM-Cult": (-0.45, 0.7)}  # dark to light, >= 15 L* per step
+RAMP = {"HBM": (0.0, 0.75), "HBM-Cult": (0.0, 0.7)}  # from the paper colour (k = 0) to a light tint
 HATCHES = (None, "//////", "\\\\\\\\\\\\", "xxxx")  # the same order in both panels, for grayscale prints
+
+
+def _lstar(rgb):
+    """CIE L* (perceived lightness, 0-100) of an sRGB colour given as 0-1 floats."""
+    c = np.array(rgb, float)
+    c = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    return 116 * y ** (1 / 3) - 16 if y > 0.008856 else 903.3 * y
 
 
 def ramp(fam, k, n):
@@ -93,7 +101,7 @@ def eval_stv(cells, benches, path):
             fill = ramp(color, k, n)
             ax.bar(x - 0.4 + w * (k + 0.5), vals, width=w, color=fill, edgecolor=INK,
                    linewidth=0.3, hatch=HATCHES[k], label=lab[spec],
-                   hatchcolor="white" if k == 1 else INK)
+                   hatchcolor="white" if _lstar(fill) < 55 else INK)  # visible on the fill
         ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
         ax.axvline(len(benches) - 0.5, ymax=0.78, color=MUTED, lw=0.5)  # stops below the legend
         ax.set_ylim(0, top)
