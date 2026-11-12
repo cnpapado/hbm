@@ -18,7 +18,7 @@ Configurations (mati's Lower-First specs):
   split_s2     (one column) the same for the routed layouts, one panel per kind: (a) Planar-2D
                / Shared-2 (factories), (b) 2D-Cult / Rows (cultivation).
   sources_fact (full width) one panel per circuit: STV ratio (Planar-2D / HBMS) against the
-               number of factories in HBMS over that in Planar-2D, Shared-16 to Dedicated.
+               number of factories in HBMS over that in Planar-2D, Shared-8 to Dedicated.
   sources_cult (full width) the same with cultivation patches: 2D-Cult / HBMS Dedicated, Rows,
                Ancilla, Full.
 These four replace the Upper-First real13 figures split, split_s2 and sources.
@@ -36,8 +36,7 @@ from plot_results import (COL, FILL, FULL, GRID, INK, MUTED, STAR, circuit, gmea
                           load, num, plain_log, plt, shade)
 
 FACT = ("D0-alt", [("D3-k1-fact", "Dedicated"), ("D3-s2-fact-bottom", "Shared-2"),
-                   ("D3-s4-fact-bottom", "Shared-4"), ("D3-s8-fact-bottom", "Shared-8"),
-                   ("D3-s16-fact-bottom", "Shared-16")])
+                   ("D3-s4-fact-bottom", "Shared-4"), ("D3-s8-fact-bottom", "Shared-8")])
 CULT = ("D2-wide", [("D3-k1", "Dedicated"), ("D3-rows-bottom", "Rows"),
                     ("D3-ancilla-bottom", "Ancilla"), ("D3-full-bottom", "Full")])
 
@@ -144,7 +143,7 @@ def eval_split(cells, benches, path):
     return ("Physical qubits and rounds (light and dark bars) and STV (markers) of the planar baseline "
             "divided by those of HBMS, as geometric means over the circuits, per HBMS "
             "configuration ordered by its number of magic-state resources per data slot "
-            "(below each name): (a) Planar-2D over HBMS Shared-16 to Dedicated, with "
+            "(below each name): (a) Planar-2D over HBMS Shared-8 to Dedicated, with "
             "factories, and (b) 2D-Cult over HBMS Dedicated to Full, with cultivation patches. "
             "Whiskers: the STV ratio's range over the circuits. Above the dashed line (1), "
             "HBMS uses fewer qubits or rounds, or has the lower STV. Every run at the smallest "
@@ -325,7 +324,7 @@ def sources_fact(cells, benches, path):
     source_grid(cells, benches, path, "fact")
     return ("STV of Planar-2D divided by that of HBMS, both with factories, against the "
             "number of factories in HBMS over that in Planar-2D, one panel per circuit. "
-            "Markers give the HBMS configuration, from Shared-16 to Dedicated. Above the "
+            "Markers give the HBMS configuration, from Shared-8 to Dedicated. Above the "
             "dashed line (1), HBMS has the lower STV. On the dotted line, both use the same "
             "number of factories. Both axes are logarithmic. " + D_NOTE)
 
@@ -395,7 +394,7 @@ def sources_table(cells, benches, path):
     return ("STV of the planar baseline divided by that of HBMS with the same kind of "
             "magic-state resource, per circuit and as the geometric mean (GMean), for every "
             "HBMS configuration, ordered by magic-state resources per data slot: (a) Planar-2D "
-            "over HBMS Shared-16 to Dedicated, all with factories, and (b) 2D-Cult over HBMS "
+            "over HBMS Shared-8 to Dedicated, all with factories, and (b) 2D-Cult over HBMS "
             "Dedicated to Full, all with cultivation patches. Cells shade towards the HBMS "
             "colour above 1, where HBMS has the lower STV, and towards the baseline's colour "
             "below 1, each panel on its own logarithmic scale. Bold: the HBMS configuration with the lowest STV on the circuit, within "
