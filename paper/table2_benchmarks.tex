@@ -1,0 +1,47 @@
+% Table 2 augmented with the Hamiltonian-simulation set (runs/hamiltonians-mm).
+% Values from analyze.py (n_used, n_t, n_cx, recharge_rounds of D3-k1); N is the square grid,
+% ceil(sqrt(n))^2. Needs \usepackage{booktabs}. H2O is commented out until its 2D-Cult run
+% finishes (it is also left out of Fig. 8, figures/revision/combined/sources_table.pdf).
+\begin{table}[t]
+  \centering
+  \caption{Benchmark circuits, one Trotter step each: logical qubits $n$, data tiles $N$ of
+    the square grid, T and CNOT counts after synthesis, and the preparation time $R$ of the
+    cultivation grade the circuit needs.}
+  \label{tab:benchmarks}
+  \begin{tabular}{lrrrrr}
+    \toprule
+    Circuit & $n$ & $N$ & T & CNOT & $R$ \\
+    \midrule
+    Ising-10   & 10 & 16 &    982 &  18 &  60 \\
+    Ising-13   & 13 & 16 &  1,303 &  24 &  60 \\
+    Ising-16   & 16 & 16 &  1,618 &  30 &  60 \\
+    Ising-26   & 26 & 36 &  1,550 &  50 &  60 \\
+    Ising-34   & 34 & 36 &  2,018 &  66 &  60 \\
+    Ising-66   & 66 & 81 &  3,920 & 130 & 360 \\
+    Heis-16    & 16 & 16 &  1,638 &  45 &  60 \\
+    Heis-20    & 20 & 25 &  2,068 &  57 &  60 \\
+    Heis-25    & 25 & 25 &  2,598 &  72 &  60 \\
+    Heis-49    & 49 & 49 &  5,163 & 144 & 360 \\
+    Heis-64    & 64 & 64 &  6,759 & 189 & 360 \\
+    \midrule
+    HeisXYZ-5  &  5 &  9 &    246 &  24 &  60 \\
+    HeisXYZ-10 & 10 & 16 &    548 &  54 &  60 \\
+    HeisXYZ-20 & 20 & 25 &  1,158 & 114 &  60 \\
+    HeisXYZ-30 & 30 & 36 &  1,778 & 174 &  60 \\
+    HeisXYZ-40 & 40 & 49 &  2,392 & 234 &  60 \\
+    Chain-10   & 10 & 16 &    373 &  32 &  60 \\
+    Chain-20   & 20 & 25 &    789 &  72 &  60 \\
+    Chain-30   & 30 & 36 &  1,205 & 112 &  60 \\
+    Chain-40   & 40 & 49 &  1,625 & 152 &  60 \\
+    Chain-50   & 50 & 64 &  2,042 & 192 &  60 \\
+    SK-10      & 10 & 16 &  1,123 &  90 &  60 \\
+    SK-15      & 15 & 16 &  2,467 & 210 &  60 \\
+    Surface-9  &  9 &  9 &    167 &  32 &  60 \\
+    Surface-25 & 25 & 25 &    506 & 112 &  60 \\
+    Surface-49 & 49 & 49 &  1,003 & 240 &  60 \\
+    H2         &  4 &  4 &    283 &  36 &  60 \\
+    LiH        & 12 & 16 & 12,724 & 6,516 & 360 \\
+%   H2O        & 14 & 16 & 22,152 & 13,158 & 360 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
