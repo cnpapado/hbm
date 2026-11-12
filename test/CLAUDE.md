@@ -82,7 +82,7 @@ phase runs the 11 circuits of `benchmarks_real/` (Ising n10–n66 and QED-C Heis
 Trotter step, Clifford+T at ε = 10⁻²); `ising` only the Ising ones. Each phase runs 13 configurations
 (2D-Cult ×2, Planar-2D, HBM ×5 with factories, HBM-Cult ×5). `tint` runs the T-intensity set (the 21
 `benchmarks_bursty_cx` circuits with n ≥ 100) on the paper's 10 configurations, Lower-First where a T gate routes;
-`probe` runs only its largest circuit (n400, p90) to size `TIME`. See `../REVISION.md`.
+`tint-fact` and `tint-cult` run only its factory or only its cultivation configurations; `probe` runs only its largest circuit (n400, p90) to size `TIME`. See `../REVISION.md`.
 
 ## Analysis scripts under `test/`
 

@@ -29,6 +29,9 @@
 #                                              cultivation  D2-wide, D3-k1, D3-{rows,ancilla,full}-bottom
 #                                            Use the same REV_DIR and TIME for probe and tint: the
 #                                            probe's runs then count as finished tint runs.
+#   ./submit_revision.sh tint-fact|tint-cult  [--dry-run]   the tint set with only the factory
+#                                            (105 jobs) or only the cultivation (105 jobs)
+#                                            configurations; same REV_DIR and TIME for both halves
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
@@ -184,17 +187,20 @@ EXTRA=(D2-wide-borrow D2-tight-borrow)
 
 run_set() {  # run_set <bench_list>: every design; cultivation at the R that ROUNDS selects
     PLAN="$TODO/plan_d0__$(basename "$1" .txt)__${STAMP}.txt"
-    python3 revision/plan_d0.py "$1" --d "$SIM_D" --specs "${FACT[@]}" > "$PLAN" || {
-        echo "warning: plan_d0.py failed; queuing every D0 count (misfits fail at start)" >&2
-        PLAN=""
-    }
-    for d in "${CULT[@]}"; do
+    # ${A[@]+"${A[@]}"}: an empty list expands to nothing, also under set -u on bash < 4.4
+    if [ "${#FACT[@]}" -gt 0 ]; then
+        python3 revision/plan_d0.py "$1" --d "$SIM_D" --specs "${FACT[@]}" > "$PLAN" || {
+            echo "warning: plan_d0.py failed; queuing every D0 count (misfits fail at start)" >&2
+            PLAN=""
+        }
+    fi
+    for d in ${CULT[@]+"${CULT[@]}"}; do
         for r in "${ALL_ROUNDS[@]}"; do
             [ "$ROUNDS" = best ] || [[ " $ROUNDS " == *" $r "* ]] || continue
             submit "$1" "$d" "$r"
         done
     done
-    for d in "${FACT[@]}"; do submit "$1" "$d"; done
+    for d in ${FACT[@]+"${FACT[@]}"}; do submit "$1" "$d"; done
 }
 
 case "$PHASE" in
@@ -210,9 +216,11 @@ case "$PHASE" in
     real)
         run_set revision/lists/real.txt
         ;;
-    probe|tint)  # the T-intensity configurations (CULT_SPECS / FACT_SPECS still override)
+    probe|tint|tint-fact|tint-cult)  # the T-intensity configurations (CULT_SPECS / FACT_SPECS override)
         read -r -a CULT <<< "${CULT_SPECS:-D2-wide D3-k1 D3-rows-bottom D3-ancilla-bottom D3-full-bottom}"
         read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact-bottom D3-s4-fact-bottom D3-s8-fact-bottom}"
+        [ "$PHASE" = tint-fact ] && CULT=()  # factory configurations only (105 jobs)
+        [ "$PHASE" = tint-cult ] && FACT=()  # cultivation configurations only (105 jobs)
         if [ "$PHASE" = probe ]; then
             run_set revision/lists/synth_probe.txt
         else
@@ -230,7 +238,7 @@ case "$PHASE" in
         done
         ;;
     *)
-        echo "usage: $0 mini|pilot|core|full|ising|real|probe|tint [--dry-run]" >&2
+        echo "usage: $0 mini|pilot|core|full|ising|real|probe|tint|tint-fact|tint-cult [--dry-run]" >&2
         exit 1
         ;;
 esac
