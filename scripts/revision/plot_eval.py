@@ -63,8 +63,8 @@ def per_slot(cells, benches, spec, base):
 
 def eval_stv(cells, benches, path):
     names = [label(b, cells[b]) for b in benches] + ["GMean"]
-    panels = [(FACT, ["D3-k1-fact", "D3-s2-fact-bottom"], FILL["HBM"], None, (2.5, 0.5),
-               "(a) Factories: Planar-2D / HBMS", 2),
+    panels = [(FACT, [s for s, _ in FACT[1]], FILL["HBM"], None, (3, 0.5),
+               "(a) Factories: Planar-2D / HBMS", 4),
               (CULT, [s for s, _ in CULT[1]], FILL["HBM-Cult"], None, (10, 2),
                "(b) Cultivation: 2D-Cult / HBMS", 4)]
     fig, axes = plt.subplots(2, 1, figsize=(COL, 2.9), sharex=True,
@@ -89,7 +89,8 @@ def eval_stv(cells, benches, path):
         ax.set_ylabel("STV ratio")
         ax.text(0.0, 1.04, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
         ax.legend(loc="upper right", ncol=ncol, handlelength=1.0, columnspacing=0.7,
-                  handletextpad=0.3, borderaxespad=0.1)
+                  handletextpad=0.3, borderaxespad=0.1, frameon=True, facecolor="white",
+                  edgecolor="none", framealpha=1)
     axes[-1].set_xticks(x, names, rotation=45, ha="right", rotation_mode="anchor")
     axes[-1].set_xlim(-0.6, len(names) - 0.4)
     axes[-1].tick_params(axis="x", length=0)
@@ -98,7 +99,8 @@ def eval_stv(cells, benches, path):
     plt.close(fig)
     return ("STV of the planar baseline divided by that of HBMS with the same kind of "
             "magic-state resource, per circuit and as the geometric mean (GMean): (a) "
-            "Planar-2D over HBMS Dedicated and Shared-2, all with factories, and (b) 2D-Cult "
+            "Planar-2D over HBMS Dedicated, Shared-2, Shared-4 and Shared-8, all with "
+            "factories, and (b) 2D-Cult "
             "over HBMS Dedicated, Rows, Ancilla and Full, all with cultivation patches. Above "
             "the dashed line (1), HBMS has the lower STV. Every run at the smallest odd code "
             "distance that meets the program-error target." + STAR)
