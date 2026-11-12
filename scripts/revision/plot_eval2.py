@@ -130,34 +130,42 @@ def supply_bound(c, tq):
     return (k - 1) * period + 1  # every resource starts the run holding a T state
 
 
+def _line_angle(ax, x0, x1):
+    """Screen angle (degrees) of the line y = x between x0 and x1 on log-log axes."""
+    p0, p1 = ax.transData.transform([(x0, x0), (x1, x1)])
+    return math.degrees(math.atan2(p1[1] - p0[1], p1[0] - p0[0]))
+
+
 def roofline(cells13, benches, tq, path):
-    fig, axes = plt.subplots(2, 1, figsize=(COL, 3.9), gridspec_kw=dict(hspace=0.45))
-    for ax, (fam, (base, specs), tag) in zip(axes, KINDS):
-        series = [(base, "Planar-2D" if base == "D0-alt" else "2D-Cult", BASE_COLOUR[base], "X")]
-        series += [(s, lab, ramp(fam, k, len(specs)), MARKS[k]) for k, (s, lab) in
-                   enumerate(specs)]
-        xs_all = []
-        for spec, lab, colour, mk in series:
-            pts = []
-            for b in benches:
-                c = cells13[b].get(spec)
-                if not c:
-                    continue
-                ideal = num(c["ideal_depth"])
-                pts.append((supply_bound(c, tq[b]) / ideal, num(c["steps"]) / ideal))
-            xs_all += [p[0] for p in pts]
-            hollow = spec in BASE_COLOUR  # the baseline on top, hollow: 2D-Cult hides Dedicated
-            ax.scatter([p[0] for p in pts], [p[1] for p in pts], s=26 if hollow else 16,
-                       marker="o" if hollow else mk, facecolor="none" if hollow else colour,
-                       edgecolor=colour if hollow else INK, linewidth=1.0 if hollow else 0.3,
-                       zorder=4 if hollow else 3, label=lab)
-        lo, hi = 0.3, 40
-        ax.plot([lo, hi], [lo, hi], color=INK, lw=0.8, ls="--", zorder=1)
-        ax.axhline(1, color=INK, lw=0.8, ls=":", zorder=1)
+    fig, axes = plt.subplots(2, 1, figsize=(COL, 4.3), gridspec_kw=dict(hspace=0.42))
+    lo, hi, ylo = 0.3, 40, 0.85
+    tags = ("(a) Factories: Planar-2D and HBMS", "(b) Cultivation: 2D-Cult and HBMS")
+    for ax, (fam, (base, specs), _), tag in zip(axes, KINDS, tags):
         ax.set_xscale("log")
         ax.set_yscale("log")
         ax.set_xlim(lo, hi)
-        ax.set_ylim(0.85, hi)
+        ax.set_ylim(ylo, hi)
+        # what no run can reach: below both the ideal depth and the supply bound
+        xx = np.logspace(math.log10(lo), math.log10(hi), 200)
+        ax.fill_between(xx, ylo, np.maximum(1, xx), color="#EFEFEF", lw=0, zorder=0)
+        ax.plot([lo, hi], [lo, hi], color=INK, lw=0.8, ls="--", zorder=1)
+        ax.axhline(1, color=INK, lw=0.8, ls=":", zorder=1)
+        series = [(base, "Planar-2D" if base == "D0-alt" else "2D-Cult", BASE_COLOUR[base], "X")]
+        series += [(s_, lab, ramp(fam, k, len(specs)), MARKS[k]) for k, (s_, lab) in
+                   enumerate(specs)]
+        for spec, lab, colour, mk in series:
+            pts = []
+            for bn in benches:
+                c = cells13[bn].get(spec)
+                if not c:
+                    continue
+                ideal = num(c["ideal_depth"])
+                pts.append((supply_bound(c, tq[bn]) / ideal, num(c["steps"]) / ideal))
+            hollow = spec in BASE_COLOUR  # the baseline on top, hollow: 2D-Cult hides Dedicated
+            ax.scatter([q[0] for q in pts], [q[1] for q in pts], s=26 if hollow else 16,
+                       marker="o" if hollow else mk, facecolor="none" if hollow else colour,
+                       edgecolor=colour if hollow else INK, linewidth=1.0 if hollow else 0.3,
+                       zorder=4 if hollow else 3, label=lab)
         for axis in (ax.xaxis, ax.yaxis):
             axis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
             axis.set_minor_formatter(mticker.NullFormatter())
@@ -165,18 +173,29 @@ def roofline(cells13, benches, tq, path):
         ax.yaxis.set_major_locator(mticker.FixedLocator([1, 2, 5, 10, 20]))
         ax.grid(True, which="major", color=GRID, lw=0.5)
         ax.set_axisbelow(True)
-        ax.set_ylabel("Timesteps / ideal")
-        ax.text(0.0, 1.03, tag.split(":")[0] + ":" + tag.split(":")[1].split("/")[0].rstrip()
-                .replace(" Planar-2D", " Planar-2D and HBMS").replace(" 2D-Cult",
-                                                                       " 2D-Cult and HBMS"),
-                transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+        ax.set_ylabel("Timesteps / ideal depth")
+        ax.text(0.0, 1.03, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+        # the two bounds, named on the plot
+        ax.text(7, 1.07, "ideal depth", fontsize=8, ha="left", va="bottom", color=INK)
+        ang = _line_angle(ax, 12, 30)
+        ax.text(14, 14 / 1.25, "supply bound", fontsize=8, ha="center", va="top",
+                rotation=ang, rotation_mode="anchor", color=INK)  # below the line: no markers
+        ax.text(38, 2.4, "below both bounds:\nunreachable", fontsize=8, ha="right",
+                va="bottom", color=MUTED)
         ax.legend(loc="upper left", fontsize=8, ncol=2, handletextpad=0.2, columnspacing=0.6,
-                  labelspacing=0.2, borderaxespad=0.3)
+                  labelspacing=0.2, borderaxespad=0.3, frameon=False)
+    axes[0].annotate("above both bounds:\ntime on paths\nto the ring", xy=(1.3, 1.85),
+                     xytext=(0.33, 3.3), fontsize=8, ha="left", va="center", color=INK,
+                     arrowprops=dict(arrowstyle="->", color=INK, lw=0.7))
+    axes[1].annotate("", xy=(1.0, 3.3), xytext=(9, 30),  # parallel to the bound, above it
+                     arrowprops=dict(arrowstyle="->", color=INK, lw=0.8))
+    axes[1].text(0.33, 5.5, "more patches\nper data slot", fontsize=8, ha="left", va="center",
+                 color=INK)
     axes[-1].set_xlabel("Magic-state supply bound / ideal depth")
     save(fig, path)
     return ("Timesteps against the magic-state supply bound, both over the ideal depth, one "
             "marker per circuit and configuration: (a) with factories, (b) with cultivation "
-            "patches. Dashed: the supply bound. Dotted: the ideal depth.")
+            "patches. No run can fall below both lines.")
 
 
 # ---------------------------------------------------------------- error budget
