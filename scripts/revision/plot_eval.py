@@ -1,6 +1,7 @@
 """Evaluation figures for the Lower-First paper (ISCA 2027), from analyze.py's CSV.
 
   python plot_eval.py rev_all.csv [--out figures/revision] [--fmt pdf,png] [--pprime 1]
+                     [--exclude BENCH ...]
 
 Every run is moved to its own code distance first (fit_d.refit, vertical links at p' = m p).
 Configurations (mati's Lower-First specs):
@@ -189,7 +190,12 @@ def split_points(ax, cells, benches, base, spec, color, marker, tol, place, lege
         else:  # compact: "Heis-25, -49*, -64*"
             out, last = [], None
             for p in sorted(g, key=lambda p: circuit(p[2])):
-                fam, rest = label(p[2], cells[p[2]]).split("-", 1)
+                lab = label(p[2], cells[p[2]])
+                if "-" not in lab:  # a molecule (H2, LiH*): its name alone
+                    out.append(lab)
+                    last = None
+                    continue
+                fam, rest = lab.split("-", 1)
                 out.append(f"-{rest}" if fam == last else f"{fam}-{rest}")
                 last = fam
             text = ", ".join(out)
@@ -365,7 +371,8 @@ def sources_table(cells, benches, path):
     names = [label(b, cells[b]) for b in benches] + ["GMean"]
     n = len(benches)
     edges = np.r_[np.arange(n + 1), n + 0.3, n + 1.3]  # GMean row set apart
-    fig, axes = plt.subplots(1, 2, figsize=(COL, 3.0), sharey=True,
+    height = 3.0 * (n + 2.3) / 13.3  # 3.0 in for the 11 real circuits, the same row pitch beyond
+    fig, axes = plt.subplots(1, 2, figsize=(COL, height), sharey=True,
                              gridspec_kw=dict(width_ratios=[len(b[1]) for b in blocks],
                                               wspace=0.08))
     for ax, (base, specs, hue, tag) in zip(axes, blocks):
@@ -380,10 +387,11 @@ def sources_table(cells, benches, path):
                       linewidth=0.8)
         for i, row in enumerate(vals):
             y = (edges[i] + edges[i + 1]) / 2 if i < n else (edges[n + 1] + edges[n + 2]) / 2
-            best = np.nanargmax(row)
-            for j, v in enumerate(row):
-                ax.text(j + 0.5, y, f"{v:.2f}", ha="center", va="center", fontsize=8,
-                        color=INK, fontweight="bold" if j == best else "normal")
+            best = np.nanargmax(row) if np.isfinite(row).any() else -1
+            for j, v in enumerate(row):  # a missing run (no source on a small grid) as a dash
+                ax.text(j + 0.5, y, f"{v:.2f}" if np.isfinite(v) else "\u2013", ha="center",
+                        va="center", fontsize=8, color=MUTED if not np.isfinite(v) else INK,
+                        fontweight="bold" if j == best else "normal")
         ax.axhline(n + 0.15, color=INK, lw=0.6)
         ax.set_xticks(np.arange(len(specs)) + 0.5, [lab for _, lab in specs], rotation=45,
                       ha="right", rotation_mode="anchor")
@@ -405,7 +413,13 @@ def sources_table(cells, benches, path):
             "Dedicated to Full, all with cultivation patches. Cells shade towards the HBMS "
             "colour above 1, where HBMS has the lower STV, and towards the baseline's colour "
             "below 1, each panel on its own logarithmic scale. Bold: the HBMS configuration with the lowest STV on the circuit, within "
-            "each panel. " + D_NOTE + STAR)
+            "each panel. " + D_NOTE + (MISSING if np.isnan(
+                [ratios(cells, benches, b, s) for b, sp in (FACT, CULT) for s, _ in sp]).any()
+                else "") + STAR)
+
+
+MISSING = (" Dash: no run, the grid too small for one magic-state source at that sharing "
+           "ratio; GMean is over the circuits that have one.")
 
 
 def split_size(cells, benches, path):
@@ -461,8 +475,11 @@ def main():
                                                   "figures", "revision"))
     ap.add_argument("--fmt", default="pdf,png")
     ap.add_argument("--pprime", type=float, default=1, help="vertical links at p' = m p")
+    ap.add_argument("--exclude", nargs="+", default=[], metavar="BENCH",
+                    help="circuits to leave out (e.g. h2o, whose 2D-Cult run timed out)")
     args = ap.parse_args()
     cells, benches = load(args.csv, fit=args.pprime)
+    benches = [b for b in benches if b not in args.exclude]
     os.makedirs(args.out, exist_ok=True)
     paths = lambda n: [os.path.join(args.out, f"{n}.{f}") for f in args.fmt.split(",")]  # noqa
     with open(os.path.join(args.out, "eval_captions.md"), "w") as f:

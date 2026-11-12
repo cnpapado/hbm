@@ -94,10 +94,26 @@ def name(spec):
     return fam + share if fam == "2D-Cult" else (f"{fam}-{share}" if share else fam)
 
 
+# The Hamiltonian-simulation set (benchmarks_real/hamiltonians_eps1e-2): molecules by name and
+# their qubit count, families whose name does not simply capitalize.
+MOLECULES = {"h2": ("H2", 4), "lih": ("LiH", 12), "h2o": ("H2O", 14)}
+FAMILY = {"heisxyz": "HeisXYZ", "sk": "SK"}
+# Row order: the paper's Ising and Heisenberg circuits, then the Hamiltonian-simulation set.
+ORDER = ["Ising", "Heisenberg", "HeisXYZ", "Chain", "SK", "Surface", "Molecule"]
+
+
 def circuit(bench):
-    """'ising_n10' -> ('Ising', 10); 'heisenberg_qedc_n16' -> ('Heisenberg', 16)."""
+    """(family, qubits): 'ising_n10' -> ('Ising', 10); 'heisenberg_qedc_n16' -> ('Heisenberg',
+    16); 'surface_d5' -> ('Surface', 25); 'lih' -> ('Molecule', 12)."""
+    if bench in MOLECULES:
+        return ("Molecule", MOLECULES[bench][1])
     m = re.match(r"([a-z]+)\D*?(\d+)$", bench)
-    return (m.group(1).capitalize(), int(m.group(2))) if m else (bench, 0)
+    if not m:
+        return (bench, 0)
+    fam, n = m.group(1), int(m.group(2))
+    if fam == "surface":  # surface_d<d>: a distance-d surface-code patch, d^2 qubits
+        n = n * n
+    return (FAMILY.get(fam, fam.capitalize()), n)
 
 
 def read_rows(path, fit=None, grades=None):
@@ -115,7 +131,8 @@ def to_cells(rows):
         c = cell(rows)
         if isinstance(c, dict):
             cells[bench][spec] = c
-    benches = sorted(cells, key=lambda b: (circuit(b)[0] != "Ising", circuit(b)))
+    benches = sorted(cells, key=lambda b: (ORDER.index(circuit(b)[0]) if circuit(b)[0] in ORDER
+                                            else len(ORDER), circuit(b)))
     return cells, benches
 
 
@@ -147,6 +164,8 @@ def grade(cs):
 def label(bench, cs=None):
     fam, n = circuit(bench)
     star = "*" if cs is not None and grade(cs) == 360 else ""
+    if bench in MOLECULES:
+        return MOLECULES[bench][0] + star
     return f"{'Heis' if fam == 'Heisenberg' else fam}-{n}{star}"
 
 
