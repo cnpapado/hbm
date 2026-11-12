@@ -32,8 +32,8 @@ import matplotlib.ticker as mticker
 import numpy as np
 from matplotlib.lines import Line2D
 
-from plot_results import (COL, FILL, FULL, GRID, INK, MUTED, STAR, circuit, gmean, label,
-                          load, num, plain_log, plt, shade)
+from plot_results import (COL, FILL, FULL, GRID, INK, MUTED, STAR, _lstar, circuit, gmean,
+                          label, load, num, plain_log, plt, ramp, shade)
 
 FACT = ("D0-alt", [("D3-k1-fact", "Dedicated"), ("D3-s2-fact-bottom", "Shared-2"),
                    ("D3-s4-fact-bottom", "Shared-4"), ("D3-s8-fact-bottom", "Shared-8")])
@@ -61,25 +61,7 @@ def per_slot(cells, benches, spec, base):
     return f"{np.mean(v):.1f}".rstrip("0").rstrip(".")
 
 
-RAMP = {"HBM": (0.0, 0.75), "HBM-Cult": (0.0, 0.7)}  # from the paper colour (k = 0) to a light tint
 HATCHES = (None, "//////", "\\\\\\\\\\\\", "xxxx")  # the same order in both panels, for grayscale prints
-
-
-def _lstar(rgb):
-    """CIE L* (perceived lightness, 0-100) of an sRGB colour given as 0-1 floats."""
-    c = np.array(rgb, float)
-    c = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
-    y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
-    return 116 * y ** (1 / 3) - 16 if y > 0.008856 else 903.3 * y
-
-
-def ramp(fam, k, n):
-    """k-th of n bar fills for an HBMS family, from a darkened hue (k = 0) to a light tint."""
-    hex_color = FILL[fam]
-    dark, light = RAMP[fam]
-    rgb = np.array([int(hex_color[i:i + 2], 16) for i in (1, 3, 5)]) / 255
-    t = dark + (light - dark) * k / max(1, n - 1)
-    return tuple(rgb * (1 + t)) if t < 0 else tuple(rgb + (1 - rgb) * t)
 
 
 def eval_stv(cells, benches, path):

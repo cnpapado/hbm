@@ -725,6 +725,27 @@ def split(cells, benches, path, knob="k1", curve_label=(0.81, 1.25),
             f"share one label. All runs at {d_note(cells)}." + STAR)
 
 
+RAMP = {"HBM": (0.0, 0.75), "HBM-Cult": (0.0, 0.7)}  # from the paper colour (k = 0) to a light tint
+
+
+def _lstar(rgb):
+    """CIE L* (perceived lightness, 0-100) of an sRGB colour given as 0-1 floats."""
+    c = np.array(rgb, float)
+    c = np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    y = 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+    return 116 * y ** (1 / 3) - 16 if y > 0.008856 else 903.3 * y
+
+
+def ramp(fam, k, n):
+    """k-th of n bar fills for a kind of magic-state resource, from the paper colour (k = 0) to a
+    light tint (k = n - 1)."""
+    hex_color = FILL[fam]
+    dark, light = RAMP[fam]
+    rgb = np.array([int(hex_color[i:i + 2], 16) for i in (1, 3, 5)]) / 255
+    t = dark + (light - dark) * k / max(1, n - 1)
+    return tuple(rgb * (1 + t)) if t < 0 else tuple(rgb + (1 - rgb) * t)
+
+
 PLANE = [("D0-alt", "HBM"), ("D2-wide", "HBM-Cult")]  # baseline spec, colour of its kind
 
 
@@ -741,7 +762,7 @@ def plane_cost(cells, benches, path):
                                                   "(b) Cultivation: 2D-Cult")):
         ratio = [num(cells[b][spec]["steps"]) / num(cells[b][spec]["ideal_depth"])
                  if spec in cells[b] else math.nan for b in benches]
-        ax.bar(x, ratio, width=0.6, color=FILL[fam], edgecolor=INK, linewidth=0.3)
+        ax.bar(x, ratio, width=0.6, color=ramp(fam, 3, 4), edgecolor=INK, linewidth=0.3)  # as eval_split's qubit bars
         ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
         ax.set_ylim(0, top)
         ax.yaxis.set_major_locator(mticker.MultipleLocator(step))
