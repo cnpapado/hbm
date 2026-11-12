@@ -1,0 +1,13 @@
+updated 2026-11-12 11:24:04 on login-1, code at 4919c907
+177 runs in rev.csv: {'ok': 176, 'timeout': 1}
+  D0-alt        ok 18
+  D2-wide       ok 17  timeout 1
+  D3-ancilla-bottom ok 18
+  D3-full-bottom ok 18
+  D3-k1         ok 18
+  D3-k1-fact    ok 18
+  D3-rows-bottom ok 18
+  D3-s2-fact-bottom ok 18
+  D3-s4-fact-bottom ok 18
+  D3-s8-fact-bottom ok 15
+Slurm: 0 tasks running, 0 pending
