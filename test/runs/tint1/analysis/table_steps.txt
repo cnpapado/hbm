@@ -1,0 +1,27 @@
+steps per circuit and configuration (P1, P1c, P2: baseline STV / best HBM STV, > 1: HBM wins)
+
+       circuit  2D-Cult-k1  Planar-2D  HBM-Ded  HBMc-Ded  HBM-S2-bot  HBM-S4-bot  HBM-S8-bot  HBMc-Rows-bot  HBMc-Anc-bot  HBMc-Full-bot     P1   P1c    P2    best HBM      best HBMc
+bench_n100_p10          92         87       84        89          89          86          89             86            86             85   1.29  1.23  1.80  HBM-S8-bot       HBMc-Ded
+bench_n144_p10          79         79       73        74          74          76          74             75            72             70   1.26  1.27  1.69  HBM-S8-bot       HBMc-Ded
+bench_n225_p10          67         65       60        63          62          61          61             61            60             62   1.35  1.27  1.56  HBM-S8-bot       HBMc-Ded
+bench_n256_p10          64         63       59        58          59          60          59             58            59             59   1.28  1.31  1.46  HBM-S8-bot       HBMc-Ded
+bench_n289_p10          61         59       56        56          58          56          58             56            56             55   1.25  1.30  1.36  HBM-S8-bot       HBMc-Ded
+bench_n361_p10          57         53       53        55          51          54          52             55            54             53   1.33  1.23  1.33  HBM-S8-bot       HBMc-Ded
+bench_n400_p10          58         52       50        54          53          50          53             54            51             53   1.29  1.28  1.22  HBM-S8-bot       HBMc-Ded
+bench_n100_p50         199        122       95       197         103         112         138            102           101            100   1.79  1.85  1.63  HBM-S8-bot  HBMc-Rows-bot
+bench_n144_p50         135        100       79       136          87          87         102             82            82             80   1.57  1.56  1.55  HBM-S8-bot  HBMc-Rows-bot
+bench_n225_p50          85         84       62        85          67          71          82             65            65             65   1.27  1.24  1.50  HBM-S8-bot  HBMc-Rows-bot
+bench_n256_p50          83         80       60        83          66          65          72             63            62             60   1.36  1.25  1.52  HBM-S8-bot  HBMc-Rows-bot
+bench_n289_p50          76         76       55        76          63          63          69             60            58             55   1.30  1.20  1.47  HBM-S8-bot  HBMc-Rows-bot
+bench_n361_p50          78         70       55        72          61          61          65             56            54             54   1.46  1.32  1.41  HBM-S8-bot  HBMc-Rows-bot
+bench_n400_p50          66         68       53        66          57          57          61             54            53             49   1.28  1.19  1.39  HBM-S8-bot       HBMc-Ded
+bench_n100_p90       4,265        347      206     4,265         273         408         993          1,511           843            669  10.85  4.20  1.30  HBM-S2-bot  HBMc-Full-bot
+bench_n144_p90       3,149        289      147     3,149         197         295         561          1,089           598            484  11.04  4.30  1.35  HBM-S2-bot  HBMc-Full-bot
+bench_n225_p90       2,014        237      103     2,014         135         203         421            711           390            316   9.92  4.22  1.39  HBM-S2-bot  HBMc-Full-bot
+bench_n256_p90       1,748        221       90     1,748         123         171         319            616           340            284   9.76  4.08  1.42  HBM-S4-bot  HBMc-Full-bot
+bench_n289_p90       1,688        213       81     1,688         115         158         281            536           305            249  10.21  4.50  1.44  HBM-S4-bot  HBMc-Full-bot
+bench_n361_p90       1,369        191       79     1,369          92         133         261            444           254            200   9.90  4.55  1.48  HBM-S2-bot  HBMc-Full-bot
+bench_n400_p90       1,374        188       69     1,374          88         119         207            410           223            188  11.00  4.86  1.58  HBM-S4-bot  HBMc-Full-bot
+
+finished and feasible: 2D-Cult-k1 21, Planar-2D 21, HBM-Ded 21, HBMc-Ded 21, HBM-S2-bot 21, HBM-S4-bot 21, HBM-S8-bot 21, HBMc-Rows-bot 21, HBMc-Anc-bot 21, HBMc-Full-bot 21  (of 21 circuits with any result)
+-> runs/tint1/analysis/table_steps.csv

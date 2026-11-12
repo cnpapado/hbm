@@ -1,0 +1,13 @@
+updated 2026-11-12 12:34:03 on quser41, code at 07985fb4
+210 runs in rev.csv: {'ok': 210}
+  D0-alt        ok 21
+  D2-wide       ok 21
+  D3-ancilla-bottom ok 21
+  D3-full-bottom ok 21
+  D3-k1         ok 21
+  D3-k1-fact    ok 21
+  D3-rows-bottom ok 21
+  D3-s2-fact-bottom ok 21
+  D3-s4-fact-bottom ok 21
+  D3-s8-fact-bottom ok 21
+Slurm: 0 tasks running, 0 pending
