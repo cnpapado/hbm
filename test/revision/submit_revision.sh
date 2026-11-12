@@ -32,6 +32,13 @@
 #   ./submit_revision.sh tint-fact|tint-cult  [--dry-run]   the tint set with only the factory
 #                                            (105 jobs) or only the cultivation (105 jobs)
 #                                            configurations; same REV_DIR and TIME for both halves
+#   ./submit_revision.sh ham   [--dry-run]   Hamiltonian simulation (18 circuits: chain, heisxyz, sk,
+#                                            surface, H2/LiH/H2O), regenerated with
+#                                            scripts/hamiltonians/gen_trotter.py, Clifford+T at eps
+#                                            1e-2 (benchmarks_real/hamiltonians_eps1e-2/, 167-22k T),
+#                                            on the paper's 10 configurations (those of tint), 180
+#                                            jobs; Shared-8 has no source on the smallest circuits
+#                                            (h2, heisxyz_n5, surface_d3) and fails at start there
 #
 # REV_DIR=runs/<name> (relative to test/) puts the campaign's outputs, results, Slurm logs and
 # to-do lists in test/runs/<name>/{outs,results,logs,lists}, apart from everything else; a
@@ -123,6 +130,13 @@ if [ "$PHASE" = real ]; then
     ls benchmarks_real/ising_eps1e-2/ising_n{10,13,16,26,34,66}.qasm \
         benchmarks_real/heisenberg_eps1e-2/heisenberg_qedc_n{16,20,25,49,64}.qasm \
         > revision/lists/real.txt
+fi
+# ham: one Trotter step of the simulation_hamiltonians families, regenerated from scratch
+# (the suite's own circuits are 52k-8.9M T gates), Clifford+T at eps 1e-2
+if [ "$PHASE" = ham ]; then
+    ls benchmarks_real/hamiltonians_eps1e-2/*.qasm > revision/lists/ham.txt
+    [ "$(wc -l < revision/lists/ham.txt)" -eq 18 ] ||
+        echo "warning: expected 18 circuits in benchmarks_real/hamiltonians_eps1e-2/" >&2
 fi
 
 cult_error() {  # T error per state at R rounds (analyze.py --cult-grades)
@@ -216,13 +230,15 @@ case "$PHASE" in
     real)
         run_set revision/lists/real.txt
         ;;
-    probe|tint|tint-fact|tint-cult)  # the T-intensity configurations (CULT_SPECS / FACT_SPECS override)
+    probe|tint|tint-fact|tint-cult|ham)  # the paper's 10 configurations (CULT_SPECS / FACT_SPECS override)
         read -r -a CULT <<< "${CULT_SPECS:-D2-wide D3-k1 D3-rows-bottom D3-ancilla-bottom D3-full-bottom}"
         read -r -a FACT <<< "${FACT_SPECS:-D0-alt D3-k1-fact D3-s2-fact-bottom D3-s4-fact-bottom D3-s8-fact-bottom}"
         [ "$PHASE" = tint-fact ] && CULT=()  # factory configurations only (105 jobs)
         [ "$PHASE" = tint-cult ] && FACT=()  # cultivation configurations only (105 jobs)
         if [ "$PHASE" = probe ]; then
             run_set revision/lists/synth_probe.txt
+        elif [ "$PHASE" = ham ]; then
+            run_set revision/lists/ham.txt
         else
             run_set revision/lists/synth_large.txt
         fi
@@ -238,7 +254,7 @@ case "$PHASE" in
         done
         ;;
     *)
-        echo "usage: $0 mini|pilot|core|full|ising|real|probe|tint|tint-fact|tint-cult [--dry-run]" >&2
+        echo "usage: $0 mini|pilot|core|full|ising|real|probe|tint|tint-fact|tint-cult|ham [--dry-run]" >&2
         exit 1
         ;;
 esac

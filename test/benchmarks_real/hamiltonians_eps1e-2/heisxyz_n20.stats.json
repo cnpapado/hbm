@@ -1,0 +1,24 @@
+{
+  "input": "test/benchmarks_real/hamiltonians_rz/heisxyz_n20.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 133,
+  "num_rz_synthesized": 133,
+  "distinct_angles": 61,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 1,
+  "t_count": 1158,
+  "t_per_rotation_mean": 8.706766917293233,
+  "t_per_rotation_min": 0,
+  "t_per_rotation_max": 23,
+  "seconds": 10.3,
+  "ops": {
+    "h": 2474,
+    "t": 1158,
+    "s": 1023,
+    "sdg": 379,
+    "x": 252,
+    "cx": 114
+  }
+}

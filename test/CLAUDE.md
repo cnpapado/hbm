@@ -73,7 +73,7 @@ lives at `~/hbm` on the cluster and that a venv exists at `~/hbm/.venv`.
 ### Revision sweep (`revision/`)
 
 `revision/run_design.sh` (one benchmark x one `HBM_DESIGN` spec per array task),
-`revision/submit_revision.sh mini|pilot|core|full|ising|real|probe|tint [--dry-run]` (builds benchmark lists in
+`revision/submit_revision.sh mini|pilot|core|full|ising|real|probe|tint|ham [--dry-run]` (builds benchmark lists in
 `revision/lists/`, submits only unfinished runs; `PART`/`TIME`/`MEM` set the request),
 `revision/common.sh` (run tag and finished-run check shared by both), `revision/plan_d0.py` (D0 factory counts that fit on the ring, per circuit), and `revision/smoke_test.sh` (non-Slurm end-to-end check), `revision/publish_results.sh` (analyze a campaign into `runs/<name>/analysis/`, commit that folder and push), and `revision/run_qre.sh` (PPM cross-check against the Microsoft resource estimator, inside an Apptainer container).
 Each campaign goes to `runs/<name>/{outs,results,logs,lists}` (`REV_DIR=runs/<name>`, required by
@@ -82,7 +82,13 @@ phase runs the 11 circuits of `benchmarks_real/` (Ising n10–n66 and QED-C Heis
 Trotter step, Clifford+T at ε = 10⁻²); `ising` only the Ising ones. Each phase runs 13 configurations
 (2D-Cult ×2, Planar-2D, HBM ×5 with factories, HBM-Cult ×5). `tint` runs the T-intensity set (the 21
 `benchmarks_bursty_cx` circuits with n ≥ 100) on the paper's 10 configurations, Lower-First where a T gate routes;
-`tint-fact` and `tint-cult` run only its factory or only its cultivation configurations; `probe` runs only its largest circuit (n400, p90) to size `TIME`. See `../REVISION.md`.
+`tint-fact` and `tint-cult` run only its factory or only its cultivation configurations; `probe` runs only its largest circuit (n400, p90) to size `TIME`.
+The `ham` phase runs the 18 Hamiltonian-simulation circuits in
+`benchmarks_real/hamiltonians_eps1e-2/` (167-22k T) on the same 10 configurations as `tint`: one Trotter step of the
+`simulation_hamiltonians` families, regenerated with `../scripts/hamiltonians/gen_trotter.py`
+(rz level in `benchmarks_real/hamiltonians_rz/`) and synthesized with `synth_ising.py --eps 1e-2 --merge`,
+because the suite's own circuits (52k-8.9M T) do not finish. Submit on Zaratan with
+`revision/submit_hamiltonians_zaratan.sh` (campaign `runs/hamiltonians-mm`). See `../REVISION.md`.
 
 ## Analysis scripts under `test/`
 

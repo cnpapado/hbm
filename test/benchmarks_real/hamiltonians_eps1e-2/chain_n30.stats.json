@@ -1,0 +1,24 @@
+{
+  "input": "test/benchmarks_real/hamiltonians_rz/chain_n30.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 118,
+  "num_rz_synthesized": 102,
+  "distinct_angles": 32,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 0,
+  "t_count": 1205,
+  "t_per_rotation_mean": 11.813725490196079,
+  "t_per_rotation_min": 0,
+  "t_per_rotation_max": 24,
+  "seconds": 5.3,
+  "ops": {
+    "h": 2571,
+    "t": 1205,
+    "s": 1001,
+    "sdg": 403,
+    "x": 252,
+    "cx": 112
+  }
+}

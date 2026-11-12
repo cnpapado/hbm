@@ -1,0 +1,24 @@
+{
+  "input": "test/benchmarks_real/hamiltonians_rz/h2o.qasm",
+  "eps_per_rotation": 0.01,
+  "merge": true,
+  "num_rz_raw": 4277,
+  "num_rz_synthesized": 3475,
+  "distinct_angles": 336,
+  "drop_small_angles": false,
+  "generic_t_per_rotation": 19,
+  "num_small_angle_standins": 263,
+  "t_count": 22152,
+  "t_per_rotation_mean": 6.374676258992806,
+  "t_per_rotation_min": 0,
+  "t_per_rotation_max": 24,
+  "seconds": 41.4,
+  "ops": {
+    "h": 55639,
+    "s": 23496,
+    "t": 22152,
+    "cx": 13158,
+    "sdg": 7373,
+    "x": 5768
+  }
+}
