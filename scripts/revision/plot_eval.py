@@ -470,6 +470,55 @@ def tint_table(cells, benches, path):
             "patches. Bold: best configuration per row and panel.")
 
 
+def tint_bars(cells, benches, path):
+    """One column, two panels side by side (factories, cultivation): the STV ratio (baseline /
+    HBMS) on the synthetic circuits per T fraction, one bar per HBMS configuration at the
+    geometric mean over the sizes, whiskers over the sizes. Colours and hatches as eval_stv."""
+    frac = lambda b: b.rsplit("_p", 1)[1]  # noqa: E731
+    rows = [t for t in TINT if any(frac(b) == t for b in benches)]
+    panels = [(FACT, "HBM", (2.5, 0.5), "(a) Factories:\nPlanar-2D / HBMS"),
+              (CULT, "HBM-Cult", (7, 1), "(b) Cultivation:\n2D-Cult / HBMS")]
+    fig, axes = plt.subplots(1, 2, figsize=(COL, 1.95), gridspec_kw=dict(wspace=0.32))
+    x = np.arange(len(rows))
+    for ax, ((base, specs), color, (top, step), tag) in zip(axes, panels):
+        n = len(specs)
+        w = 0.84 / n
+        for k, (spec, lab) in enumerate(specs):
+            per = [ratios(cells, [b for b in benches if frac(b) == t], base, spec) for t in rows]
+            mid = np.array([gmean(r) for r in per])
+            lo = mid - np.array([np.nanmin(r) for r in per])
+            hi = np.array([np.nanmax(r) for r in per]) - mid
+            fill = ramp(color, k, n)
+            xs = x - 0.42 + w * (k + 0.5)
+            ax.bar(xs, mid, width=w, color=fill, edgecolor=INK, linewidth=0.3,
+                   hatch=HATCHES[k], label=lab,
+                   hatchcolor="white" if _lstar(fill) < 55 else INK)
+            ax.errorbar(xs, mid, yerr=[lo, hi], fmt="none", ecolor=INK, elinewidth=0.6,
+                        capsize=1.2, capthick=0.6)
+        ax.axhline(1, color=INK, lw=0.7, ls="--", zorder=3)
+        ax.set_ylim(0, top)
+        ax.yaxis.set_major_locator(mticker.MultipleLocator(step))
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
+        ax.grid(True, axis="y", color=GRID, lw=0.5)
+        ax.set_axisbelow(True)
+        ax.set_xticks(x, [f"{t}%" for t in rows])
+        ax.tick_params(axis="x", length=0)
+        ax.set_xlabel("T fraction")
+        ax.text(0.0, 1.04, tag, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+        h, l = ax.get_legend_handles_labels()
+        order = [0, 2, 1, 3] if len(h) == 4 else range(len(h))  # read row by row
+        ax.legend([h[i] for i in order], [l[i] for i in order], loc="upper left", ncol=2,
+                  handlelength=0.9, columnspacing=0.5, handletextpad=0.25, borderaxespad=0.15,
+                  borderpad=0.2, frameon=False)
+    axes[0].set_ylabel("STV ratio")
+    for p in ([path] if isinstance(path, str) else path):
+        fig.savefig(p)
+    plt.close(fig)
+    return ("STV of the planar baseline over that of HBMS on the synthetic circuits, geometric "
+            "mean over the seven sizes, per T fraction: (a) with factories, (b) with cultivation "
+            "patches. Whiskers: range over the sizes. Above 1 favours HBMS.")
+
+
 def split_size(cells, benches, path):
     """One column, two panels (Dedicated, Shared-2, both with factories): qubit, rounds and STV
     ratios (Planar-2D / HBMS) against the grid's data slots N, one marker per circuit and a
@@ -537,9 +586,10 @@ def main():
         figs = [("eval_stv", eval_stv), ("eval_split", eval_split), ("split", split),
                 ("split_s2", split_s2), ("sources_fact", sources_fact),
                 ("sources_cult", sources_cult), ("sources_table", sources_table),
-                ("split_size", split_size), ("tint_table", tint_table)]
+                ("split_size", split_size), ("tint_table", tint_table),
+                ("tint_bars", tint_bars)]
         for name, fn in figs:
-            if (args.only and name not in args.only) or (not args.only and name == "tint_table"):
+            if (args.only and name not in args.only) or (not args.only and name.startswith("tint_")):
                 continue
             f.write(f"**{name}.pdf.** {fn(cells, benches, paths(name))}\n\n")
     print("wrote", os.path.normpath(args.out))
