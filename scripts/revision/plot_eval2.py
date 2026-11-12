@@ -310,6 +310,82 @@ def tornado(rev, rm1, path):
     return rows
 
 
+# ---------------------------------------------------------------- RQ4 map
+
+MAP_P = (1e-3, 1.5e-3, 2e-3)  # in-plane error rates with seam data for every p'/p
+MAP_PAIRS = [("D0-alt", "D3-k1-fact", "Factories, Dedicated", "HBM"),
+             ("D0-alt", "D3-s2-fact-bottom", "Factories, Shared-2", "HBM"),
+             ("D2-wide", "D3-full-bottom", "Cultivation, Full (grade fixed)", "HBM-Cult")]
+
+
+def ratio_fit_at(u, ms, p, ds=(5, 7, 9, 11)):
+    """r_m(d) at in-plane error p: the seam fit of log P against (d + 1) / 2 relative to m = 1."""
+    ab = {}
+    for m in ms:
+        pts = [((d + 1) / 2, math.log(u[("seam", float(m), d, p)][0])) for d in ds]
+        ab[m] = seam_merge.fit_line(pts)
+    return {m: (lambda d, m=m: math.exp(ab[m][0] - ab[1][0] + (ab[m][1] - ab[1][1]) * (d + 1) / 2))
+            for m in ms}
+
+
+def map_ratio(rev, rm, p, base, spec):
+    """Geometric-mean STV ratio with every run at its own d at in-plane error p. Factory output
+    error scales as 35 p^3, cultivation grades stay at their p = 1e-3 values."""
+    def dneed(r):
+        e_src = float(r["e_source"])
+        if r["source"] == "factory":
+            e_src *= (p / ps.P) ** 3
+        if e_src > TARGET:
+            return ""
+        for d in range(3, 301, 2):
+            t = eq3_terms(r, rm, d, p=p)
+            if t["idle"] + t["route"] + t["vert"] + e_src <= TARGET:
+                return str(d)
+        return ""
+    rows = [dict(r, d_need_1p=dneed(r)) for r in rev if r["spec"] in (base, spec)]
+    cells, benches = to_cells(refit(rows, 1))
+    v = ratios(cells, benches, base, spec)
+    return gmean(v[~np.isnan(v)]) if np.any(~np.isnan(v)) else float("nan")
+
+
+def rq4_map(rev, u, path):
+    from matplotlib.colors import LinearSegmentedColormap, Normalize
+    grid = {}
+    for p in MAP_P:
+        rms = ratio_fit_at(u, ps.MS_STV, p)
+        for base, spec, lab, fam in MAP_PAIRS:
+            grid[(lab, p)] = [map_ratio(rev, rms[m], p, base, spec) for m in ps.MS_STV]
+    print("RQ4 map (rows p, columns p'/p):")
+    for base, spec, lab, fam in MAP_PAIRS:
+        for p in MAP_P:
+            print(f"  {lab:32s} p={p:.1e} " + " ".join(f"{v:5.2f}" for v in grid[(lab, p)]))
+    fig, axes = plt.subplots(len(MAP_PAIRS), 1, figsize=(COL, 3.4), sharex=True,
+                             gridspec_kw=dict(hspace=0.55))
+    for ax, (base, spec, lab, fam) in zip(axes, MAP_PAIRS):
+        vals = np.array([grid[(lab, p)] for p in MAP_P])
+        cmap = LinearSegmentedColormap.from_list(
+            "c", [(0.55, 0.55, 0.55), (1, 1, 1), FILL[fam]])  # gray below 1, kind colour above
+        span = math.log(8)
+        ax.pcolormesh(np.arange(len(ps.MS_STV) + 1), np.arange(len(MAP_P) + 1),
+                      np.log(vals), cmap=cmap, norm=Normalize(-span, span), edgecolors="white",
+                      linewidth=0.8)
+        for i in range(len(MAP_P)):
+            for j in range(len(ps.MS_STV)):
+                v = vals[i, j]
+                ax.text(j + 0.5, i + 0.5, f"{v:.2f}", ha="center", va="center", fontsize=8,
+                        color=INK, fontweight="bold" if v >= 1 else "normal")
+        ax.set_yticks(np.arange(len(MAP_P)) + 0.5, [f"{p * 1e3:g}" for p in MAP_P])
+        ax.set_ylabel("$p$ ($10^{-3}$)")
+        ax.tick_params(length=0)
+        for side in ax.spines.values():
+            side.set_visible(False)
+        ax.text(0.0, 1.04, lab, transform=ax.transAxes, fontsize=8, va="bottom", ha="left")
+    axes[-1].set_xticks(np.arange(len(ps.MS_STV)) + 0.5, [f"{m:g}" for m in ps.MS_STV])
+    axes[-1].set_xlabel("Coupling error $p'/p$")
+    save(fig, path)
+    return grid
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -319,7 +395,8 @@ def main():
     ap.add_argument("--out", default=os.path.join(os.path.dirname(__file__), "..", "..",
                                                   "figures", "revision"))
     ap.add_argument("--fmt", default="pdf,png")
-    ap.add_argument("--only", nargs="+", default=["tradeoff", "roofline", "budget", "tornado"])
+    ap.add_argument("--only", nargs="+",
+                    default=["tradeoff", "roofline", "budget", "tornado", "rq4map"])
     args = ap.parse_args()
     out = lambda n: [os.path.join(args.out, f"{n}.{f}") for f in args.fmt.split(",")]  # noqa
     os.makedirs(args.out, exist_ok=True)
@@ -337,6 +414,8 @@ def main():
         budget(rev, rms, out("budget"))
     if "tornado" in args.only:
         tornado(rev, rms[1], out("tornado"))
+    if "rq4map" in args.only:
+        rq4_map(rev, u, out("rq4map"))
     print("wrote", os.path.normpath(args.out))
 
 
