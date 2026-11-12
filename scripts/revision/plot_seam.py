@@ -211,52 +211,55 @@ M_STYLE = {1: ("#B0B0B0", "o"), 5: ("#8C8C8C", "s"), 10: ("#6A6A6A", "^"),  # p'
            20: ("#484848", "D"), 50: ("#262626", "v"), 100: ("#000000", "P")}
 
 
-def seam_column(u, fits, ratios, be, path, m=10):
-    """One column, two panels. (a) Merge error against p at p' = m p: simulation, the fit
-    A (p / p_th)^((d + 1) / 2) over d = 3..11, dashed below the simulated p, the d = 13 check,
-    and the fitted thresholds at p' = m p (black) and p' = p (gray). (b) The geometric-mean STV
-    ratio against p'/p, with its crossings of 1."""
+M_GRAY = {1: "#A8A8A8", 5: "#5E5E5E", 10: "#000000"}  # p'/p: darker is noisier
+D_MARK = {3: "o", 7: "^", 11: "v"}  # the distances drawn in panel (a)
+
+
+def seam_column(u, fits, ratios, be, path):
+    """One column, two panels. (a) Merge error against p for p' = p, 5p and 10p at d = 3, 7, 11:
+    simulation, the fit A (p / p_th)^((d + 1) / 2) of each p' over d = 3..11 (dashed below the
+    simulated p), and each p's fitted threshold. (b) The geometric-mean STV ratio against p'/p,
+    with its crossings of 1."""
     fig, axes = plt.subplots(2, 1, figsize=(COL, 3.7), gridspec_kw=dict(hspace=0.5))
     ax = axes[0]
-    a, pth = fits[("seam", float(m))]
-    pth1 = fits[("seam", 1.0)][1]
     lo = np.logspace(-4, -3, 20)  # the fit below the simulated p: a prediction
-    hi = np.logspace(-3, math.log10(pth), 30)
-    for d in sorted({k[2] for k in u}):
-        pts = sorted((q, v) for (md, mm, dd, q), v in u.items()
-                     if md == "seam" and mm == m and dd == d and v[0] > 0)
-        if not pts:
-            continue
-        color, mk = D_STYLE[d]
-        check = d == CHECK_D
-        y = np.array([v[0] for _, v in pts])
-        e = np.array([v[1] for _, v in pts])
-        ax.errorbar([q for q, _ in pts], y, yerr=[np.minimum(e, y * 0.9), e], fmt=mk, ms=3.2,
-                    mfc="white", mec=color, mew=0.9, ecolor=color, elinewidth=0.6, capsize=0,
-                    zorder=3, label=f"$d = {d}$" + (" (check)" if check else ""))
-        law = lambda q: a * (q / pth) ** ((d + 1) / 2)  # noqa: E731
-        ax.plot(hi, law(hi), color=color, lw=1.0, ls="--" if check else "-", zorder=2)
-        ax.plot(lo, law(lo), color=color, lw=0.8, ls="--", zorder=2)
-    for t, c, lab in ((pth, INK, f"$p_{{th}}$, ${m}p$"), (pth1, "#9A9A9A", "$p_{th}$, $p$")):
-        ax.axvline(t, ymin=0.58, color=c, lw=0.8, ls=":", zorder=1, label=lab)  # above the legend
+    for m in MS:
+        a, pth = fits[("seam", float(m))]
+        hi = np.logspace(-3, math.log10(pth), 30)
+        color = M_GRAY[m]
+        for d, mk in D_MARK.items():
+            pts = sorted((q, v) for (md, mm, dd, q), v in u.items()
+                         if md == "seam" and mm == m and dd == d and v[0] > 0)
+            y = np.array([v[0] for _, v in pts])
+            e = np.array([v[1] for _, v in pts])
+            ax.errorbar([q for q, _ in pts], y, yerr=[np.minimum(e, y * 0.9), e], fmt=mk,
+                        ms=3.0, mfc="white", mec=color, mew=0.8, ecolor=color, elinewidth=0.5,
+                        capsize=0, zorder=3)
+            law = lambda q: a * (q / pth) ** ((d + 1) / 2)  # noqa: E731
+            ax.plot(hi, law(hi), color=color, lw=1.0, zorder=2)
+            ax.plot(lo, law(lo), color=color, lw=0.8, ls="--", zorder=2)
+        ax.axvline(pth, ymin=0.58, color=color, lw=0.8, ls=":", zorder=1)
+    handles = [plt.Line2D([], [], color=M_GRAY[m], lw=1.2, label=f"$p' = {m if m > 1 else ''}p$")
+               for m in MS]
+    handles.append(plt.Line2D([], [], color=INK, lw=0.8, ls=":", label="threshold"))
+    for d, mk in D_MARK.items():  # the distances, with the error at 10p over p at p = 1e-3
+        pen = u[("seam", float(MS[-1]), d, P)][0] / u[("seam", 1.0, d, P)][0]
+        handles.append(plt.Line2D([], [], ls="", marker=mk, ms=3.6, mfc="white", mec=INK,
+                                  mew=0.8, label=f"$d = {d}$ ($\\times${pen:.1f})"))
     ax.set_xscale("log")
     ax.set_yscale("log")
-    ax.set_xlim(1e-4, 1.6e-2)
-    ax.set_ylim(1e-12, 1)
-    ax.yaxis.set_major_locator(mticker.FixedLocator([1e-12, 1e-9, 1e-6, 1e-3, 1]))
+    ax.set_xlim(6e-4, 1.6e-2)
+    ax.set_ylim(1e-10, 1)
+    ax.yaxis.set_major_locator(mticker.FixedLocator([1e-10, 1e-8, 1e-6, 1e-4, 1e-2, 1]))
     ax.yaxis.set_minor_locator(mticker.NullLocator())
     ax.grid(True, which="major", color=GRID, lw=0.5)
     ax.set_axisbelow(True)
     ax.set_xlabel("Physical error rate $p$")
     ax.set_ylabel("Error per merge")
-    ax.text(0.0, 1.03, f"(a) Coupling error $p' = {m}p$", transform=ax.transAxes, fontsize=8,
-            va="bottom", ha="left")
-    h, lab = ax.get_legend_handles_labels()
-    order = [lab.index(x) for x in lab if x.startswith("$d")] + \
-        [lab.index(x) for x in lab if x.startswith("$p_")]
-    ax.legend([h[i] for i in order], [lab[i] for i in order], loc="lower right", ncol=2,
-              fontsize=8, handletextpad=0.2, columnspacing=0.6, labelspacing=0.15,
-              borderaxespad=0.2, handlelength=1.1)
+    ax.text(0.0, 1.03, "(a) Coupling error $p' = p$, $5p$, $10p$", transform=ax.transAxes,
+            fontsize=8, va="bottom", ha="left")
+    ax.legend(handles=handles, loc="lower right", ncol=2, fontsize=8, handlelength=1.4,
+              handletextpad=0.3, labelspacing=0.2, columnspacing=0.8, borderaxespad=0.3)
     ax = axes[1]
     for (_, _, lab, color, mk) in PAIRS:
         ax.plot(MS_STV, ratios[lab], color=color, marker=mk, ms=4, lw=1.1, label=lab)
@@ -268,7 +271,7 @@ def seam_column(u, fits, ratios, be, path, m=10):
     ax.xaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:g}"))
     ax.xaxis.set_minor_locator(mticker.NullLocator())
     ax.set_xlim(0.8, 125)
-    ax.set_ylim(0, 6)
+    ax.set_ylim(0, 7)
     ax.yaxis.set_major_locator(mticker.MultipleLocator(1))
     ax.grid(True, axis="y", color=GRID, lw=0.5)
     ax.set_axisbelow(True)
@@ -282,12 +285,12 @@ def seam_column(u, fits, ratios, be, path, m=10):
         fig.savefig(p_)
     plt.close(fig)
     return ("(a) Logical error per lattice-surgery merge across a vertical coupling against "
-            "the physical error rate $p$, with error $p' = 10p$ on the $2d - 1$ cross-layer "
-            "CNOTs per round and $p$ everywhere else. Markers: simulation, with binomial error "
-            "bars. Solid lines: the fit $A\\,(p/p_{\\mathrm{th}})^{(d+1)/2}$ over $d = 3$ to 11. "
-            "Dashed: the fit below the simulated $p$, and its prediction for $d = 13$ (black "
-            "markers, not fitted). Dotted: the fitted threshold at $p' = 10p$ (black) and at "
-            "$p' = p$ (gray). "
+            "the physical error rate $p$, with error $p'$ on the $2d - 1$ cross-layer CNOTs per "
+            "round and $p$ everywhere else, for $p' = p$, $5p$ and $10p$ (light to dark) at "
+            "$d = 3$, 7 and 11. In parentheses: the error at $p' = 10p$ over that at $p' = p$, at "
+            "$p = 10^{-3}$. Markers: simulation, with binomial error bars. Solid lines: the "
+            "fit $A\\,(p/p_{\\mathrm{th}})^{(d+1)/2}$ of each $p'$ over $d = 3$ to 11. Dashed: "
+            "the fit below the simulated $p$. Dotted: the fitted thresholds. "
             "(b) STV of the planar baseline divided by that of HBMS, geometric mean over the "
             "circuits, against $p'/p$, every run at the smallest odd code distance that meets "
             "the program-error target with the merge error of (a). Triangles: where the ratio "
